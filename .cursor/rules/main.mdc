@@ -1,0 +1,21 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+This is using create-t3-app.
+
+The project is a job board for companies to post jobs and candidates to apply.
+
+The project is using Next.js, Shadcn UI, Tailwind CSS, and TypeScript.
+
+The project is using the following technologies:
+
+- Next.js https://nextjs.org/docs/getting-started/installation
+- Shadcn UI
+- Tailwind CSS
+- TypeScript
+- Drizzle ORM https://orm.drizzle.team/docs/overview
+- NextAuth https://next-auth.js.org/getting-started/introduction
+- tRPC
