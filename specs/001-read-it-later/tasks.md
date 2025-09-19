@@ -47,64 +47,64 @@
 
 ## Phase 3.1: Setup
 
-- [ ] T001 Create project structure per implementation plan
-- [ ] T002 Initialize Next.js project with T3 Stack dependencies
-- [ ] T003 [P] Configure linting and formatting tools
+- [x] T001 Create project structure per implementation plan
+- [x] T002 Initialize Next.js project with T3 Stack dependencies
+- [x] T003 [P] Configure linting and formatting tools
 
 ## Phase 3.2: Types First (Type-First Development) ⚠️ MUST COMPLETE BEFORE 3.3
 
 **CRITICAL: These type definitions MUST be written before ANY implementation**
 
-- [ ] T004 [P] Article type definitions in src/types/article.ts
-- [ ] T005 [P] Folder type definitions in src/types/folder.ts
-- [ ] T006 [P] Highlight and note type definitions in src/types/annotation.ts
-- [ ] T007 [P] API request/response types in src/types/api.ts
-- [ ] T008 [P] Zod validation schemas in src/schemas/article.ts
-- [ ] T009 [P] Zod validation schemas in src/schemas/folder.ts
-- [ ] T010 [P] Zod validation schemas in src/schemas/annotation.ts
+- [x] T004 [P] Article type definitions in src/types/article.ts
+- [x] T005 [P] Folder type definitions in src/types/folder.ts
+- [x] T006 [P] Highlight and note type definitions in src/types/annotation.ts
+- [x] T007 [P] API request/response types in src/types/api.ts
+- [x] T008 [P] Zod validation schemas in src/schemas/article.ts
+- [x] T009 [P] Zod validation schemas in src/schemas/folder.ts
+- [x] T010 [P] Zod validation schemas in src/schemas/annotation.ts
 
 ## Phase 3.3: Database Schema (ONLY after types are defined)
 
-- [ ] T011 [P] Article table schema in src/server/db/schema.ts
-- [ ] T012 [P] Folder table schema in src/server/db/schema.ts
-- [ ] T013 [P] Highlight table schema in src/server/db/schema.ts
-- [ ] T014 [P] Note table schema in src/server/db/schema.ts
-- [ ] T015 [P] Database relations in src/server/db/schema.ts
+- [x] T011 [P] Article table schema in src/server/db/schema.ts
+- [x] T012 [P] Folder table schema in src/server/db/schema.ts
+- [x] T013 [P] Highlight table schema in src/server/db/schema.ts
+- [x] T014 [P] Note table schema in src/server/db/schema.ts
+- [x] T015 [P] Database relations in src/server/db/schema.ts
 - [ ] T016 Run database migration with Drizzle
 
 ## Phase 3.4: tRPC API Implementation
 
-- [ ] T017 [P] Article router in src/server/api/routers/article.ts
-- [ ] T018 [P] Folder router in src/server/api/routers/folder.ts
-- [ ] T019 [P] Annotation router in src/server/api/routers/annotation.ts
-- [ ] T020 Update root router in src/server/api/root.ts
-- [ ] T021 [P] Article extraction service in src/server/services/articleExtractor.ts
-- [ ] T022 [P] Search service in src/server/services/searchService.ts
+- [x] T017 [P] Article router in src/server/api/routers/article.ts
+- [x] T018 [P] Folder router in src/server/api/routers/folder.ts
+- [x] T019 [P] Annotation router in src/server/api/routers/annotation.ts
+- [x] T020 Update root router in src/server/api/root.ts
+- [x] T021 [P] Article extraction service in src/server/services/articleExtractor.ts
+- [x] T022 [P] Search service in src/server/services/searchService.ts
 
 ## Phase 3.5: Mobile-First UI Components
 
-- [ ] T023 [P] Article list component in src/app/\_components/article-list.tsx
-- [ ] T024 [P] Article card component in src/app/\_components/article-card.tsx
-- [ ] T025 [P] Article reader component in src/app/\_components/article-reader.tsx
-- [ ] T026 [P] Folder sidebar component in src/app/\_components/folder-sidebar.tsx
-- [ ] T027 [P] Search bar component in src/app/\_components/search-bar.tsx
-- [ ] T028 [P] Add article form component in src/app/\_components/add-article-form.tsx
-- [ ] T029 [P] Highlight annotation component in src/app/\_components/highlight-annotation.tsx
+- [x] T023 [P] Article list component in src/app/\_components/article-list.tsx
+- [x] T024 [P] Article card component in src/app/\_components/article-card.tsx
+- [x] T025 [P] Article reader component in src/app/\_components/article-reader.tsx
+- [x] T026 [P] Folder sidebar component in src/app/\_components/folder-sidebar.tsx
+- [x] T027 [P] Search bar component in src/app/\_components/search-bar.tsx
+- [x] T028 [P] Add article form component in src/app/\_components/add-article-form.tsx
+- [x] T029 [P] Highlight annotation component in src/app/\_components/highlight-annotation.tsx
 
 ## Phase 3.6: Pages and Layout
 
-- [ ] T030 Mobile-first responsive layout in src/app/layout.tsx
-- [ ] T031 Main dashboard page in src/app/page.tsx
-- [ ] T032 Article detail page in src/app/article/[id]/page.tsx
-- [ ] T033 Folder view page in src/app/folder/[id]/page.tsx
-- [ ] T034 Search results page in src/app/search/page.tsx
+- [x] T030 Mobile-first responsive layout in src/app/layout.tsx
+- [x] T031 Main dashboard page in src/app/page.tsx
+- [x] T032 Article detail page in src/app/article/[id]/page.tsx
+- [x] T033 Folder view page in src/app/folder/[id]/page.tsx
+- [x] T034 Search results page in src/app/search/page.tsx
 
 ## Phase 3.7: Integration
 
-- [ ] T035 Connect tRPC client in src/trpc/react.tsx
-- [ ] T036 [P] Error handling middleware
-- [ ] T037 [P] Request/response logging
-- [ ] T038 [P] Mobile viewport optimization
+- [x] T035 Connect tRPC client in src/trpc/react.tsx
+- [x] T036 [P] Error handling middleware
+- [x] T037 [P] Request/response logging
+- [x] T038 [P] Mobile viewport optimization
 
 ## Phase 3.8: Polish
 
