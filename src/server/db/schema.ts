@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, primaryKey, sqliteTableCreator } from "drizzle-orm/sqlite-core";
+import { index, primaryKey, pgTableCreator } from "drizzle-orm/pg-core";
 
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
@@ -7,21 +7,21 @@ import { index, primaryKey, sqliteTableCreator } from "drizzle-orm/sqlite-core";
  *
  * @see https://orm.drizzle.team/docs/goodies#multi-project-schema
  */
-export const createTable = sqliteTableCreator((name) => `jess-app_${name}`);
+export const createTable = pgTableCreator((name) => `jess-app_${name}`);
 
 export const users = createTable("user", (d) => ({
   id: d
-    .text({ length: 255 })
+    .text()
     .notNull()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
-  name: d.text({ length: 255 }),
-  email: d.text({ length: 255 }).notNull(),
-  emailVerified: d.integer({ mode: "timestamp" }).default(sql`(unixepoch())`),
-  image: d.text({ length: 255 }),
+  name: d.text(),
+  email: d.text().notNull(),
+  emailVerified: d.timestamp().default(sql`now()`),
+  image: d.text(),
   // role: 'candidate' | 'company' | 'admin'
   role: d
-    .text({ length: 20 })
+    .text()
     .$type<"candidate" | "company" | "admin">()
     .notNull()
     .default("candidate"),
@@ -30,12 +30,12 @@ export const users = createTable("user", (d) => ({
 export const sessions = createTable(
   "session",
   (d) => ({
-    sessionToken: d.text({ length: 255 }).notNull().primaryKey(),
+    sessionToken: d.text().notNull().primaryKey(),
     userId: d
-      .text({ length: 255 })
+      .text()
       .notNull()
       .references(() => users.id),
-    expires: d.integer({ mode: "timestamp" }).notNull(),
+    expires: d.timestamp().notNull(),
   }),
   (t) => [index("session_userId_idx").on(t.userId)],
 );
@@ -48,19 +48,19 @@ export const accounts = createTable(
   "account",
   (d) => ({
     userId: d
-      .text({ length: 255 })
+      .text()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    type: d.text({ length: 255 }).notNull(),
-    provider: d.text({ length: 255 }).notNull(),
-    providerAccountId: d.text({ length: 255 }).notNull(),
-    refresh_token: d.text({ length: 255 }),
-    access_token: d.text({ length: 255 }),
+    type: d.text().notNull(),
+    provider: d.text().notNull(),
+    providerAccountId: d.text().notNull(),
+    refresh_token: d.text(),
+    access_token: d.text(),
     expires_at: d.integer(),
-    token_type: d.text({ length: 255 }),
-    scope: d.text({ length: 255 }),
-    id_token: d.text({ length: 255 }),
-    session_state: d.text({ length: 255 }),
+    token_type: d.text(),
+    scope: d.text(),
+    id_token: d.text(),
+    session_state: d.text(),
   }),
   (t) => [primaryKey({ columns: [t.provider, t.providerAccountId] })],
 );
@@ -68,9 +68,9 @@ export const accounts = createTable(
 export const verificationTokens = createTable(
   "verification_token",
   (d) => ({
-    identifier: d.text({ length: 255 }).notNull(),
-    token: d.text({ length: 255 }).notNull(),
-    expires: d.integer({ mode: "timestamp" }).notNull(),
+    identifier: d.text().notNull(),
+    token: d.text().notNull(),
+    expires: d.timestamp().notNull(),
   }),
   (t) => [primaryKey({ columns: [t.identifier, t.token] })],
 );

@@ -19,3 +19,54 @@ The project is using the following technologies:
 - Drizzle ORM https://orm.drizzle.team/docs/overview
 - NextAuth https://next-auth.js.org/getting-started/introduction
 - tRPC
+
+## Folder Structure
+
+.
+├─ public
+│ └─ favicon.ico
+├─ src
+│ ├─ app
+│ │ ├─ \_components
+│ │ │ └─ post.tsx
+│ │ ├─ api
+│ │ │ ├─ auth
+│ │ │ │ └─ [...nextauth]
+│ │ │ │ └─ route.ts
+│ │ │ └─ trpc
+│ │ │ └─ [trpc]
+│ │ │ └─ route.ts
+│ │ ├─ layout.tsx
+│ │ └─ page.tsx
+│ ├─ server
+│ │ ├─ auth.ts
+│ │ ├─ db
+│ │ │ ├─ index.ts
+│ │ │ └─ schema.ts
+│ │ └─ api
+│ │ ├─ routers
+│ │ │ └─ example.ts
+│ │ ├─ trpc.ts
+│ │ └─ root.ts
+│ ├─ styles
+│ │ └─ globals.css
+│ ├─ env.js
+│ └─ trpc
+│ ├─ query-client.ts
+│ ├─ react.tsx
+│ └─ server.ts
+├─ .env
+├─ .env.example
+├─ .eslintrc.cjs
+├─ .gitignore
+├─ db.sqlite (after `db:push`, sqlite only)
+├─ drizzle.config.ts
+├─ next-env.d.ts
+├─ next.config.js
+├─ package.json
+├─ postcss.config.js
+├─ prettier.config.js
+├─ README.md
+├─ start-database.sh (mysql or postgres only)
+├─ tailwind.config.ts
+└─ tsconfig.json
