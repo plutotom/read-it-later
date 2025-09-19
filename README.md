@@ -10,41 +10,10 @@ If you are not familiar with the different technologies used in this project, pl
 
 - [Next.js](https://nextjs.org)
 - [NextAuth.js](https://next-auth.js.org)
-- [Drizzle](https://orm.drizzle.team) with [Neon Postgres](https://neon.tech)
+- [Prisma](https://prisma.io)
+- [Drizzle](https://orm.drizzle.team)
 - [Tailwind CSS](https://tailwindcss.com)
 - [tRPC](https://trpc.io)
-
-## Database Setup
-
-This project uses [Drizzle ORM](https://orm.drizzle.team) with [Neon Postgres](https://neon.tech) as the database.
-
-### Environment Variables
-
-Create a `.env` file in the root directory and add your Neon database URL:
-
-```env
-DATABASE_URL="postgres://username:password@ep-xxx.us-east-1.aws.neon.tech/neondb?sslmode=require"
-```
-
-### Database Migrations
-
-Generate migrations:
-
-```bash
-pnpm db:generate
-```
-
-Run migrations:
-
-```bash
-pnpm db:migrate
-```
-
-Or push schema changes directly (for development):
-
-```bash
-pnpm db:push
-```
 
 ## Learn More
 
