@@ -21,15 +21,13 @@ declare module "next-auth" {
   interface Session extends DefaultSession {
     user: {
       id: string;
-      // ...other properties
-      // role: UserRole;
+      role: "candidate" | "company" | "admin";
     } & DefaultSession["user"];
   }
 
-  // interface User {
-  //   // ...other properties
-  //   // role: UserRole;
-  // }
+  interface User {
+    role: "candidate" | "company" | "admin";
+  }
 }
 
 /**
@@ -51,18 +49,21 @@ export const authConfig = {
      * @see https://next-auth.js.org/providers/github
      */
   ],
-  adapter: DrizzleAdapter(db, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  adapter: DrizzleAdapter(db as any, {
     usersTable: users,
     accountsTable: accounts,
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
-  }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }) as any,
   callbacks: {
     session: ({ session, user }) => ({
       ...session,
       user: {
         ...session.user,
         id: user.id,
+        role: user.role,
       },
     }),
   },

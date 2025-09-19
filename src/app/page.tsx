@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { auth } from "@/server/auth";
 import { HydrateClient } from "@/trpc/server";
+import { ProfileExample } from "./_components/profile-example";
 
 export default async function Home() {
   const session = await auth();
@@ -33,6 +34,12 @@ export default async function Home() {
             )}
           </div>
         </section>
+
+        {session && (
+          <section className="bg-white py-12 text-gray-900">
+            <ProfileExample />
+          </section>
+        )}
       </main>
     </HydrateClient>
   );

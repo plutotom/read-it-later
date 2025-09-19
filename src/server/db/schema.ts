@@ -74,3 +74,38 @@ export const verificationTokens = createTable(
   }),
   (t) => [primaryKey({ columns: [t.identifier, t.token] })],
 );
+
+export const profiles = createTable("profile", (d) => ({
+  id: d
+    .text()
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: d
+    .text()
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  bio: d.text(),
+  location: d.text(),
+  website: d.text(),
+  linkedin: d.text(),
+  github: d.text(),
+  twitter: d.text(),
+  phone: d.text(),
+  resumeUrl: d.text(),
+  skills: d.text().array(),
+  experience: d.json(),
+  education: d.json(),
+  createdAt: d
+    .timestamp()
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: d
+    .timestamp()
+    .default(sql`now()`)
+    .notNull(),
+}));
+
+export const profilesRelations = relations(profiles, ({ one }) => ({
+  user: one(users, { fields: [profiles.userId], references: [users.id] }),
+}));

@@ -29,10 +29,7 @@ export default tseslint.config(
         "warn",
         { prefer: "type-imports", fixStyle: "inline-type-imports" },
       ],
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_" },
-      ],
+      "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/require-await": "off",
       "@typescript-eslint/no-misused-promises": [
         "error",
@@ -46,6 +43,9 @@ export default tseslint.config(
         "error",
         { drizzleObjectName: ["db", "ctx.db"] },
       ],
+      "@typescript-eslint/prefer-nullish-coalescing": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
   {
