@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
+import { getTextPreview } from "~/lib/text-utils";
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -122,7 +123,7 @@ export default function HomePage() {
                     <Badge variant="outline">Article</Badge>
                   </div>
                   <CardDescription className="line-clamp-3">
-                    {article.content.substring(0, 150)}...
+                    {getTextPreview(article.content, 150)}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

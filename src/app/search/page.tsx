@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { ArrowLeft, Search } from "lucide-react";
+import { getTextPreview } from "~/lib/text-utils";
 
 function SearchContent() {
   const router = useRouter();
@@ -149,7 +150,7 @@ function SearchContent() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground line-clamp-3 text-sm">
-                    {article.content.substring(0, 150)}...
+                    {getTextPreview(article.content, 150)}
                   </p>
                   <p className="text-muted-foreground mt-2 truncate text-xs">
                     {article.url}

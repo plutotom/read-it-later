@@ -117,31 +117,9 @@ export function ArticleReader({
       return <div dangerouslySetInnerHTML={{ __html: article.content }} />;
     }
 
-    // Simple highlighting - in production, use a more sophisticated approach
-    let content = article.content;
-
-    // Sort highlights by start offset (reverse order to maintain offsets)
-    const sortedHighlights = [...highlights].sort(
-      (a, b) => b.startOffset - a.startOffset,
-    );
-
-    sortedHighlights.forEach((highlight) => {
-      const before = content.substring(0, highlight.startOffset);
-      const highlighted = content.substring(
-        highlight.startOffset,
-        highlight.endOffset,
-      );
-      const after = content.substring(highlight.endOffset);
-
-      content =
-        before +
-        `<mark class="bg-${highlight.color}-200 px-1 rounded" data-highlight-id="${highlight.id}">` +
-        highlighted +
-        "</mark>" +
-        after;
-    });
-
-    return <div dangerouslySetInnerHTML={{ __html: content }} />;
+    // For now, just render the HTML content without highlighting
+    // TODO: Implement proper HTML-aware highlighting
+    return <div dangerouslySetInnerHTML={{ __html: article.content }} />;
   };
 
   return (

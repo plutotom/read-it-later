@@ -85,6 +85,15 @@ export class ArticleExtractor {
         "featured-image",
         "content-image",
         "article-image",
+        // Preserve link-related classes
+        "link",
+        "reference",
+        "citation",
+        "footnote",
+        "external-link",
+        "internal-link",
+        "article-link",
+        "content-link",
       ],
       keepClasses: false, // Only keep classes in classesToPreserve
       disableJSONLD: false,
@@ -103,8 +112,9 @@ export class ArticleExtractor {
       return this.fallbackExtraction(html, url);
     }
 
-    // Post-process content to handle <picture> elements
+    // Post-process content to handle <picture> elements and links
     const processedContent = this.processPictureElements(article.content || "");
+    const finalContent = this.processLinks(processedContent, urlObj);
 
     // Calculate word count and reading time from text content
     const wordCount =
@@ -119,7 +129,7 @@ export class ArticleExtractor {
 
     return {
       title: this.cleanText(article.title || "Untitled"),
-      content: processedContent, // This is now properly formatted HTML with processed picture elements
+      content: finalContent, // This is now properly formatted HTML with processed picture elements and links
       excerpt: article.excerpt
         ? this.cleanText(article.excerpt)
         : metadata.description,
@@ -260,6 +270,53 @@ export class ArticleExtractor {
       } else {
         // If no <img> found, remove the <picture> element entirely
         picture.remove();
+      }
+    });
+
+    return document.body.innerHTML;
+  }
+
+  /**
+   * Process links to ensure they have proper absolute URLs and are preserved
+   * This ensures reference links and citations remain clickable
+   */
+  private static processLinks(html: string, baseUrl: URL): string {
+    // Create a temporary DOM to process the HTML
+    const dom = new JSDOM(html, { url: baseUrl.href });
+    const document = dom.window.document;
+
+    // Find all <a> elements
+    const links = document.querySelectorAll("a");
+
+    links.forEach((link) => {
+      const href = link.getAttribute("href");
+
+      if (href) {
+        try {
+          // Convert relative URLs to absolute URLs
+          const absoluteUrl = new URL(href, baseUrl.href).href;
+          link.setAttribute("href", absoluteUrl);
+
+          // Ensure links open in new tab for external references
+          if (!link.getAttribute("target")) {
+            link.setAttribute("target", "_blank");
+            link.setAttribute("rel", "noopener noreferrer");
+          }
+
+          // Add visual indicator for external links and general link class
+          const existingClass = link.getAttribute("class") || "";
+          let newClass = `${existingClass} article-link`.trim();
+
+          if (!href.startsWith("#") && !href.startsWith(baseUrl.origin)) {
+            newClass += " external-link";
+          }
+
+          link.setAttribute("class", newClass);
+        } catch (error) {
+          // If URL is invalid, remove the href but keep the text
+          console.warn("Invalid URL in link:", href);
+          link.removeAttribute("href");
+        }
       }
     });
 
