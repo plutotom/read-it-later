@@ -1,11 +1,12 @@
 "use client";
 
 import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
-import { httpBatchStreamLink, loggerLink } from "@trpc/client";
+import { httpBatchStreamLink, loggerLink, type TRPCLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
 import { useState } from "react";
 import SuperJSON from "superjson";
+import { observable } from "@trpc/server/observable";
 
 import { type AppRouter } from "~/server/api/root";
 import { createQueryClient } from "./query-client";
@@ -23,6 +24,53 @@ const getQueryClient = () => {
 };
 
 export const api = createTRPCReact<AppRouter>();
+
+/**
+ * Error handling link for tRPC
+ * Provides consistent error handling across the application
+ */
+const errorHandlingLink: TRPCLink<AppRouter> = () => {
+  return ({ next, op }) => {
+    return observable((observer) => {
+      const unsubscribe = next(op).subscribe({
+        next(value) {
+          observer.next(value);
+        },
+        error(error) {
+          // Log error for debugging
+          console.error("tRPC Error:", {
+            path: op.path,
+            input: op.input,
+            error: error,
+          });
+
+          // Handle specific error types
+          if (error.data?.code === "UNAUTHORIZED") {
+            // Handle authentication errors
+            console.warn("Authentication required");
+            // Could redirect to login page here
+          } else if (error.data?.code === "FORBIDDEN") {
+            // Handle authorization errors
+            console.warn("Access forbidden");
+          } else if (error.data?.code === "NOT_FOUND") {
+            // Handle not found errors
+            console.warn("Resource not found");
+          } else if (error.data?.code === "INTERNAL_SERVER_ERROR") {
+            // Handle server errors
+            console.error("Internal server error");
+          }
+
+          // Pass error to observer
+          observer.error(error);
+        },
+        complete() {
+          observer.complete();
+        },
+      });
+      return unsubscribe;
+    });
+  };
+};
 
 /**
  * Inference helper for inputs.
@@ -49,6 +97,7 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
             process.env.NODE_ENV === "development" ||
             (op.direction === "down" && op.result instanceof Error),
         }),
+        errorHandlingLink,
         httpBatchStreamLink({
           transformer: SuperJSON,
           url: getBaseUrl() + "/api/trpc",
