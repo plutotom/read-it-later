@@ -1,19 +1,67 @@
-# Create T3 App
+# Read It Later
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+A modern "read it later" application built with the T3 Stack and Shadcn UI.
 
-## What's next? How do I make an app with this?
+## Features
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+- Save articles from URLs for later reading
+- Clean, mobile-optimized reading experience
+- Search and filter saved articles
+- Modern UI with Shadcn UI components
+- Type-safe with TypeScript throughout
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+## Tech Stack
 
-- [Next.js](https://nextjs.org)
-- [BetterAuth.js](https://www.better-auth.com/llms.txt)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+- [Next.js](https://nextjs.org) - React framework
+- [TypeScript](https://www.typescriptlang.org/) - Type safety
+- [Tailwind CSS](https://tailwindcss.com) - Styling
+- [Shadcn UI](https://ui.shadcn.com/) - Component library
+- [Drizzle ORM](https://orm.drizzle.team) - Database ORM
+- [tRPC](https://trpc.io) - Type-safe APIs
+- [BetterAuth](https://www.better-auth.com/) - Authentication
+
+## Getting Started
+
+1. Install dependencies:
+
+   ```bash
+   pnpm install
+   ```
+
+2. Set up your database:
+
+   ```bash
+   pnpm db:push
+   ```
+
+3. Run the development server:
+
+   ```bash
+   pnpm dev
+   ```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Shadcn UI Components
+
+This project includes a comprehensive set of Shadcn UI components:
+
+- **Form Elements**: Button, Input, Textarea, Select, Checkbox, Switch, Label
+- **Layout**: Card, Separator, Dialog, Dropdown Menu, Tooltip
+- **Feedback**: Alert, Badge, Toast
+- **Navigation**: Various interactive components
+
+Visit `/components` to see all available components in action.
+
+## Available Scripts
+
+- `pnpm dev` - Start development server
+- `pnpm build` - Build for production
+- `pnpm start` - Start production server
+- `pnpm typecheck` - Run TypeScript type checking
+- `pnpm lint` - Run ESLint
+- `pnpm db:push` - Push database schema changes
+- `pnpm db:studio` - Open Drizzle Studio
 
 ## Learn More
 

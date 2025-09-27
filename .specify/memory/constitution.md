@@ -60,6 +60,7 @@ Code MUST be readable and self-documenting. Prefer explicit over implicit, clear
 - API endpoints MUST use tRPC procedures
 - UI components MUST use shadcn/ui patterns
 - Authentication MUST use BetterAuth patterns
+- Use Shadcn/ui patterns for all components
 
 ## Governance
 

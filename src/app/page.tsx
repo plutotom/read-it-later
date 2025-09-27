@@ -3,6 +3,16 @@
 import { useState } from "react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
+import { Badge } from "~/components/ui/badge";
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,66 +55,82 @@ export default function HomePage() {
     ) || [];
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      <header className="bg-blue-600 p-4 text-white shadow-md">
+    <div className="bg-background flex min-h-screen flex-col">
+      <header className="bg-card border-b p-4 shadow-sm">
         <h1 className="text-xl font-bold">Read It Later</h1>
       </header>
 
       <main className="flex-1 p-4">
         {/* Search */}
         <div className="mb-4">
-          <input
+          <Input
             type="text"
             placeholder="Search articles..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-gray-300 p-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
         {/* Add Article Form */}
-        <form
-          onSubmit={handleSubmit}
-          className="mb-6 rounded-lg border bg-white p-4 shadow-sm"
-        >
-          <input
-            type="url"
-            placeholder="Paste article URL here..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className="mb-2 w-full rounded-md border border-gray-300 p-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
-            disabled={createArticle.isPending}
-          />
-          <button
-            type="submit"
-            className="w-full rounded-md bg-blue-600 p-2 text-white transition-colors duration-150 ease-in-out hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={createArticle.isPending || !url}
-          >
-            {createArticle.isPending ? "Saving..." : "Save Article"}
-          </button>
-        </form>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Add New Article</CardTitle>
+            <CardDescription>
+              Paste a URL to save an article for later reading
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Input
+                type="url"
+                placeholder="Paste article URL here..."
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                disabled={createArticle.isPending}
+              />
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={createArticle.isPending || !url}
+              >
+                {createArticle.isPending ? "Saving..." : "Save Article"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         {/* Articles List */}
         <div className="space-y-4">
           {filteredArticles.length === 0 ? (
-            <div className="py-8 text-center text-gray-500">
-              No articles saved yet. Add some links to get started!
-            </div>
+            <Card>
+              <CardContent className="text-muted-foreground py-8 text-center">
+                No articles saved yet. Add some links to get started!
+              </CardContent>
+            </Card>
           ) : (
             filteredArticles.map((article) => (
-              <div
+              <Card
                 key={article.id}
-                className="cursor-pointer rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-colors duration-150 hover:bg-gray-50"
+                className="hover:bg-accent cursor-pointer transition-colors"
                 onClick={() => router.push(`/article/${article.id}`)}
               >
-                <h3 className="mb-1 line-clamp-2 text-lg font-semibold text-gray-900">
-                  {article.title}
-                </h3>
-                <p className="mb-2 line-clamp-3 text-sm text-gray-600">
-                  {article.content.substring(0, 150)}...
-                </p>
-                <p className="truncate text-xs text-gray-500">{article.url}</p>
-              </div>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <CardTitle className="line-clamp-2">
+                      {article.title}
+                    </CardTitle>
+                    <Badge variant="outline">Article</Badge>
+                  </div>
+                  <CardDescription className="line-clamp-3">
+                    {article.content.substring(0, 150)}...
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground truncate text-xs">
+                    {article.url}
+                  </p>
+                </CardContent>
+              </Card>
             ))
           )}
         </div>

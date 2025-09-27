@@ -3,6 +3,12 @@
 import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "~/trpc/react";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Badge } from "~/components/ui/badge";
+import { Alert, AlertDescription } from "~/components/ui/alert";
+import { ArrowLeft, Search } from "lucide-react";
 
 function SearchContent() {
   const router = useRouter();
@@ -21,12 +27,59 @@ function SearchContent() {
     router.push(`/search?q=${searchQuery}`);
   };
 
-  if (isLoading)
-    return <div className="p-4 text-center text-gray-500">Searching...</div>;
-  if (error)
+  if (isLoading) {
     return (
-      <div className="p-4 text-center text-red-500">Error: {error.message}</div>
+      <div className="bg-background flex min-h-screen flex-col">
+        <header className="bg-card border-b p-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.back()}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <h1 className="text-xl font-bold">Search Results</h1>
+          </div>
+        </header>
+        <main className="flex-1 p-4">
+          <Card>
+            <CardContent className="text-muted-foreground py-8 text-center">
+              Searching...
+            </CardContent>
+          </Card>
+        </main>
+      </div>
     );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-background flex min-h-screen flex-col">
+        <header className="bg-card border-b p-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.back()}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <h1 className="text-xl font-bold">Search Results</h1>
+          </div>
+        </header>
+        <main className="flex-1 p-4">
+          <Alert variant="destructive">
+            <AlertDescription>Error: {error.message}</AlertDescription>
+          </Alert>
+        </main>
+      </div>
+    );
+  }
 
   const filteredArticles =
     allArticles?.filter(
@@ -37,45 +90,72 @@ function SearchContent() {
     ) ?? [];
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      <header className="flex items-center bg-blue-600 p-4 text-white shadow-md">
-        <button onClick={() => router.back()} className="mr-4 text-white">
-          &larr; Back
-        </button>
-        <h1 className="text-xl font-bold">Search Results</h1>
+    <div className="bg-background flex min-h-screen flex-col">
+      <header className="bg-card border-b p-4 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.back()}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+          <h1 className="text-xl font-bold">Search Results</h1>
+        </div>
       </header>
 
       <main className="flex-1 p-4">
-        <form onSubmit={handleSearch} className="mb-6">
-          <input
-            type="text"
-            placeholder="Search articles..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-gray-300 p-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
-          />
-        </form>
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <Input
+                type="text"
+                placeholder="Search articles..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1"
+              />
+              <Button type="submit" className="flex items-center gap-2">
+                <Search className="h-4 w-4" />
+                Search
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         <div className="space-y-4">
           {filteredArticles.length === 0 && searchQuery ? (
-            <div className="py-8 text-center text-gray-500">
-              No articles found for &quot;{searchQuery}&quot;.
-            </div>
+            <Card>
+              <CardContent className="text-muted-foreground py-8 text-center">
+                No articles found for &quot;{searchQuery}&quot;.
+              </CardContent>
+            </Card>
           ) : (
             filteredArticles.map((article) => (
-              <div
+              <Card
                 key={article.id}
-                className="cursor-pointer rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-colors duration-150 hover:bg-gray-50"
+                className="hover:bg-accent cursor-pointer transition-colors"
                 onClick={() => router.push(`/article/${article.id}`)}
               >
-                <h3 className="mb-1 line-clamp-2 text-lg font-semibold text-gray-900">
-                  {article.title}
-                </h3>
-                <p className="mb-2 line-clamp-3 text-sm text-gray-600">
-                  {article.content.substring(0, 150)}...
-                </p>
-                <p className="truncate text-xs text-gray-500">{article.url}</p>
-              </div>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <CardTitle className="line-clamp-2">
+                      {article.title}
+                    </CardTitle>
+                    <Badge variant="outline">Article</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground line-clamp-3 text-sm">
+                    {article.content.substring(0, 150)}...
+                  </p>
+                  <p className="text-muted-foreground mt-2 truncate text-xs">
+                    {article.url}
+                  </p>
+                </CardContent>
+              </Card>
             ))
           )}
         </div>
@@ -88,7 +168,18 @@ export default function SearchResultsPage() {
   return (
     <Suspense
       fallback={
-        <div className="p-4 text-center text-gray-500">Loading search...</div>
+        <div className="bg-background flex min-h-screen flex-col">
+          <header className="bg-card border-b p-4 shadow-sm">
+            <h1 className="text-xl font-bold">Search Results</h1>
+          </header>
+          <main className="flex-1 p-4">
+            <Card>
+              <CardContent className="text-muted-foreground py-8 text-center">
+                Loading search...
+              </CardContent>
+            </Card>
+          </main>
+        </div>
       }
     >
       <SearchContent />
