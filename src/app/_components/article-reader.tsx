@@ -328,7 +328,7 @@ export function ArticleReader({
           {/* Article content */}
           <div
             ref={contentRef}
-            className="prose prose-gray max-w-none leading-relaxed"
+            className="article-content max-w-none leading-relaxed"
             style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}
             onMouseUp={handleTextSelection}
             onTouchEnd={handleTextSelection}

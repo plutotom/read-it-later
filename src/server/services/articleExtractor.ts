@@ -1,13 +1,15 @@
 /**
- * Article extraction service
- * Extracts clean, readable content from web articles
+ * Article extraction service using Mozilla Readability
+ * Extracts clean, readable content from web articles while preserving structure
  */
 
+import { Readability } from "@mozilla/readability";
+import { JSDOM } from "jsdom";
 import type { ArticleExtractionResult } from "~/types/article";
 
 export class ArticleExtractor {
   /**
-   * Extract article content from a URL
+   * Extract article content from a URL using Mozilla Readability
    */
   static async extractFromUrl(url: string): Promise<ArticleExtractionResult> {
     try {
@@ -17,7 +19,8 @@ export class ArticleExtractor {
       // Fetch the HTML content
       const response = await fetch(url, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; ReadItLater/1.0)",
+          "User-Agent":
+            "Mozilla/5.0 (compatible; ReadItLater/1.0; +https://github.com/mozilla/readability)",
         },
       });
 
@@ -28,7 +31,7 @@ export class ArticleExtractor {
       }
 
       const html = await response.text();
-      const extracted = this.parseHtml(html, url);
+      const extracted = this.parseWithReadability(html, url);
 
       return extracted;
     } catch (error) {
@@ -40,16 +43,112 @@ export class ArticleExtractor {
   }
 
   /**
-   * Parse HTML content and extract article data
-   * This is a simplified implementation - in production, you'd use a library like Readability.js
+   * Parse HTML content using Mozilla Readability
+   * This preserves article structure while cleaning up unwanted elements
    */
-  private static parseHtml(html: string, url: string): ArticleExtractionResult {
+  private static parseWithReadability(
+    html: string,
+    url: string,
+  ): ArticleExtractionResult {
     const urlObj = new URL(url);
 
-    // Basic HTML parsing using regex (not recommended for production)
-    // In a real app, you'd use a proper HTML parser and Readability algorithm
+    // Create DOM from HTML
+    const dom = new JSDOM(html, {
+      url: url,
+      // Disable scripts and external resources for security
+      runScripts: "dangerously",
+      resources: "usable",
+    });
 
-    // Extract title
+    const document = dom.window.document;
+
+    // Create Readability instance with optimized settings
+    const reader = new Readability(document, {
+      debug: false,
+      maxElemsToParse: 0, // No limit
+      nbTopCandidates: 5,
+      charThreshold: 500,
+      classesToPreserve: [
+        // Preserve important classes that might contain content
+        "highlight",
+        "quote",
+        "blockquote",
+        "code",
+        "pre",
+        "figure",
+        "caption",
+        "img",
+        "image",
+        "photo",
+        "picture",
+        "hero-image",
+        "featured-image",
+        "content-image",
+        "article-image",
+      ],
+      keepClasses: false, // Only keep classes in classesToPreserve
+      disableJSONLD: false,
+      // Custom serializer to preserve structure
+      serializer: (el) => {
+        // Clean up the HTML while preserving structure
+        return this.cleanHtmlContent((el as Element).innerHTML);
+      },
+    });
+
+    // Parse the article
+    const article = reader.parse();
+
+    if (!article) {
+      // Fallback to basic extraction if Readability fails
+      return this.fallbackExtraction(html, url);
+    }
+
+    // Post-process content to handle <picture> elements
+    const processedContent = this.processPictureElements(article.content || "");
+
+    // Calculate word count and reading time from text content
+    const wordCount =
+      article.length ||
+      article.textContent?.split(/\s+/).filter((word) => word.length > 0)
+        .length ||
+      0;
+    const readingTime = Math.max(1, Math.ceil(wordCount / 200)); // Average reading speed
+
+    // Extract additional metadata from original HTML
+    const metadata = this.extractMetadata(html, urlObj);
+
+    return {
+      title: this.cleanText(article.title || "Untitled"),
+      content: processedContent, // This is now properly formatted HTML with processed picture elements
+      excerpt: article.excerpt
+        ? this.cleanText(article.excerpt)
+        : metadata.description,
+      author: article.byline ? this.cleanText(article.byline) : metadata.author,
+      publishedAt: article.publishedTime
+        ? new Date(article.publishedTime)
+        : metadata.publishedAt,
+      wordCount,
+      readingTime,
+      metadata: {
+        siteName: article.siteName || metadata.siteName,
+        siteUrl: urlObj.origin,
+        description: article.excerpt || metadata.description,
+        imageUrl: metadata.imageUrl,
+        language: article.lang || metadata.language,
+      },
+    };
+  }
+
+  /**
+   * Fallback extraction when Readability fails
+   */
+  private static fallbackExtraction(
+    html: string,
+    url: string,
+  ): ArticleExtractionResult {
+    const urlObj = new URL(url);
+
+    // Basic metadata extraction
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     const ogTitleMatch = html.match(
       /<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i,
@@ -57,67 +156,54 @@ export class ArticleExtractor {
     const title =
       ogTitleMatch?.[1] || titleMatch?.[1] || `Article from ${urlObj.hostname}`;
 
-    // Extract description/excerpt
+    // Try to extract main content area
+    const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
+    const mainMatch = html.match(/<main[^>]*>([\s\S]*?)<\/main>/i);
+
+    let content = "";
+    if (articleMatch?.[1]) {
+      content = this.cleanHtmlContent(articleMatch[1]);
+    } else if (mainMatch?.[1]) {
+      content = this.cleanHtmlContent(mainMatch[1]);
+    } else {
+      content = `<p>Content extraction failed for ${url}. The article is available at the original URL.</p>`;
+    }
+
+    const wordCount = content
+      .replace(/<[^>]*>/g, "")
+      .split(/\s+/)
+      .filter((word) => word.length > 0).length;
+    const readingTime = Math.max(1, Math.ceil(wordCount / 200));
+
+    return {
+      title: this.cleanText(title),
+      content,
+      excerpt: `Preview of article from ${urlObj.hostname}`,
+      author: undefined,
+      publishedAt: undefined,
+      wordCount,
+      readingTime,
+      metadata: {
+        siteName: urlObj.hostname,
+        siteUrl: urlObj.origin,
+        description: `Article from ${urlObj.hostname}`,
+      },
+    };
+  }
+
+  /**
+   * Extract metadata from HTML
+   */
+  private static extractMetadata(html: string, urlObj: URL) {
     const descMatch = html.match(
       /<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i,
     );
     const ogDescMatch = html.match(
       /<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i,
     );
-    const excerpt = ogDescMatch?.[1] || descMatch?.[1];
-
-    // Extract author
     const authorMatch = html.match(
       /<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i,
     );
-    const author = authorMatch?.[1];
-
-    // Extract published date
-    let publishedAt: Date | undefined;
-    const dateMatch = html.match(
-      /<meta[^>]*property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i,
-    );
-    if (dateMatch?.[1]) {
-      publishedAt = new Date(dateMatch[1]);
-    }
-
-    // Extract main content (very basic extraction)
-    // Remove scripts, styles, and navigation
-    let content = html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
-      .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
-      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
-      .replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, "");
-
-    // Try to find main content area
-    const articleMatch = content.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
-    const mainMatch = content.match(/<main[^>]*>([\s\S]*?)<\/main>/i);
-
-    if (articleMatch?.[1]) {
-      content = articleMatch[1];
-    } else if (mainMatch?.[1]) {
-      content = mainMatch[1];
-    }
-
-    // Clean up HTML tags (basic cleaning)
-    content = content
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    // Fallback if content is too short
-    if (content.length < 100) {
-      content = `Extracted content from ${url}. This is a simplified extraction - for production use, integrate with a proper article extraction service like Mercury or Readability.`;
-    }
-
-    // Calculate word count and reading time
-    const words = content.split(/\s+/).filter((word) => word.length > 0);
-    const wordCount = words.length;
-    const readingTime = Math.max(1, Math.ceil(wordCount / 200)); // Average reading speed
-
-    // Extract metadata
     const siteNameMatch = html.match(
       /<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i,
     );
@@ -126,24 +212,79 @@ export class ArticleExtractor {
     );
     const languageMatch = html.match(/<html[^>]*lang=["']([^"']+)["']/i);
 
+    let publishedAt: Date | undefined;
+    const dateMatch = html.match(
+      /<meta[^>]*property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i,
+    );
+    if (dateMatch?.[1]) {
+      publishedAt = new Date(dateMatch[1]);
+    }
+
     return {
-      title: this.cleanText(title),
-      content: this.cleanText(content),
-      excerpt: excerpt ? this.cleanText(excerpt) : undefined,
-      author: author ? this.cleanText(author) : undefined,
-      publishedAt: publishedAt || undefined,
-      wordCount,
-      readingTime,
-      metadata: {
-        siteName: siteNameMatch?.[1]
-          ? this.cleanText(siteNameMatch[1])
-          : urlObj.hostname,
-        siteUrl: urlObj.origin,
-        description: excerpt ? this.cleanText(excerpt) : undefined,
-        imageUrl: imageMatch?.[1],
-        language: languageMatch?.[1],
-      },
+      description: ogDescMatch?.[1] || descMatch?.[1],
+      author: authorMatch?.[1],
+      siteName: siteNameMatch?.[1] || urlObj.hostname,
+      imageUrl: imageMatch?.[1],
+      language: languageMatch?.[1],
+      publishedAt,
     };
+  }
+
+  /**
+   * Process <picture> elements to convert them to regular <img> tags
+   * This ensures images display properly in the article reader
+   */
+  private static processPictureElements(html: string): string {
+    // Create a temporary DOM to process the HTML
+    const dom = new JSDOM(html);
+    const document = dom.window.document;
+
+    // Find all <picture> elements
+    const pictureElements = document.querySelectorAll("picture");
+
+    pictureElements.forEach((picture) => {
+      // Find the fallback <img> tag inside the <picture> element
+      const img = picture.querySelector("img");
+
+      if (img) {
+        // Create a new <img> element with the same attributes
+        const newImg = document.createElement("img");
+
+        // Copy all attributes from the original img
+        Array.from(img.attributes).forEach((attr) => {
+          newImg.setAttribute(attr.name, attr.value);
+        });
+
+        // Replace the <picture> element with the <img> element
+        picture.parentNode?.replaceChild(newImg, picture);
+      } else {
+        // If no <img> found, remove the <picture> element entirely
+        picture.remove();
+      }
+    });
+
+    return document.body.innerHTML;
+  }
+
+  /**
+   * Clean HTML content while preserving structure
+   */
+  private static cleanHtmlContent(html: string): string {
+    return (
+      html
+        // Remove script and style tags
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+        // Remove unwanted elements
+        .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
+        .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
+        .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
+        .replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, "")
+        // Clean up excessive whitespace but preserve structure
+        .replace(/\s+/g, " ")
+        .replace(/>\s+</g, "><")
+        .trim()
+    );
   }
 
   /**

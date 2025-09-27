@@ -16,6 +16,25 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
 
   const { data: article, isLoading, error } = api.article.get.useQuery({ id });
 
+  const deleteArticle = api.article.delete.useMutation({
+    onSuccess: () => {
+      router.push("/");
+    },
+    onError: (error) => {
+      console.error("Failed to delete article:", error);
+    },
+  });
+
+  const handleDelete = () => {
+    if (
+      confirm(
+        "Are you sure you want to delete this article? This action cannot be undone.",
+      )
+    ) {
+      deleteArticle.mutate({ id });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-4 text-center text-gray-500">Loading article...</div>
@@ -38,11 +57,25 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
-      <header className="flex items-center bg-blue-600 p-4 text-white shadow-md">
-        <button onClick={() => router.back()} className="mr-4 text-white">
-          &larr; Back
-        </button>
-        <h1 className="truncate text-xl font-bold">{article.title}</h1>
+      <header className="bg-blue-600 p-4 text-white shadow-md">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            onClick={() => router.back()}
+            className="flex-shrink-0 text-white"
+          >
+            &larr; Back
+          </button>
+          <h1 className="min-w-0 flex-1 truncate text-xl font-bold">
+            {article.title}
+          </h1>
+          <button
+            onClick={handleDelete}
+            disabled={deleteArticle.isPending}
+            className="flex-shrink-0 rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {deleteArticle.isPending ? "Deleting..." : "Delete"}
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-4">
