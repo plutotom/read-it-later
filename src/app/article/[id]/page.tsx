@@ -33,7 +33,7 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
   const { data: article, isLoading, error } = api.article.get.useQuery({ id });
 
   const utils = api.useUtils();
-  
+
   const deleteArticle = api.article.delete.useMutation({
     onSuccess: () => {
       // Invalidate and refetch the articles list
