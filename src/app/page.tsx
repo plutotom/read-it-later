@@ -15,29 +15,31 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { getTextPreview } from "~/lib/text-utils";
 import { Bookmark } from "lucide-react";
+import { AddArticleForm } from "./_components/add-article-form";
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [url, setUrl] = useState("");
-  const {
-    data: articles,
-    isLoading,
-    error,
-    refetch,
-  } = api.article.getAll.useQuery();
+  const utils = api.useUtils();
+  const { data: articles, isLoading, error } = api.article.getAll.useQuery();
+  const { data: folders } = api.folder.getAll.useQuery();
   const createArticle = api.article.create.useMutation({
     onSuccess: () => {
-      setUrl("");
-      void refetch();
+      // Invalidate and refetch the articles list
+      void utils.article.getAll.invalidate();
     },
   });
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (url) {
-      createArticle.mutate({ url });
-    }
+  const handleArticleSubmit = async (data: {
+    url: string;
+    folderId?: string;
+    tags?: string[];
+  }) => {
+    await createArticle.mutateAsync({
+      url: data.url,
+      folderId: data.folderId,
+      tags: data.tags,
+    });
   };
 
   if (isLoading)
@@ -82,23 +84,12 @@ export default function HomePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                type="url"
-                placeholder="Paste article URL here..."
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                disabled={createArticle.isPending}
-              />
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={createArticle.isPending || !url}
-              >
-                {createArticle.isPending ? "Saving..." : "Save Article"}
-              </Button>
-            </form>
-            <div className="mt-4 border-t pt-4">
+            <AddArticleForm
+              onSubmit={handleArticleSubmit}
+              folders={folders}
+              isLoading={createArticle.isPending}
+            />
+            {/* <div className="mt-4 border-t pt-4">
               <Button
                 variant="outline"
                 className="w-full"
@@ -107,7 +98,7 @@ export default function HomePage() {
                 <Bookmark className="mr-2 h-4 w-4" />
                 Setup iOS Bookmarklet
               </Button>
-            </div>
+            </div> */}
           </CardContent>
         </Card>
 

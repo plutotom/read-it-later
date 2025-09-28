@@ -24,6 +24,7 @@ export const articleRouter = createTRPCRouter({
       z.object({
         url: z.string().url(),
         folderId: z.string().optional(),
+        tags: z.array(z.string()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -42,7 +43,7 @@ export const articleRouter = createTRPCRouter({
           wordCount: extractedContent.wordCount || null,
           readingTime: extractedContent.readingTime || null,
           folderId: input.folderId || null,
-          tags: null,
+          tags: input.tags || null,
           metadata: extractedContent.metadata || null,
         })
         .returning();

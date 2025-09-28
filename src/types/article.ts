@@ -11,6 +11,7 @@ export interface Article {
   excerpt: string | null;
   author: string | null;
   publishedAt: Date | null;
+  isFavorite: boolean;
   readAt: Date | null;
   isRead: boolean;
   isArchived: boolean;

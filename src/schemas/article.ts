@@ -18,6 +18,7 @@ export const articleSchema = z.object({
   isRead: z.boolean().default(false),
   isArchived: z.boolean().default(false),
   folderId: z.string().uuid().optional(),
+  isFavorite: z.boolean().default(false),
   createdAt: z.date(),
   updatedAt: z.date(),
   wordCount: z.number().int().min(0).optional(),
