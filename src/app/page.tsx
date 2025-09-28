@@ -14,6 +14,7 @@ import {
 } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import { getTextPreview } from "~/lib/text-utils";
+import { Bookmark } from "lucide-react";
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,6 +98,16 @@ export default function HomePage() {
                 {createArticle.isPending ? "Saving..." : "Save Article"}
               </Button>
             </form>
+            <div className="mt-4 border-t pt-4">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => router.push("/bookmarklet")}
+              >
+                <Bookmark className="mr-2 h-4 w-4" />
+                Setup iOS Bookmarklet
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

@@ -50,10 +50,10 @@ export function InstallPrompt() {
       "onbeforeinstallprompt" in window,
     );
 
-    // For non-iOS devices, show if user hasn't dismissed and not standalone
+    // Show install prompt if user hasn't dismissed and not standalone
     const dismissed = localStorage.getItem("install-prompt-dismissed");
-    if (!dismissed && !standalone && !iOS) {
-      // Show the install prompt for non-iOS devices
+    if (!dismissed && !standalone) {
+      // Show the install prompt for both iOS and non-iOS devices
       setShowInstallPrompt(true);
     }
 
@@ -64,6 +64,8 @@ export function InstallPrompt() {
       dismissed: !!dismissed,
       showInstallPrompt,
       deferredPrompt: !!deferredPrompt,
+      userAgent: navigator.userAgent,
+      displayMode: window.matchMedia("(display-mode: standalone)").matches,
     });
 
     return () => {
