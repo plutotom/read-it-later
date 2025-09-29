@@ -79,7 +79,7 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
   };
 
   const handleArchive = () => {
-    if (article.isArchived) {
+    if (article?.isArchived) {
       unarchiveArticle.mutate({ id });
     } else {
       archiveArticle.mutate({ id });

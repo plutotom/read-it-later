@@ -5,17 +5,17 @@
 
 import { sql } from "drizzle-orm";
 import { relations } from "drizzle-orm";
-import { 
-  index, 
-  pgTableCreator, 
-  text, 
-  timestamp, 
-  uuid, 
-  boolean, 
+import {
+  index,
+  pgTableCreator,
+  text,
+  timestamp,
+  uuid,
+  boolean,
   integer,
   jsonb,
   varchar,
-  pgEnum
+  pgEnum,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -25,15 +25,15 @@ import {
 export const createTable = pgTableCreator((name) => `read-it-later_${name}`);
 
 // Enums
-export const highlightColorEnum = pgEnum('highlight_color', [
-  'yellow',
-  'green', 
-  'blue',
-  'pink',
-  'purple',
-  'orange',
-  'red',
-  'gray'
+export const highlightColorEnum = pgEnum("highlight_color", [
+  "yellow",
+  "green",
+  "blue",
+  "pink",
+  "purple",
+  "orange",
+  "red",
+  "gray",
 ]);
 
 // Articles table
@@ -47,6 +47,7 @@ export const articles = createTable(
     excerpt: d.text(),
     author: d.text(),
     publishedAt: d.timestamp({ withTimezone: true }),
+    isFavorite: d.boolean().notNull().default(false),
     readAt: d.timestamp({ withTimezone: true }),
     isRead: d.boolean().notNull().default(false),
     isArchived: d.boolean().notNull().default(false),
@@ -69,6 +70,7 @@ export const articles = createTable(
     index("article_url_idx").on(t.url),
     index("article_folder_idx").on(t.folderId),
     index("article_created_at_idx").on(t.createdAt),
+    index("article_is_favorite_idx").on(t.isFavorite),
     index("article_is_read_idx").on(t.isRead),
     index("article_is_archived_idx").on(t.isArchived),
     index("article_tags_idx").on(t.tags),
@@ -114,7 +116,7 @@ export const highlights = createTable(
     text: d.text().notNull(),
     startOffset: d.integer().notNull(),
     endOffset: d.integer().notNull(),
-    color: highlightColorEnum('color').notNull().default('yellow'),
+    color: highlightColorEnum("color").notNull().default("yellow"),
     note: d.text(),
     createdAt: d
       .timestamp({ withTimezone: true })
