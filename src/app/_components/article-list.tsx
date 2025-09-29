@@ -14,9 +14,8 @@ interface ArticleListProps {
   articles: Article[];
   isLoading?: boolean;
   onArticleClick?: (article: Article) => void;
-  onMarkAsRead?: (articleId: string) => void;
-  onMarkAsUnread?: (articleId: string) => void;
   onArchive?: (articleId: string) => void;
+  onUnarchive?: (articleId: string) => void;
   onDelete?: (articleId: string) => void;
   onMoveToFolder?: (articleId: string, folderId: string | null) => void;
   showSearch?: boolean;
@@ -27,18 +26,14 @@ export function ArticleList({
   articles,
   isLoading = false,
   onArticleClick,
-  onMarkAsRead,
-  onMarkAsUnread,
   onArchive,
+  onUnarchive,
   onDelete,
   onMoveToFolder,
   showSearch = true,
   showFilters = false,
 }: ArticleListProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [readFilter, setReadFilter] = useState<"all" | "read" | "unread">(
-    "all",
-  );
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "title">("newest");
 
   // Filter and sort articles
@@ -56,13 +51,6 @@ export function ArticleList({
           (article.tags &&
             article.tags.some((tag) => tag.toLowerCase().includes(query))),
       );
-    }
-
-    // Apply read status filter
-    if (readFilter === "read") {
-      filtered = filtered.filter((article) => article.isRead);
-    } else if (readFilter === "unread") {
-      filtered = filtered.filter((article) => !article.isRead);
     }
 
     // Sort articles
@@ -84,7 +72,7 @@ export function ArticleList({
     });
 
     return filtered;
-  }, [articles, searchQuery, readFilter, sortBy]);
+  }, [articles, searchQuery, sortBy]);
 
   if (isLoading) {
     return (
@@ -114,19 +102,6 @@ export function ArticleList({
 
           {showFilters && (
             <div className="flex flex-wrap gap-2 text-sm">
-              {/* Read status filter */}
-              <select
-                value={readFilter}
-                onChange={(e) =>
-                  setReadFilter(e.target.value as typeof readFilter)
-                }
-                className="rounded-lg border border-gray-300 px-3 py-1 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                <option value="all">All Articles</option>
-                <option value="unread">Unread</option>
-                <option value="read">Read</option>
-              </select>
-
               {/* Sort filter */}
               <select
                 value={sortBy}
@@ -184,9 +159,8 @@ export function ArticleList({
                 key={article.id}
                 article={article}
                 onClick={() => onArticleClick?.(article)}
-                onMarkAsRead={() => onMarkAsRead?.(article.id)}
-                onMarkAsUnread={() => onMarkAsUnread?.(article.id)}
                 onArchive={() => onArchive?.(article.id)}
+                onUnarchive={() => onUnarchive?.(article.id)}
                 onDelete={() => onDelete?.(article.id)}
                 onMoveToFolder={(folderId) =>
                   onMoveToFolder?.(article.id, folderId)

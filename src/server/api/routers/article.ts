@@ -7,6 +7,14 @@ import { ArticleExtractor } from "~/server/services/articleExtractor";
 export const articleRouter = createTRPCRouter({
   getAll: publicProcedure.query(async ({ ctx }) => {
     return ctx.db.query.articles.findMany({
+      where: eq(articles.isArchived, false),
+      orderBy: (articles, { desc }) => [desc(articles.createdAt)],
+    });
+  }),
+
+  getArchived: publicProcedure.query(async ({ ctx }) => {
+    return ctx.db.query.articles.findMany({
+      where: eq(articles.isArchived, true),
       orderBy: (articles, { desc }) => [desc(articles.createdAt)],
     });
   }),
@@ -49,6 +57,30 @@ export const articleRouter = createTRPCRouter({
         .returning();
 
       return newArticle;
+    }),
+
+  archive: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const result = await ctx.db
+        .update(articles)
+        .set({ isArchived: true })
+        .where(eq(articles.id, input.id))
+        .returning();
+
+      return { success: result.length > 0 };
+    }),
+
+  unarchive: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const result = await ctx.db
+        .update(articles)
+        .set({ isArchived: false })
+        .where(eq(articles.id, input.id))
+        .returning();
+
+      return { success: result.length > 0 };
     }),
 
   delete: publicProcedure

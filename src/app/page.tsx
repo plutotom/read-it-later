@@ -16,6 +16,7 @@ import { Badge } from "~/components/ui/badge";
 import { getTextPreview } from "~/lib/text-utils";
 import { Bookmark } from "lucide-react";
 import { AddArticleForm } from "./_components/add-article-form";
+import { ArticleList } from "./_components/article-list";
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -25,6 +26,18 @@ export default function HomePage() {
   const createArticle = api.article.create.useMutation({
     onSuccess: () => {
       // Invalidate and refetch the articles list
+      void utils.article.getAll.invalidate();
+    },
+  });
+
+  const archiveArticle = api.article.archive.useMutation({
+    onSuccess: () => {
+      void utils.article.getAll.invalidate();
+    },
+  });
+
+  const deleteArticle = api.article.delete.useMutation({
+    onSuccess: () => {
       void utils.article.getAll.invalidate();
     },
   });
@@ -51,30 +64,26 @@ export default function HomePage() {
       <div className="p-4 text-center text-red-500">Error: {error.message}</div>
     );
 
-  const filteredArticles =
-    articles?.filter(
-      (article) =>
-        article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        article.content.toLowerCase().includes(searchQuery.toLowerCase()),
-    ) || [];
+  const handleArchive = (articleId: string) => {
+    archiveArticle.mutate({ id: articleId });
+  };
+
+  const handleDelete = (articleId: string) => {
+    deleteArticle.mutate({ id: articleId });
+  };
 
   return (
     <div className="bg-background flex min-h-screen flex-col">
       <header className="bg-card border-b p-4 shadow-sm">
-        <h1 className="text-xl font-bold">Read It Later</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold">Read It Later</h1>
+          <Button variant="outline" onClick={() => router.push("/archived")}>
+            View Archived
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1 p-4">
-        {/* Search */}
-        <div className="mb-4">
-          <Input
-            type="text"
-            placeholder="Search articles..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
         {/* Add Article Form */}
         <Card className="mb-6">
           <CardHeader>
@@ -89,54 +98,19 @@ export default function HomePage() {
               folders={folders}
               isLoading={createArticle.isPending}
             />
-            {/* <div className="mt-4 border-t pt-4">
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => router.push("/bookmarklet")}
-              >
-                <Bookmark className="mr-2 h-4 w-4" />
-                Setup iOS Bookmarklet
-              </Button>
-            </div> */}
           </CardContent>
         </Card>
 
         {/* Articles List */}
-        <div className="space-y-4">
-          {filteredArticles.length === 0 ? (
-            <Card>
-              <CardContent className="text-muted-foreground py-8 text-center">
-                No articles saved yet. Add some links to get started!
-              </CardContent>
-            </Card>
-          ) : (
-            filteredArticles.map((article) => (
-              <Card
-                key={article.id}
-                className="hover:bg-accent cursor-pointer transition-colors"
-                onClick={() => router.push(`/article/${article.id}`)}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="line-clamp-2">
-                      {article.title}
-                    </CardTitle>
-                    <Badge variant="outline">Article</Badge>
-                  </div>
-                  <CardDescription className="line-clamp-3">
-                    {getTextPreview(article.content, 150)}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground truncate text-xs">
-                    {article.url}
-                  </p>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
+        <ArticleList
+          articles={articles || []}
+          isLoading={isLoading}
+          onArticleClick={(article) => router.push(`/article/${article.id}`)}
+          onArchive={handleArchive}
+          onDelete={handleDelete}
+          showSearch={true}
+          showFilters={true}
+        />
       </main>
     </div>
   );

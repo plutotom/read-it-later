@@ -11,9 +11,8 @@ import { useState } from "react";
 interface ArticleCardProps {
   article: Article;
   onClick?: () => void;
-  onMarkAsRead?: () => void;
-  onMarkAsUnread?: () => void;
   onArchive?: () => void;
+  onUnarchive?: () => void;
   onDelete?: () => void;
   onMoveToFolder?: (folderId: string | null) => void;
   showActions?: boolean;
@@ -22,9 +21,8 @@ interface ArticleCardProps {
 export function ArticleCard({
   article,
   onClick,
-  onMarkAsRead,
-  onMarkAsUnread,
   onArchive,
+  onUnarchive,
   onDelete,
   onMoveToFolder,
   showActions = true,
@@ -80,9 +78,6 @@ export function ArticleCard({
 
           {/* Status indicators */}
           <div className="flex items-center space-x-1">
-            {article.isRead && (
-              <div className="h-2 w-2 rounded-full bg-green-400" title="Read" />
-            )}
             {article.isArchived && (
               <div
                 className="h-2 w-2 rounded-full bg-gray-400"
@@ -165,56 +160,6 @@ export function ArticleCard({
 
                   {/* Menu */}
                   <div className="absolute top-full right-0 z-20 mt-1 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                    {!article.isRead ? (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onMarkAsRead?.();
-                          setShowMenu(false);
-                        }}
-                        className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        <svg
-                          className="mr-2 h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                        Mark as Read
-                      </button>
-                    ) : (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onMarkAsUnread?.();
-                          setShowMenu(false);
-                        }}
-                        className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        <svg
-                          className="mr-2 h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                        Mark as Unread
-                      </button>
-                    )}
-
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -241,29 +186,55 @@ export function ArticleCard({
 
                     <hr className="my-1" />
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onArchive?.();
-                        setShowMenu(false);
-                      }}
-                      className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      <svg
-                        className="mr-2 h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                    {article.isArchived ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUnarchive?.();
+                          setShowMenu(false);
+                        }}
+                        className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 8l6 6 6-6"
-                        />
-                      </svg>
-                      Archive
-                    </button>
+                        <svg
+                          className="mr-2 h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 8l6 6 6-6"
+                          />
+                        </svg>
+                        Unarchive
+                      </button>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onArchive?.();
+                          setShowMenu(false);
+                        }}
+                        className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg
+                          className="mr-2 h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 8l6 6 6-6"
+                          />
+                        </svg>
+                        Archive
+                      </button>
+                    )}
 
                     <button
                       onClick={(e) => {

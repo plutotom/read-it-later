@@ -8,7 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import { Separator } from "~/components/ui/separator";
 import { Alert, AlertDescription } from "~/components/ui/alert";
-import { ArrowLeft, ExternalLink, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ExternalLink,
+  Trash2,
+  Archive,
+  ArchiveRestore,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -45,9 +51,39 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
     },
   });
 
+  const archiveArticle = api.article.archive.useMutation({
+    onSuccess: () => {
+      void utils.article.getAll.invalidate();
+      void utils.article.getArchived.invalidate();
+      router.push("/");
+    },
+    onError: (error) => {
+      console.error("Failed to archive article:", error);
+    },
+  });
+
+  const unarchiveArticle = api.article.unarchive.useMutation({
+    onSuccess: () => {
+      void utils.article.getAll.invalidate();
+      void utils.article.getArchived.invalidate();
+      router.push("/");
+    },
+    onError: (error) => {
+      console.error("Failed to unarchive article:", error);
+    },
+  });
+
   const handleDelete = () => {
     deleteArticle.mutate({ id });
     setShowDeleteDialog(false);
+  };
+
+  const handleArchive = () => {
+    if (article.isArchived) {
+      unarchiveArticle.mutate({ id });
+    } else {
+      archiveArticle.mutate({ id });
+    }
   };
 
   if (isLoading) {
@@ -147,42 +183,63 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
           <h1 className="min-w-0 flex-1 truncate text-xl font-bold">
             {article.title}
           </h1>
-          <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-            <DialogTrigger asChild>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Delete Article</DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to delete this article? This action
-                  cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDeleteDialog(false)}
-                >
-                  Cancel
-                </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleArchive}
+              disabled={archiveArticle.isPending || unarchiveArticle.isPending}
+              className="flex items-center gap-2"
+            >
+              {article.isArchived ? (
+                <>
+                  <ArchiveRestore className="h-4 w-4" />
+                  Unarchive
+                </>
+              ) : (
+                <>
+                  <Archive className="h-4 w-4" />
+                  Archive
+                </>
+              )}
+            </Button>
+            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+              <DialogTrigger asChild>
                 <Button
                   variant="destructive"
-                  onClick={handleDelete}
-                  disabled={deleteArticle.isPending}
+                  size="sm"
+                  className="flex items-center gap-2"
                 >
-                  {deleteArticle.isPending ? "Deleting..." : "Delete"}
+                  <Trash2 className="h-4 w-4" />
+                  Delete
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Delete Article</DialogTitle>
+                  <DialogDescription>
+                    Are you sure you want to delete this article? This action
+                    cannot be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDeleteDialog(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDelete}
+                    disabled={deleteArticle.isPending}
+                  >
+                    {deleteArticle.isPending ? "Deleting..." : "Delete"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </header>
 
@@ -192,6 +249,14 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
             <CardTitle className="text-3xl">{article.title}</CardTitle>
             <div className="flex items-center gap-2">
               <Badge variant="outline">Article</Badge>
+              {article.isArchived && (
+                <Badge
+                  variant="secondary"
+                  className="bg-gray-100 text-gray-600"
+                >
+                  Archived
+                </Badge>
+              )}
               <Button
                 variant="outline"
                 size="sm"
