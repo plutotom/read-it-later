@@ -43,6 +43,16 @@ export const articleCreateSchema = z.object({
   tags: z.array(z.string().max(50)).max(20).optional(),
 });
 
+// Article creation from text schema
+export const articleCreateFromTextSchema = z.object({
+  content: z.string().min(1, "Content is required"),
+  title: z.string().min(1, "Title is required").max(500),
+  author: z.string().max(200).optional(),
+  publishedAt: z.date().optional(),
+  folderId: z.string().uuid().optional(),
+  tags: z.array(z.string().max(50)).max(20).optional(),
+});
+
 // Article update schema
 export const articleUpdateSchema = z.object({
   title: z.string().min(1).max(500).optional(),
@@ -113,6 +123,9 @@ export const articleExtractionResultSchema = z.object({
 // Type exports for use in other files
 export type ArticleInput = z.infer<typeof articleSchema>;
 export type ArticleCreateInput = z.infer<typeof articleCreateSchema>;
+export type ArticleCreateFromTextInput = z.infer<
+  typeof articleCreateFromTextSchema
+>;
 export type ArticleUpdateInput = z.infer<typeof articleUpdateSchema>;
 export type ArticleSearchInput = z.infer<typeof articleSearchSchema>;
 export type ArticleListResponse = z.infer<typeof articleListResponseSchema>;
