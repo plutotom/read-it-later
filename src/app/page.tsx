@@ -30,29 +30,42 @@ export default function HomePage() {
     },
   });
 
-  const archiveArticle = api.article.archive.useMutation({
+  const createArticleFromText = api.article.createFromText.useMutation({
     onSuccess: () => {
+      // Invalidate and refetch the articles list
       void utils.article.getAll.invalidate();
     },
   });
 
-  const deleteArticle = api.article.delete.useMutation({
-    onSuccess: () => {
-      void utils.article.getAll.invalidate();
-    },
-  });
   const router = useRouter();
 
   const handleArticleSubmit = async (data: {
-    url: string;
+    url?: string;
+    content?: string;
+    title?: string;
+    author?: string;
+    publishedAt?: Date;
     folderId?: string;
     tags?: string[];
   }) => {
-    await createArticle.mutateAsync({
-      url: data.url,
-      folderId: data.folderId,
-      tags: data.tags,
-    });
+    if (data.url) {
+      // URL mode
+      await createArticle.mutateAsync({
+        url: data.url,
+        folderId: data.folderId,
+        tags: data.tags,
+      });
+    } else if (data.content && data.title) {
+      // Text mode
+      await createArticleFromText.mutateAsync({
+        content: data.content,
+        title: data.title,
+        author: data.author,
+        publishedAt: data.publishedAt,
+        folderId: data.folderId,
+        tags: data.tags,
+      });
+    }
   };
 
   if (isLoading)
@@ -96,7 +109,9 @@ export default function HomePage() {
             <AddArticleForm
               onSubmit={handleArticleSubmit}
               folders={folders}
-              isLoading={createArticle.isPending}
+              isLoading={
+                createArticle.isPending || createArticleFromText.isPending
+              }
             />
           </CardContent>
         </Card>

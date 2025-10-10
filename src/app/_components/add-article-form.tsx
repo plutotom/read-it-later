@@ -12,10 +12,16 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import { Alert, AlertDescription } from "~/components/ui/alert";
+import { RichTextInput } from "./rich-text-input";
+import { FileText, Link } from "lucide-react";
 
 interface AddArticleFormProps {
   onSubmit: (data: {
-    url: string;
+    url?: string;
+    content?: string;
+    title?: string;
+    author?: string;
+    publishedAt?: Date;
     folderId?: string;
     tags?: string[];
   }) => Promise<void>;
@@ -33,9 +39,23 @@ export function AddArticleForm({
   const [url, setUrl] = useState("");
   const [folderId, setFolderId] = useState<string>("");
   const [tagsInput, setTagsInput] = useState("");
-  const [errors, setErrors] = useState<{ url?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{
+    url?: string;
+    general?: string;
+    title?: string;
+  }>({});
   const [pasteError, setPasteError] = useState(false);
   const [isPasting, setIsPasting] = useState(false);
+
+  // Text mode state
+  const [isTextMode, setIsTextMode] = useState(false);
+  const [content, setContent] = useState("");
+  const [title, setTitle] = useState("");
+  const [author, setAuthor] = useState("");
+  const [detectedMetadata, setDetectedMetadata] = useState<{
+    title?: string;
+    author?: string;
+  }>({});
 
   const validateUrl = (urlString: string) => {
     try {
@@ -51,12 +71,23 @@ export function AddArticleForm({
     setErrors({});
 
     // Validation
-    const newErrors: { url?: string; general?: string } = {};
+    const newErrors: { url?: string; general?: string; title?: string } = {};
 
-    if (!url.trim()) {
-      newErrors.url = "URL is required";
-    } else if (!validateUrl(url.trim())) {
-      newErrors.url = "Please enter a valid URL";
+    if (isTextMode) {
+      // Text mode validation
+      if (!content.trim()) {
+        newErrors.general = "Content is required";
+      }
+      if (!title.trim()) {
+        newErrors.title = "Title is required";
+      }
+    } else {
+      // URL mode validation
+      if (!url.trim()) {
+        newErrors.url = "URL is required";
+      } else if (!validateUrl(url.trim())) {
+        newErrors.url = "Please enter a valid URL";
+      }
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -71,16 +102,32 @@ export function AddArticleForm({
         .map((tag) => tag.trim())
         .filter((tag) => tag.length > 0);
 
-      await onSubmit({
-        url: url.trim(),
-        folderId: folderId || undefined,
-        tags: tags.length > 0 ? tags : undefined,
-      });
+      if (isTextMode) {
+        await onSubmit({
+          content: content.trim(),
+          title: title.trim(),
+          author: author.trim() || undefined,
+          publishedAt: new Date(),
+          folderId: folderId || undefined,
+          tags: tags.length > 0 ? tags : undefined,
+        });
+      } else {
+        await onSubmit({
+          url: url.trim(),
+          folderId: folderId || undefined,
+          tags: tags.length > 0 ? tags : undefined,
+        });
+      }
 
       // Reset form on success
       setUrl("");
       setFolderId("");
       setTagsInput("");
+      setContent("");
+      setTitle("");
+      setAuthor("");
+      setDetectedMetadata({});
+      setIsTextMode(false);
     } catch (error) {
       setErrors({
         general:
@@ -94,6 +141,19 @@ export function AddArticleForm({
     if (validateUrl(pastedText)) {
       setUrl(pastedText);
       setErrors({});
+    }
+  };
+
+  const handleMetadataDetected = (metadata: {
+    title?: string;
+    author?: string;
+  }) => {
+    setDetectedMetadata(metadata);
+    if (metadata.title && !title) {
+      setTitle(metadata.title);
+    }
+    if (metadata.author && !author) {
+      setAuthor(metadata.author);
     }
   };
 
@@ -147,27 +207,122 @@ export function AddArticleForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* URL input */}
-      <div className="space-y-2">
-        <Label htmlFor="url">Article URL *</Label>
-        <Input
-          id="url"
-          type="url"
-          value={url}
-          onChange={(e) => {
-            setUrl(e.target.value);
-            if (errors.url) setErrors({ ...errors, url: undefined });
-          }}
-          onPaste={handleUrlPaste}
-          placeholder="https://example.com/article"
+      {/* Mode Toggle */}
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant={!isTextMode ? "default" : "outline"}
+          onClick={() => setIsTextMode(false)}
           disabled={isLoading || isPasting}
-          className={errors.url ? "border-red-500" : ""}
-        />
-        {errors.url && <p className="text-sm text-red-600">{errors.url}</p>}
-        <p className="text-muted-foreground text-xs">
-          Paste any article URL and we'll extract the content for you
-        </p>
+          className="flex-1"
+        >
+          <Link className="mr-2 h-4 w-4" />
+          Add from URL
+        </Button>
+        <Button
+          type="button"
+          variant={isTextMode ? "default" : "outline"}
+          onClick={() => setIsTextMode(true)}
+          disabled={isLoading || isPasting}
+          className="flex-1"
+        >
+          <FileText className="mr-2 h-4 w-4" />
+          Add from Text
+        </Button>
       </div>
+
+      {!isTextMode ? (
+        /* URL Mode */
+        <div className="space-y-2">
+          <Label htmlFor="url">Article URL *</Label>
+          <Input
+            id="url"
+            type="url"
+            value={url}
+            onChange={(e) => {
+              setUrl(e.target.value);
+              if (errors.url) setErrors({ ...errors, url: undefined });
+            }}
+            onPaste={handleUrlPaste}
+            placeholder="https://example.com/article"
+            disabled={isLoading || isPasting}
+            className={errors.url ? "border-red-500" : ""}
+          />
+          {errors.url && <p className="text-sm text-red-600">{errors.url}</p>}
+          <p className="text-muted-foreground text-xs">
+            Paste any article URL and we'll extract the content for you
+          </p>
+        </div>
+      ) : (
+        /* Text Mode */
+        <div className="space-y-4">
+          {/* Rich Text Editor */}
+          <div className="space-y-2">
+            <Label>Article Content *</Label>
+            <RichTextInput
+              content={content}
+              onContentChange={setContent}
+              onMetadataDetected={handleMetadataDetected}
+              disabled={isLoading || isPasting}
+            />
+            {errors.general && (
+              <p className="text-sm text-red-600">{errors.general}</p>
+            )}
+          </div>
+
+          {/* Detected Metadata Preview */}
+          {(detectedMetadata.title || detectedMetadata.author) && (
+            <div className="rounded-lg bg-blue-50 p-3">
+              <p className="mb-2 text-sm font-medium text-blue-900">
+                Detected metadata:
+              </p>
+              {detectedMetadata.title && (
+                <p className="text-sm text-blue-700">
+                  <strong>Title:</strong> {detectedMetadata.title}
+                </p>
+              )}
+              {detectedMetadata.author && (
+                <p className="text-sm text-blue-700">
+                  <strong>Author:</strong> {detectedMetadata.author}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Manual Title Input */}
+          <div className="space-y-2">
+            <Label htmlFor="title">Title *</Label>
+            <Input
+              id="title"
+              type="text"
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (errors.title) setErrors({ ...errors, title: undefined });
+              }}
+              placeholder="Enter article title"
+              disabled={isLoading || isPasting}
+              className={errors.title ? "border-red-500" : ""}
+            />
+            {errors.title && (
+              <p className="text-sm text-red-600">{errors.title}</p>
+            )}
+          </div>
+
+          {/* Manual Author Input */}
+          <div className="space-y-2">
+            <Label htmlFor="author">Author (optional)</Label>
+            <Input
+              id="author"
+              type="text"
+              value={author}
+              onChange={(e) => setAuthor(e.target.value)}
+              placeholder="Enter author name"
+              disabled={isLoading || isPasting}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Folder selection */}
       {folders && folders.length > 0 && (
@@ -218,13 +373,18 @@ export function AddArticleForm({
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button
             type="submit"
-            disabled={isLoading || !url.trim() || isPasting}
+            disabled={
+              isLoading ||
+              isPasting ||
+              (!isTextMode && !url.trim()) ||
+              (isTextMode && (!content.trim() || !title.trim()))
+            }
             className="w-full sm:w-auto"
           >
             {isLoading ? (
               <>
                 <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Adding Article...
+                {isTextMode ? "Saving Article..." : "Adding Article..."}
               </>
             ) : (
               <>
@@ -241,7 +401,7 @@ export function AddArticleForm({
                     d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                   />
                 </svg>
-                Add Article
+                {isTextMode ? "Save Article" : "Add Article"}
               </>
             )}
           </Button>

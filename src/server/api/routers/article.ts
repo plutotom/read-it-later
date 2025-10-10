@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { articles } from "~/server/db/schema";
 import { ArticleExtractor } from "~/server/services/articleExtractor";
+import { articleCreateFromTextSchema } from "~/schemas/article";
+import { JSDOM } from "jsdom";
 
 export const articleRouter = createTRPCRouter({
   getAll: publicProcedure.query(async ({ ctx }) => {
@@ -59,28 +61,51 @@ export const articleRouter = createTRPCRouter({
       return newArticle;
     }),
 
-  archive: publicProcedure
-    .input(z.object({ id: z.string() }))
+  createFromText: publicProcedure
+    .input(articleCreateFromTextSchema)
     .mutation(async ({ ctx, input }) => {
-      const result = await ctx.db
-        .update(articles)
-        .set({ isArchived: true })
-        .where(eq(articles.id, input.id))
+      // Generate placeholder URL for text articles
+      const placeholderUrl = `text://manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      // Calculate word count and reading time from HTML content
+      const dom = new JSDOM(input.content);
+      const document = dom.window.document;
+      const plainText = document.textContent || "";
+      const wordCount = plainText
+        .split(/\s+/)
+        .filter((word) => word.length > 0).length;
+      const readingTime = Math.ceil(wordCount / 200); // 200 words per minute
+
+      // Extract excerpt from first paragraph
+      const firstParagraph = document.querySelector("p");
+      const excerpt =
+        firstParagraph?.textContent?.trim() ||
+        plainText.substring(0, 200).trim();
+
+      const [newArticle] = await ctx.db
+        .insert(articles)
+        .values({
+          url: placeholderUrl,
+          title: input.title,
+          content: input.content,
+          excerpt: excerpt.length > 0 ? excerpt : null,
+          author: input.author || null,
+          publishedAt: input.publishedAt || null,
+          wordCount: wordCount,
+          readingTime: readingTime,
+          folderId: input.folderId || null,
+          tags: input.tags || null,
+          metadata: {
+            siteName: "Manual Entry",
+            siteUrl: placeholderUrl,
+            description: excerpt,
+            language: "en",
+            category: "Manual Entry",
+          },
+        })
         .returning();
 
-      return { success: result.length > 0 };
-    }),
-
-  unarchive: publicProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const result = await ctx.db
-        .update(articles)
-        .set({ isArchived: false })
-        .where(eq(articles.id, input.id))
-        .returning();
-
-      return { success: result.length > 0 };
+      return newArticle;
     }),
 
   delete: publicProcedure

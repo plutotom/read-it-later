@@ -248,26 +248,26 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
           <CardHeader>
             <CardTitle className="text-3xl">{article.title}</CardTitle>
             <div className="flex items-center gap-2">
-              <Badge variant="outline">Article</Badge>
-              {article.isArchived && (
-                <Badge
-                  variant="secondary"
-                  className="bg-gray-100 text-gray-600"
+              <Badge variant="outline">
+                {article.url.startsWith("text://") ? "Manual Entry" : "Article"}
+              </Badge>
+              {!article.url.startsWith("text://") && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="flex items-center gap-2"
                 >
-                  Archived
-                </Badge>
+                  <a
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Original Source
+                  </a>
+                </Button>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                asChild
-                className="flex items-center gap-2"
-              >
-                <a href={article.url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  Original Source
-                </a>
-              </Button>
             </div>
           </CardHeader>
           <Separator />
