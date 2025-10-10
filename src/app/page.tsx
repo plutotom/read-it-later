@@ -37,6 +37,18 @@ export default function HomePage() {
     },
   });
 
+  const archiveArticle = api.article.archive.useMutation({
+    onSuccess: () => {
+      void utils.article.getAll.invalidate();
+    },
+  });
+
+  const deleteArticle = api.article.delete.useMutation({
+    onSuccess: () => {
+      void utils.article.getAll.invalidate();
+    },
+  });
+
   const router = useRouter();
 
   const handleArticleSubmit = async (data: {
