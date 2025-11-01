@@ -1,10 +1,11 @@
 // @ts-nocheck
-const CACHE_NAME = "read-it-later-v1";
+const CACHE_NAME = "read-it-later-v2";
 const STATIC_CACHE_URLS = [
   "/",
   "/search",
   "/components",
   "/offline",
+  "/manifest.webmanifest",
   "/favicon.ico",
   "/favicon-96x96.png",
   "/web-app-manifest-192x192.png",
@@ -67,9 +68,37 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Skip service worker and manifest requests to avoid cache issues
+  if (
+    event.request.url.includes("/sw.js") ||
+    event.request.url.includes("/_next") ||
+    event.request.url.includes("/api")
+  ) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
+      // If we have a cached response, try to update it in the background (stale-while-revalidate)
       if (cachedResponse) {
+        // Update cache in background
+        fetch(event.request)
+          .then((response) => {
+            if (
+              response &&
+              response.status === 200 &&
+              response.type === "basic"
+            ) {
+              const responseToCache = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+            }
+          })
+          .catch(() => {
+            // Network failed, keep using cached version
+          });
+
         console.log("Serving from cache:", event.request.url);
         return cachedResponse;
       }
@@ -108,6 +137,11 @@ self.addEventListener("fetch", (event) => {
               })
             );
           }
+          // For non-navigation requests, return a simple offline response
+          return new Response("Offline", {
+            status: 503,
+            statusText: "Service Unavailable",
+          });
         });
     }),
   );

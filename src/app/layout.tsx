@@ -18,7 +18,6 @@ export const metadata: Metadata = {
     { rel: "icon", url: "/web-app-manifest-192x192.png", sizes: "192x192" },
     { rel: "icon", url: "/web-app-manifest-512x512.png", sizes: "512x512" },
   ],
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -72,6 +71,7 @@ export default function RootLayout({
           sizes="167x167"
           href="/web-app-manifest-192x192.png"
         />
+        <link rel="manifest" href="/manifest.webmanifest" />
       </head>
       <body className="bg-gray-50 font-sans antialiased">
         <TRPCReactProvider>
