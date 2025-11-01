@@ -126,6 +126,7 @@ export const annotationRouter = createTRPCRouter({
       z.object({
         articleId: z.string(),
         content: z.string(),
+        highlightId: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -134,6 +135,7 @@ export const annotationRouter = createTRPCRouter({
         .values({
           articleId: input.articleId,
           content: input.content,
+          highlightId: input.highlightId || null,
         })
         .returning();
 

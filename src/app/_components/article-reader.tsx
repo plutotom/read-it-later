@@ -281,15 +281,16 @@ export function ArticleReader({
   };
 
   const getHighlightColor = (color: HighlightColor): string => {
+    // Dark mode compatible highlight colors with good contrast
     const colors: Record<HighlightColor, string> = {
-      yellow: "#fef08a",
-      green: "#bbf7d0",
-      blue: "#bfdbfe",
-      pink: "#fce7f3",
-      purple: "#e9d5ff",
-      orange: "#fed7aa",
-      red: "#fecaca",
-      gray: "#e5e7eb",
+      yellow: "#fbbf24", // Amber 400 - brighter for dark mode
+      green: "#34d399", // Emerald 400
+      blue: "#60a5fa", // Blue 400
+      pink: "#f472b6", // Pink 400
+      purple: "#a78bfa", // Violet 400
+      orange: "#fb923c", // Orange 400
+      red: "#f87171", // Red 400
+      gray: "#9ca3af", // Gray 400
     };
     return colors[color] ?? colors.yellow;
   };
@@ -423,13 +424,13 @@ export function ArticleReader({
   };
 
   return (
-    <div className="flex h-full flex-col bg-white">
+    <div className="flex h-full flex-col bg-gray-900">
       {/* Header */}
-      <div className="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3">
+      <div className="sticky top-0 z-10 border-b border-gray-700 bg-gray-900 px-4 py-3">
         <div className="flex items-center justify-between">
           <button
             onClick={onBackClick}
-            className="flex items-center text-gray-600 hover:text-gray-900"
+            className="flex items-center text-gray-400 hover:text-gray-200"
           >
             <svg
               className="mr-1 h-5 w-5"
@@ -451,7 +452,7 @@ export function ArticleReader({
             {/* Reading settings */}
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+              className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-gray-200"
               aria-label="Reading settings"
             >
               <svg
@@ -487,7 +488,7 @@ export function ArticleReader({
                   navigator.clipboard.writeText(article.url);
                 }
               }}
-              className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+              className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-gray-200"
               aria-label="Share article"
             >
               <svg
@@ -509,15 +510,15 @@ export function ArticleReader({
 
         {/* Settings panel */}
         {showSettings && (
-          <div className="mt-3 rounded-lg bg-gray-50 p-3">
+          <div className="mt-3 rounded-lg bg-gray-800 p-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-gray-200">
                 Font Size
               </span>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setFontSize(Math.max(12, fontSize - 2))}
-                  className="p-1 text-gray-600 hover:text-gray-900"
+                  className="p-1 text-gray-400 hover:text-gray-200"
                 >
                   <svg
                     className="h-4 w-4"
@@ -533,12 +534,12 @@ export function ArticleReader({
                     />
                   </svg>
                 </button>
-                <span className="w-8 text-center text-sm text-gray-600">
+                <span className="w-8 text-center text-sm text-gray-300">
                   {fontSize}
                 </span>
                 <button
                   onClick={() => setFontSize(Math.min(24, fontSize + 2))}
-                  className="p-1 text-gray-600 hover:text-gray-900"
+                  className="p-1 text-gray-400 hover:text-gray-200"
                 >
                   <svg
                     className="h-4 w-4"
@@ -565,7 +566,7 @@ export function ArticleReader({
         <article className="max-w-none px-4 py-6">
           {/* Article metadata */}
           <div className="mb-6">
-            <div className="mb-2 flex items-center text-sm text-gray-500">
+            <div className="mb-2 flex items-center text-sm text-gray-400">
               <span>{getDomainFromUrl(article.url)}</span>
               {article.publishedAt && (
                 <>
@@ -581,12 +582,12 @@ export function ArticleReader({
               )}
             </div>
 
-            <h1 className="mb-4 text-2xl leading-tight font-bold text-gray-900">
+            <h1 className="mb-4 text-2xl leading-tight font-bold text-gray-100">
               {article.title}
             </h1>
 
             {article.author && (
-              <p className="mb-4 text-gray-600">By {article.author}</p>
+              <p className="mb-4 text-gray-300">By {article.author}</p>
             )}
 
             {article.tags && article.tags.length > 0 && (
@@ -594,7 +595,7 @@ export function ArticleReader({
                 {article.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800"
+                    className="inline-flex items-center rounded-full bg-blue-900/50 px-2 py-1 text-xs font-medium text-blue-300"
                   >
                     {tag}
                   </span>
@@ -631,8 +632,8 @@ export function ArticleReader({
 
           {/* Standalone notes section */}
           {notes.filter((n) => !n.highlightId).length > 0 && (
-            <div className="mt-8 border-t border-gray-200 pt-6">
-              <h3 className="mb-4 text-lg font-semibold text-gray-900">
+            <div className="mt-8 border-t border-gray-700 pt-6">
+              <h3 className="mb-4 text-lg font-semibold text-gray-100">
                 Notes
               </h3>
               <div className="space-y-3">
@@ -641,10 +642,10 @@ export function ArticleReader({
                   .map((note) => (
                     <div
                       key={note.id}
-                      className="rounded-r border-l-4 border-yellow-400 bg-yellow-50 p-3"
+                      className="rounded-r border-l-4 border-yellow-600 bg-yellow-900/30 p-3"
                     >
-                      <p className="text-sm text-gray-800">{note.content}</p>
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="text-sm text-gray-200">{note.content}</p>
+                      <p className="mt-1 text-xs text-gray-400">
                         {formatDate(note.createdAt)}
                       </p>
                     </div>
@@ -667,15 +668,15 @@ export function ArticleReader({
 
       {/* Highlight annotation dialog */}
       {selectedHighlight && (
-        <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black p-4">
-          <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg">
+        <div className="bg-opacity-70 fixed inset-0 z-50 flex items-center justify-center bg-black p-4">
+          <div className="w-full max-w-2xl rounded-lg border border-gray-700 bg-gray-800 p-6 shadow-lg">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-gray-100">
                 Highlight Details
               </h3>
               <button
                 onClick={() => setSelectedHighlight(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-200"
               >
                 <svg
                   className="h-5 w-5"
@@ -706,7 +707,7 @@ export function ArticleReader({
         </div>
       )}
 
-      {/* CSS for highlights */}
+      {/* CSS for highlights - dark mode optimized */}
       <style jsx global>{`
         @supports (background-color: Highlight) {
           mark[data-hl-id] {
@@ -715,28 +716,36 @@ export function ArticleReader({
           }
         }
         .highlight-yellow {
-          background-color: #fef08a;
+          background-color: #fbbf24;
+          color: #1f2937;
         }
         .highlight-green {
-          background-color: #bbf7d0;
+          background-color: #34d399;
+          color: #1f2937;
         }
         .highlight-blue {
-          background-color: #bfdbfe;
+          background-color: #60a5fa;
+          color: #1f2937;
         }
         .highlight-pink {
-          background-color: #fce7f3;
+          background-color: #f472b6;
+          color: #1f2937;
         }
         .highlight-purple {
-          background-color: #e9d5ff;
+          background-color: #a78bfa;
+          color: #1f2937;
         }
         .highlight-orange {
-          background-color: #fed7aa;
+          background-color: #fb923c;
+          color: #1f2937;
         }
         .highlight-red {
-          background-color: #fecaca;
+          background-color: #f87171;
+          color: #1f2937;
         }
         .highlight-gray {
-          background-color: #e5e7eb;
+          background-color: #9ca3af;
+          color: #1f2937;
         }
       `}</style>
     </div>

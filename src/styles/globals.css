@@ -96,9 +96,9 @@ html {
   border-radius: 0.5rem;
 }
 
-/* Enhanced article content styling for Mozilla Readability output */
+/* Enhanced article content styling for Mozilla Readability output - Dark Mode */
 .article-content {
-  color: #1f2937;
+  color: #e5e7eb;
   font-family: var(--font-sans);
 }
 
@@ -109,7 +109,7 @@ html {
 .article-content h5,
 .article-content h6 {
   font-weight: 700;
-  color: #111827;
+  color: #f9fafb;
   margin-top: 2em;
   margin-bottom: 0.75em;
   line-height: 1.25;
@@ -117,7 +117,7 @@ html {
 
 .article-content h1 {
   font-size: 1.875rem;
-  border-bottom: 2px solid #e5e7eb;
+  border-bottom: 2px solid #4b5563;
   padding-bottom: 0.5em;
 }
 
@@ -136,7 +136,7 @@ html {
 .article-content p {
   margin-bottom: 1.25em;
   line-height: 1.75;
-  color: #374151;
+  color: #d1d5db;
 }
 
 .article-content ul,
@@ -151,20 +151,20 @@ html {
 }
 
 .article-content blockquote {
-  border-left: 4px solid #3b82f6;
-  background-color: #f8fafc;
+  border-left: 4px solid #60a5fa;
+  background-color: #1f2937;
   padding: 1em 1.5em;
   margin: 1.5em 0;
   border-radius: 0 0.5rem 0.5rem 0;
   font-style: italic;
-  color: #475569;
+  color: #cbd5e1;
   position: relative;
 }
 
 .article-content blockquote::before {
   content: '"';
   font-size: 3rem;
-  color: #3b82f6;
+  color: #60a5fa;
   position: absolute;
   top: -0.5rem;
   left: 0.5rem;
@@ -177,7 +177,7 @@ html {
 
 .article-content q {
   font-style: italic;
-  color: #6b7280;
+  color: #9ca3af;
 }
 
 .article-content q::before {
@@ -189,16 +189,16 @@ html {
 }
 
 .article-content code {
-  background-color: #f1f5f9;
+  background-color: #374151;
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
   font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   font-size: 0.875em;
-  color: #e11d48;
+  color: #fca5a5;
 }
 
 .article-content pre {
-  background-color: #1e293b;
+  background-color: #111827;
   color: #e2e8f0;
   padding: 1.5em;
   border-radius: 0.5rem;
@@ -207,6 +207,7 @@ html {
   font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   font-size: 0.875em;
   line-height: 1.5;
+  border: 1px solid #374151;
 }
 
 .article-content pre code {
@@ -221,7 +222,8 @@ html {
   height: auto;
   margin: 1.5em 0;
   border-radius: 0.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  opacity: 0.95;
 }
 
 .article-content figure {
@@ -231,22 +233,28 @@ html {
 
 .article-content figcaption {
   font-size: 0.875em;
-  color: #6b7280;
+  color: #9ca3af;
   margin-top: 0.5em;
   font-style: italic;
 }
 
-.article-content a & .internal-link {
-  color: #3b82f6;
+.article-content a,
+.article-content .internal-link {
+  color: #60a5fa;
   text-decoration: underline;
-  text-decoration-color: #93c5fd;
+  text-decoration-color: #3b82f6;
   text-underline-offset: 2px;
   transition: color 0.2s ease;
 }
 
-.external-link {
-  color: #1d4ed8;
-  text-decoration-color: #3b82f6;
+.article-content a:hover,
+.article-content .internal-link:hover {
+  color: #93c5fd;
+}
+
+.article-content .external-link {
+  color: #93c5fd;
+  text-decoration-color: #60a5fa;
 }
 
 .external-link::after {
@@ -259,7 +267,7 @@ html {
 .article-content strong,
 .article-content b {
   font-weight: 700;
-  color: #111827;
+  color: #f9fafb;
 }
 
 .article-content em,
@@ -270,7 +278,7 @@ html {
 .article-content hr {
   border: none;
   height: 1px;
-  background-color: #e5e7eb;
+  background-color: #4b5563;
   margin: 2em 0;
 }
 
@@ -285,17 +293,17 @@ html {
 .article-content td {
   padding: 0.75em;
   text-align: left;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #4b5563;
 }
 
 .article-content th {
-  background-color: #f9fafb;
+  background-color: #1f2937;
   font-weight: 600;
-  color: #374151;
+  color: #f3f4f6;
 }
 
 .article-content tr:hover {
-  background-color: #f9fafb;
+  background-color: #1f2937;
 }
 
 /* Mobile-specific adjustments */
@@ -354,22 +362,22 @@ html {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Custom scrollbar for better mobile experience */
+/* Custom scrollbar for better mobile experience - Dark Mode */
 ::-webkit-scrollbar {
   width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #1f2937;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #4b5563;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #6b7280;
 }
 
 @theme inline {

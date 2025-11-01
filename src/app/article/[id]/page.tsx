@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { ArticleReader } from "~/app/_components/article-reader";
+import type { NotePosition } from "~/types/annotation";
 
 interface ArticleDetailPageProps {
   params: Promise<{
@@ -17,14 +18,26 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
   const router = useRouter();
 
   const { data: article, isLoading, error } = api.article.get.useQuery({ id });
-  const { data: highlights = [] } = api.annotation.getHighlightsByArticleId.useQuery(
+  const { data: highlightsRaw = [] } = api.annotation.getHighlightsByArticleId.useQuery(
     { articleId: id },
     { enabled: !!id },
   );
-  const { data: notes = [] } = api.annotation.getNotesByArticleId.useQuery(
+  const { data: notesRaw = [] } = api.annotation.getNotesByArticleId.useQuery(
     { articleId: id },
     { enabled: !!id },
   );
+
+  // Transform highlights to match the Highlight type (convert null tags to undefined)
+  const highlights = highlightsRaw.map((h) => ({
+    ...h,
+    tags: h.tags ?? undefined,
+  }));
+
+  // Transform notes to match the Note type (cast position from unknown)
+  const notes = notesRaw.map((n) => ({
+    ...n,
+    position: (n.position as NotePosition | null) ?? null,
+  }));
 
   const utils = api.useUtils();
 

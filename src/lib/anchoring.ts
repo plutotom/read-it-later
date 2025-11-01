@@ -187,6 +187,7 @@ export function findByTextQuote(
     if (words.length > 0) {
       // Find first word in original text
       const firstWord = words[0];
+      if (!firstWord) return null;
       const firstWordIndex = textContent.indexOf(firstWord, 0);
 
       if (firstWordIndex !== -1) {
