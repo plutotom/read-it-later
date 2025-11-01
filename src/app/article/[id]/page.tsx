@@ -3,27 +3,8 @@
 import React, { use } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Badge } from "~/components/ui/badge";
-import { Separator } from "~/components/ui/separator";
 import { Alert, AlertDescription } from "~/components/ui/alert";
-import {
-  ArrowLeft,
-  ExternalLink,
-  Trash2,
-  Archive,
-  ArchiveRestore,
-} from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "~/components/ui/dialog";
+import { ArticleReader } from "~/app/_components/article-reader";
 
 interface ArticleDetailPageProps {
   params: Promise<{
@@ -34,80 +15,119 @@ interface ArticleDetailPageProps {
 export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
   const { id } = use(params);
   const router = useRouter();
-  const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
 
   const { data: article, isLoading, error } = api.article.get.useQuery({ id });
+  const { data: highlights = [] } = api.annotation.getHighlightsByArticleId.useQuery(
+    { articleId: id },
+    { enabled: !!id },
+  );
+  const { data: notes = [] } = api.annotation.getNotesByArticleId.useQuery(
+    { articleId: id },
+    { enabled: !!id },
+  );
 
   const utils = api.useUtils();
 
-  const deleteArticle = api.article.delete.useMutation({
+  const createHighlight = api.annotation.createHighlight.useMutation({
     onSuccess: () => {
-      // Invalidate and refetch the articles list
-      void utils.article.getAll.invalidate();
-      router.push("/");
-    },
-    onError: (error) => {
-      console.error("Failed to delete article:", error);
+      void utils.annotation.getHighlightsByArticleId.invalidate({ articleId: id });
     },
   });
 
-  const archiveArticle = api.article.archive.useMutation({
+  const updateHighlight = api.annotation.updateHighlight.useMutation({
     onSuccess: () => {
-      void utils.article.getAll.invalidate();
-      void utils.article.getArchived.invalidate();
-      router.push("/");
-    },
-    onError: (error) => {
-      console.error("Failed to archive article:", error);
+      void utils.annotation.getHighlightsByArticleId.invalidate({ articleId: id });
     },
   });
 
-  const unarchiveArticle = api.article.unarchive.useMutation({
+  const deleteHighlight = api.annotation.deleteHighlight.useMutation({
     onSuccess: () => {
-      void utils.article.getAll.invalidate();
-      void utils.article.getArchived.invalidate();
-      router.push("/");
-    },
-    onError: (error) => {
-      console.error("Failed to unarchive article:", error);
+      void utils.annotation.getHighlightsByArticleId.invalidate({ articleId: id });
     },
   });
 
-  const handleDelete = () => {
-    deleteArticle.mutate({ id });
-    setShowDeleteDialog(false);
+  const createNote = api.annotation.createNote.useMutation({
+    onSuccess: () => {
+      void utils.annotation.getNotesByArticleId.invalidate({ articleId: id });
+    },
+  });
+
+  const markAsRead = api.article.markAsRead.useMutation({
+    onSuccess: () => {
+      void utils.article.getAll.invalidate();
+      void utils.article.get.invalidate({ id });
+    },
+  });
+
+  const handleHighlight = async (data: {
+    text: string;
+    startOffset: number;
+    endOffset: number;
+    color: string;
+    note?: string;
+    tags?: string[];
+    quoteExact?: string;
+    quotePrefix?: string;
+    quoteSuffix?: string;
+    contentHash?: string;
+  }) => {
+    if (!article) return;
+
+    createHighlight.mutate({
+      articleId: article.id,
+      text: data.text,
+      startOffset: data.startOffset,
+      endOffset: data.endOffset,
+      color: data.color as any,
+      note: data.note,
+      tags: data.tags,
+      quoteExact: data.quoteExact,
+      quotePrefix: data.quotePrefix,
+      quoteSuffix: data.quoteSuffix,
+      contentHash: data.contentHash,
+    });
   };
 
-  const handleArchive = () => {
-    if (article?.isArchived) {
-      unarchiveArticle.mutate({ id });
-    } else {
-      archiveArticle.mutate({ id });
+  const handleUpdateHighlight = (highlightId: string, updateData: {
+    color?: string;
+    note?: string | null;
+    tags?: string[];
+  }) => {
+    updateHighlight.mutate({
+      id: highlightId,
+      color: updateData.color as any,
+      note: updateData.note,
+      tags: updateData.tags,
+    });
+  };
+
+  const handleDeleteHighlight = (highlightId: string) => {
+    deleteHighlight.mutate({ id: highlightId });
+  };
+
+  const handleAddNote = (content: string, highlightId?: string) => {
+    if (!article) return;
+
+    createNote.mutate({
+      articleId: article.id,
+      content,
+      highlightId,
+    });
+  };
+
+  const handleMarkAsRead = () => {
+    if (article && !article.isRead) {
+      markAsRead.mutate({ id: article.id });
     }
   };
 
   if (isLoading) {
     return (
       <div className="bg-background flex min-h-screen flex-col">
-        <header className="bg-card border-b p-4 shadow-sm">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.back()}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-          </div>
-        </header>
         <main className="flex-1 p-4">
-          <Card>
-            <CardContent className="text-muted-foreground py-8 text-center">
-              Loading article...
-            </CardContent>
-          </Card>
+          <Alert>
+            <AlertDescription>Loading article...</AlertDescription>
+          </Alert>
         </main>
       </div>
     );
@@ -116,19 +136,6 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
   if (error) {
     return (
       <div className="bg-background flex min-h-screen flex-col">
-        <header className="bg-card border-b p-4 shadow-sm">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.back()}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-          </div>
-        </header>
         <main className="flex-1 p-4">
           <Alert variant="destructive">
             <AlertDescription>
@@ -143,141 +150,26 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
   if (!article) {
     return (
       <div className="bg-background flex min-h-screen flex-col">
-        <header className="bg-card border-b p-4 shadow-sm">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.back()}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-          </div>
-        </header>
         <main className="flex-1 p-4">
-          <Card>
-            <CardContent className="text-muted-foreground py-8 text-center">
-              Article not found.
-            </CardContent>
-          </Card>
+          <Alert>
+            <AlertDescription>Article not found.</AlertDescription>
+          </Alert>
         </main>
       </div>
     );
   }
 
   return (
-    <div className="bg-background flex min-h-screen flex-col">
-      <header className="bg-card border-b p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.back()}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-          <h1 className="min-w-0 flex-1 truncate text-xl font-bold">
-            {article.title}
-          </h1>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleArchive}
-              disabled={archiveArticle.isPending || unarchiveArticle.isPending}
-              className="flex items-center gap-2"
-            >
-              {article.isArchived ? (
-                <>
-                  <ArchiveRestore className="h-4 w-4" />
-                  Unarchive
-                </>
-              ) : (
-                <>
-                  <Archive className="h-4 w-4" />
-                  Archive
-                </>
-              )}
-            </Button>
-            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Delete Article</DialogTitle>
-                  <DialogDescription>
-                    Are you sure you want to delete this article? This action
-                    cannot be undone.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowDeleteDialog(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={handleDelete}
-                    disabled={deleteArticle.isPending}
-                  >
-                    {deleteArticle.isPending ? "Deleting..." : "Delete"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-y-auto p-4">
-        <Card className="mx-auto max-w-4xl">
-          <CardHeader>
-            <CardTitle className="text-3xl">{article.title}</CardTitle>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline">
-                {article.url.startsWith("text://") ? "Manual Entry" : "Article"}
-              </Badge>
-              {!article.url.startsWith("text://") && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  asChild
-                  className="flex items-center gap-2"
-                >
-                  <a
-                    href={article.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Original Source
-                  </a>
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          <Separator />
-          <CardContent className="pt-6">
-            <div className="prose prose-blue max-w-none">
-              <div dangerouslySetInnerHTML={{ __html: article.content }} />
-            </div>
-          </CardContent>
-        </Card>
-      </main>
-    </div>
+    <ArticleReader
+      article={article}
+      highlights={highlights}
+      notes={notes}
+      onHighlight={handleHighlight}
+      onUpdateHighlight={handleUpdateHighlight}
+      onDeleteHighlight={handleDeleteHighlight}
+      onAddNote={handleAddNote}
+      onBackClick={() => router.back()}
+      onMarkAsRead={handleMarkAsRead}
+    />
   );
 }

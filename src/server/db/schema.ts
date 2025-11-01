@@ -118,6 +118,14 @@ export const highlights = createTable(
     endOffset: d.integer().notNull(),
     color: highlightColorEnum("color").notNull().default("yellow"),
     note: d.text(),
+    // TextQuote selectors for robust re-anchoring
+    quoteExact: d.text(),
+    quotePrefix: d.text(),
+    quoteSuffix: d.text(),
+    // Content hash to detect when article content changes
+    contentHash: d.text(),
+    // Tags for organizing highlights
+    tags: d.text().array(),
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
@@ -131,6 +139,7 @@ export const highlights = createTable(
   (t) => [
     index("highlight_article_idx").on(t.articleId),
     index("highlight_created_at_idx").on(t.createdAt),
+    index("highlight_article_created_idx").on(t.articleId, t.createdAt),
   ],
 );
 

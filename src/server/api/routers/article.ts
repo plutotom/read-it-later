@@ -142,4 +142,19 @@ export const articleRouter = createTRPCRouter({
 
       return { success: result.length > 0 };
     }),
+
+  markAsRead: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const [updatedArticle] = await ctx.db
+        .update(articles)
+        .set({
+          isRead: true,
+          readAt: new Date(),
+        })
+        .where(eq(articles.id, input.id))
+        .returning();
+
+      return { success: !!updatedArticle };
+    }),
 });

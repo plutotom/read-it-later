@@ -17,7 +17,7 @@ interface HighlightAnnotationProps {
   notes?: Note[];
   onUpdateHighlight?: (
     id: string,
-    data: { color?: HighlightColor; note?: string },
+    data: { color?: HighlightColor; note?: string | null; tags?: string[] },
   ) => void;
   onDeleteHighlight?: (id: string) => void;
   onAddNote?: (highlightId: string, content: string) => void;
@@ -57,6 +57,8 @@ export function HighlightAnnotation({
   const [editingContent, setEditingContent] = useState("");
   const [newNoteContent, setNewNoteContent] = useState("");
   const [showAddNote, setShowAddNote] = useState(false);
+  const [editingTags, setEditingTags] = useState(false);
+  const [tagsInput, setTagsInput] = useState("");
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
@@ -105,6 +107,28 @@ export function HighlightAnnotation({
   const cancelEditingNote = () => {
     setEditingNote(null);
     setEditingContent("");
+  };
+
+  const handleSaveTags = () => {
+    if (!onUpdateHighlight) return;
+    const tags = tagsInput
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0)
+      .slice(0, 10);
+    onUpdateHighlight(highlight.id, { tags });
+    setEditingTags(false);
+    setTagsInput("");
+  };
+
+  const handleCancelTags = () => {
+    setEditingTags(false);
+    setTagsInput("");
+  };
+
+  const handleStartEditingTags = () => {
+    setTagsInput(highlight.tags?.join(", ") ?? "");
+    setEditingTags(true);
   };
 
   return (
@@ -193,6 +217,82 @@ export function HighlightAnnotation({
       {highlight.note && (
         <div className="mt-2 rounded bg-gray-50 p-2 text-sm">
           <p className="text-gray-700">{highlight.note}</p>
+        </div>
+      )}
+
+      {/* Tags */}
+      {highlight.tags && highlight.tags.length > 0 && !editingTags && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {highlight.tags.map((tag, idx) => (
+            <span
+              key={idx}
+              className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800"
+            >
+              {tag}
+            </span>
+          ))}
+          {!readonly && (
+            <button
+              onClick={handleStartEditingTags}
+              className="text-xs text-blue-600 hover:text-blue-800"
+            >
+              Edit
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Edit tags */}
+      {editingTags && (
+        <div className="mt-2">
+          <input
+            type="text"
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            placeholder="Tags (comma-separated)"
+            className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
+            maxLength={500}
+            autoFocus
+          />
+          <div className="mt-1 flex justify-end space-x-1">
+            <button
+              onClick={handleCancelTags}
+              className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveTags}
+              className="px-2 py-1 text-xs text-blue-600 hover:text-blue-800"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add tags button */}
+      {!highlight.tags && !editingTags && !readonly && (
+        <div className="mt-2">
+          <button
+            onClick={handleStartEditingTags}
+            className="flex items-center text-xs text-blue-600 hover:text-blue-800"
+          >
+            <svg
+              className="mr-1 h-3 w-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+              />
+            </svg>
+            Add Tags
+          </button>
         </div>
       )}
 

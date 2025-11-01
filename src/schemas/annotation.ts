@@ -33,7 +33,12 @@ export const highlightSchema = z
     startOffset: z.number().int().min(0),
     endOffset: z.number().int().min(0),
     color: highlightColorSchema,
-    note: z.string().max(2000).optional(),
+    note: z.string().max(2000).optional().nullable(),
+    quoteExact: z.string().optional().nullable(),
+    quotePrefix: z.string().optional().nullable(),
+    quoteSuffix: z.string().optional().nullable(),
+    contentHash: z.string().optional().nullable(),
+    tags: z.array(z.string().max(50)).max(10).optional(),
     createdAt: z.date(),
     updatedAt: z.date(),
   })
@@ -54,6 +59,11 @@ export const highlightCreateSchema = z
     endOffset: z.number().int().min(0, "End offset must be non-negative"),
     color: highlightColorSchema.default("yellow"),
     note: z.string().max(2000).optional(),
+    quoteExact: z.string().optional(),
+    quotePrefix: z.string().optional(),
+    quoteSuffix: z.string().optional(),
+    contentHash: z.string().optional(),
+    tags: z.array(z.string().max(50)).max(10).optional(),
   })
   .refine((data) => data.endOffset > data.startOffset, {
     message: "End offset must be greater than start offset",
@@ -67,7 +77,8 @@ export const highlightUpdateSchema = z
     startOffset: z.number().int().min(0).optional(),
     endOffset: z.number().int().min(0).optional(),
     color: highlightColorSchema.optional(),
-    note: z.string().max(2000).optional(),
+    note: z.string().max(2000).optional().nullable(),
+    tags: z.array(z.string().max(50)).max(10).optional(),
   })
   .refine(
     (data) => {

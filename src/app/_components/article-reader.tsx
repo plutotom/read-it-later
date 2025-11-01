@@ -1,19 +1,48 @@
 /**
  * Article Reader Component
- * Mobile-optimized reading experience for articles
+ * Mobile-optimized reading experience for articles with text highlighting
  */
 
 "use client";
 
 import { type Article } from "~/types/article";
-import { type Highlight, type Note } from "~/types/annotation";
-import { useState, useRef, useEffect } from "react";
+import {
+  type Highlight,
+  type Note,
+  type HighlightColor,
+} from "~/types/annotation";
+import { useState, useRef, useEffect, useCallback } from "react";
+import {
+  getTextContent,
+  offsetsToRange,
+  extractPrefixSuffix,
+  hashContent,
+  reanchor,
+} from "~/lib/anchoring";
+import { HighlightPopover } from "./highlight-popover";
+import { HighlightAnnotation } from "./highlight-annotation";
 
 interface ArticleReaderProps {
   article: Article;
   highlights?: Highlight[];
   notes?: Note[];
-  onHighlight?: (text: string, startOffset: number, endOffset: number) => void;
+  onHighlight?: (data: {
+    text: string;
+    startOffset: number;
+    endOffset: number;
+    color: HighlightColor;
+    note?: string;
+    tags?: string[];
+    quoteExact?: string;
+    quotePrefix?: string;
+    quoteSuffix?: string;
+    contentHash?: string;
+  }) => void;
+  onUpdateHighlight?: (
+    id: string,
+    data: { color?: HighlightColor; note?: string | null; tags?: string[] },
+  ) => void;
+  onDeleteHighlight?: (id: string) => void;
   onAddNote?: (content: string, highlightId?: string) => void;
   onBackClick?: () => void;
   onMarkAsRead?: () => void;
@@ -24,6 +53,8 @@ export function ArticleReader({
   highlights = [],
   notes = [],
   onHighlight,
+  onUpdateHighlight,
+  onDeleteHighlight,
   onAddNote,
   onBackClick,
   onMarkAsRead,
@@ -32,63 +63,338 @@ export function ArticleReader({
     text: string;
     startOffset: number;
     endOffset: number;
+    range: Range;
   } | null>(null);
-  const [showNoteDialog, setShowNoteDialog] = useState(false);
-  const [noteContent, setNoteContent] = useState("");
+  const [selectedHighlight, setSelectedHighlight] = useState<Highlight | null>(
+    null,
+  );
+  const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
   const [fontSize, setFontSize] = useState(16);
   const [showSettings, setShowSettings] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const highlightRegistryRef = useRef<Map<string, Range>>(new Map());
+  const markedAsReadRef = useRef<string | null>(null);
+  const onMarkAsReadRef = useRef(onMarkAsRead);
+
+  // Keep ref updated with latest callback
+  useEffect(() => {
+    onMarkAsReadRef.current = onMarkAsRead;
+  }, [onMarkAsRead]);
 
   useEffect(() => {
-    // Mark as read when component mounts
-    if (!article.isRead && onMarkAsRead) {
-      onMarkAsRead();
+    // Only mark as read once per article, when article changes to an unread one
+    if (
+      !article.isRead &&
+      onMarkAsReadRef.current &&
+      markedAsReadRef.current !== article.id
+    ) {
+      markedAsReadRef.current = article.id;
+      onMarkAsReadRef.current();
     }
-  }, [article.isRead, onMarkAsRead]);
+    // Reset tracking when article changes (but don't reset if we just marked it)
+    // This ensures we can mark new articles when navigating
+    if (markedAsReadRef.current && markedAsReadRef.current !== article.id) {
+      markedAsReadRef.current = null;
+    }
+  }, [article.id, article.isRead]);
 
-  const handleTextSelection = () => {
+  // Render highlights using CSS Custom Highlight API or DOM fallback
+  useEffect(() => {
+    console.log("Highlights effect running:", {
+      hasContentRef: !!contentRef.current,
+      highlightsLength: highlights.length,
+      highlights,
+    });
+
+    if (!contentRef.current) {
+      console.log("No contentRef, skipping highlight rendering");
+      return;
+    }
+
+    if (highlights.length === 0) {
+      console.log("No highlights to render");
+      return;
+    }
+
+    // Wait for DOM to be ready after dangerouslySetInnerHTML
+    const applyHighlights = () => {
+      const root = contentRef.current;
+      if (!root) {
+        console.log("Root not found in applyHighlights");
+        return;
+      }
+
+      // Find the actual content element (the inner div with the HTML)
+      const contentElement = root.querySelector("div") || root;
+      console.log("Applying highlights to element:", contentElement, {
+        textLength: getTextContent(contentElement as HTMLElement).length,
+        highlightCount: highlights.length,
+      });
+
+      const registry = highlightRegistryRef.current;
+      registry.clear();
+
+      // Clear existing highlights
+      if (typeof CSS !== "undefined" && CSS.highlights) {
+        CSS.highlights.clear();
+      }
+
+      // Remove any existing mark elements
+      contentElement.querySelectorAll("[data-hl-id]").forEach((el) => {
+        const parent = el.parentNode;
+        if (parent) {
+          parent.replaceChild(
+            document.createTextNode(el.textContent ?? ""),
+            el,
+          );
+          parent.normalize();
+        }
+      });
+
+      highlights.forEach((highlight) => {
+        console.log("Processing highlight:", highlight.id, {
+          startOffset: highlight.startOffset,
+          endOffset: highlight.endOffset,
+          text: highlight.text.substring(0, 50),
+        });
+
+        // Try to re-anchor the highlight
+        const reanchored = reanchor(contentElement as HTMLElement, highlight);
+        if (!reanchored) {
+          console.warn(`Failed to anchor highlight ${highlight.id}`, {
+            original: {
+              start: highlight.startOffset,
+              end: highlight.endOffset,
+            },
+            text: highlight.text,
+          });
+          return;
+        }
+
+        const range = offsetsToRange(
+          contentElement as HTMLElement,
+          reanchored.startOffset,
+          reanchored.endOffset,
+        );
+        if (!range) {
+          console.warn(`Failed to create range for highlight ${highlight.id}`, {
+            offsets: reanchored,
+            text: highlight.text,
+          });
+          return;
+        }
+
+        console.log("Successfully created range for highlight:", highlight.id);
+
+        registry.set(highlight.id, range);
+
+        // Use DOM manipulation for highlighting (CSS Custom Highlight API not well supported)
+        console.log("Using DOM fallback for highlight:", highlight.id);
+        applyHighlightDOM(
+          contentElement as HTMLElement,
+          highlight.id,
+          range,
+          highlight.color,
+        );
+      });
+    };
+
+    // Use requestAnimationFrame for better timing with DOM updates
+    requestAnimationFrame(() => {
+      requestAnimationFrame(applyHighlights);
+    });
+  }, [highlights, article.content]);
+
+  // Apply highlight via DOM manipulation (fallback)
+  const applyHighlightDOM = (
+    root: HTMLElement,
+    highlightId: string,
+    range: Range,
+    color: HighlightColor,
+  ) => {
+    try {
+      // Validate range
+      if (!range || range.collapsed) {
+        console.error("Invalid range for highlight:", highlightId);
+        return;
+      }
+
+      const mark = document.createElement("mark");
+      mark.setAttribute("data-hl-id", highlightId);
+      mark.className = `highlight-${color} cursor-pointer`;
+      mark.style.backgroundColor = getHighlightColor(color);
+      mark.style.color = "inherit";
+      mark.style.padding = "2px 0";
+      mark.style.borderRadius = "2px";
+
+      mark.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const highlight = highlights.find((h) => h.id === highlightId);
+        if (highlight) {
+          setSelectedHighlight(highlight);
+        }
+      });
+
+      try {
+        // Try surroundContents first (works for simple ranges)
+        range.surroundContents(mark);
+        console.log(
+          "Successfully wrapped highlight with surroundContents:",
+          highlightId,
+        );
+      } catch (error) {
+        // If surroundContents fails, manually wrap nodes
+        console.log("surroundContents failed, using manual wrapping:", error);
+
+        // Extract contents and wrap them
+        const contents = range.extractContents();
+
+        // Clone the mark to avoid issues
+        const clonedMark = mark.cloneNode(false) as HTMLElement;
+        clonedMark.appendChild(contents);
+
+        // Insert the mark at the start position
+        range.insertNode(clonedMark);
+
+        // If there's leftover content, we need to handle it
+        // The range should now be collapsed at the end of the mark
+        range.collapse(false);
+
+        console.log(
+          "Successfully wrapped highlight with manual method:",
+          highlightId,
+        );
+      }
+    } catch (error) {
+      console.error("Failed to apply highlight via DOM:", error, {
+        highlightId,
+        range: range
+          ? {
+              startContainer: range.startContainer,
+              startOffset: range.startOffset,
+              endContainer: range.endContainer,
+              endOffset: range.endOffset,
+            }
+          : null,
+      });
+    }
+  };
+
+  const getHighlightColor = (color: HighlightColor): string => {
+    const colors: Record<HighlightColor, string> = {
+      yellow: "#fef08a",
+      green: "#bbf7d0",
+      blue: "#bfdbfe",
+      pink: "#fce7f3",
+      purple: "#e9d5ff",
+      orange: "#fed7aa",
+      red: "#fecaca",
+      gray: "#e5e7eb",
+    };
+    return colors[color] ?? colors.yellow;
+  };
+
+  const handleTextSelection = useCallback(() => {
     const selection = window.getSelection();
-    if (!selection || selection.isCollapsed || !contentRef.current) return;
+    if (!selection || selection.isCollapsed || !contentRef.current) {
+      setSelectedText(null);
+      return;
+    }
 
     const range = selection.getRangeAt(0);
     const selectedText = selection.toString().trim();
 
-    if (selectedText.length < 3) return; // Minimum selection length
+    if (selectedText.length < 3) {
+      setSelectedText(null);
+      return;
+    }
+
+    // Find the actual content element (the inner div with the HTML)
+    const contentElement =
+      contentRef.current.querySelector("div") || contentRef.current;
+
+    // Check if selection is within content area
+    if (!contentElement.contains(range.commonAncestorContainer)) {
+      return;
+    }
 
     // Calculate offsets relative to content
-    const contentNode = contentRef.current;
     const preCaretRange = range.cloneRange();
-    preCaretRange.selectNodeContents(contentNode);
+    preCaretRange.selectNodeContents(contentElement);
     preCaretRange.setEnd(range.startContainer, range.startOffset);
     const startOffset = preCaretRange.toString().length;
     const endOffset = startOffset + selectedText.length;
+
+    // Get selection position for popover
+    const rect = range.getBoundingClientRect();
+    const popoverX = rect.left + rect.width / 2;
+    const popoverY = rect.top;
 
     setSelectedText({
       text: selectedText,
       startOffset,
       endOffset,
+      range: range.cloneRange(),
     });
-  };
+    setPopoverPosition({ x: popoverX, y: popoverY });
+  }, []);
 
-  const handleHighlightCreate = () => {
-    if (!selectedText || !onHighlight) return;
+  const handleHighlightCreate = useCallback(
+    (data: { color: HighlightColor; note?: string; tags?: string[] }) => {
+      if (!selectedText || !onHighlight || !contentRef.current) return;
 
-    onHighlight(
-      selectedText.text,
-      selectedText.startOffset,
-      selectedText.endOffset,
-    );
+      // Find the actual content element (the inner div with the HTML)
+      const contentElement =
+        contentRef.current.querySelector("div") || contentRef.current;
+      const { prefix, suffix } = extractPrefixSuffix(
+        contentElement as HTMLElement,
+        selectedText.range,
+      );
+      const contentHash = hashContent(
+        getTextContent(contentElement as HTMLElement),
+      );
+
+      onHighlight({
+        text: selectedText.text,
+        startOffset: selectedText.startOffset,
+        endOffset: selectedText.endOffset,
+        color: data.color,
+        note: data.note,
+        tags: data.tags,
+        quoteExact: selectedText.text,
+        quotePrefix: prefix,
+        quoteSuffix: suffix,
+        contentHash,
+      });
+
+      setSelectedText(null);
+      window.getSelection()?.removeAllRanges();
+    },
+    [selectedText, onHighlight],
+  );
+
+  const handleCancelSelection = useCallback(() => {
     setSelectedText(null);
     window.getSelection()?.removeAllRanges();
-  };
+  }, []);
 
-  const handleAddNote = () => {
-    if (!noteContent.trim() || !onAddNote) return;
+  // Keyboard shortcut: Cmd/Ctrl+Shift+H
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key === "H" &&
+        window.getSelection()?.toString().trim()
+      ) {
+        e.preventDefault();
+        handleTextSelection();
+      }
+    };
 
-    onAddNote(noteContent.trim());
-    setNoteContent("");
-    setShowNoteDialog(false);
-  };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleTextSelection]);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
@@ -111,15 +417,9 @@ export function ArticleReader({
     }
   };
 
-  // Render content with highlights
-  const renderContentWithHighlights = () => {
-    if (highlights.length === 0) {
-      return <div dangerouslySetInnerHTML={{ __html: article.content }} />;
-    }
-
-    // For now, just render the HTML content without highlighting
-    // TODO: Implement proper HTML-aware highlighting
-    return <div dangerouslySetInnerHTML={{ __html: article.content }} />;
+  // Filter notes by highlight
+  const getNotesForHighlight = (highlightId: string) => {
+    return notes.filter((note) => note.highlightId === highlightId);
   };
 
   return (
@@ -310,104 +610,135 @@ export function ArticleReader({
             style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}
             onMouseUp={handleTextSelection}
             onTouchEnd={handleTextSelection}
+            onClick={(e) => {
+              // Check if clicking on a highlight
+              const target = e.target as HTMLElement;
+              const hlId =
+                target.getAttribute("data-hl-id") ??
+                target.closest("[data-hl-id]")?.getAttribute("data-hl-id");
+              if (hlId) {
+                const highlight = highlights.find((h) => h.id === hlId);
+                if (highlight) {
+                  setSelectedHighlight(highlight);
+                }
+              } else {
+                setSelectedHighlight(null);
+              }
+            }}
           >
-            {renderContentWithHighlights()}
+            <div dangerouslySetInnerHTML={{ __html: article.content }} />
           </div>
 
-          {/* Notes section */}
-          {notes.length > 0 && (
+          {/* Standalone notes section */}
+          {notes.filter((n) => !n.highlightId).length > 0 && (
             <div className="mt-8 border-t border-gray-200 pt-6">
               <h3 className="mb-4 text-lg font-semibold text-gray-900">
                 Notes
               </h3>
               <div className="space-y-3">
-                {notes.map((note) => (
-                  <div
-                    key={note.id}
-                    className="rounded-r border-l-4 border-yellow-400 bg-yellow-50 p-3"
-                  >
-                    <p className="text-sm text-gray-800">{note.content}</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {formatDate(note.createdAt)}
-                    </p>
-                  </div>
-                ))}
+                {notes
+                  .filter((n) => !n.highlightId)
+                  .map((note) => (
+                    <div
+                      key={note.id}
+                      className="rounded-r border-l-4 border-yellow-400 bg-yellow-50 p-3"
+                    >
+                      <p className="text-sm text-gray-800">{note.content}</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {formatDate(note.createdAt)}
+                      </p>
+                    </div>
+                  ))}
               </div>
             </div>
           )}
         </article>
       </div>
 
-      {/* Selection actions */}
+      {/* Highlight popover */}
       {selectedText && (
-        <div className="fixed right-4 bottom-4 left-4 z-20 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="mr-3 flex-1 truncate text-sm text-gray-600">
-              "{selectedText.text.substring(0, 50)}
-              {selectedText.text.length > 50 ? "..." : ""}"
-            </span>
-            <div className="flex space-x-2">
+        <HighlightPopover
+          selectedText={selectedText.text}
+          position={popoverPosition}
+          onHighlight={handleHighlightCreate}
+          onCancel={handleCancelSelection}
+        />
+      )}
+
+      {/* Highlight annotation dialog */}
+      {selectedHighlight && (
+        <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black p-4">
+          <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Highlight Details
+              </h3>
               <button
-                onClick={handleHighlightCreate}
-                className="rounded bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700 hover:bg-yellow-200"
+                onClick={() => setSelectedHighlight(null)}
+                className="text-gray-400 hover:text-gray-600"
               >
-                Highlight
-              </button>
-              <button
-                onClick={() => setShowNoteDialog(true)}
-                className="rounded bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700 hover:bg-blue-200"
-              >
-                Note
-              </button>
-              <button
-                onClick={() => setSelectedText(null)}
-                className="rounded bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-200"
-              >
-                Cancel
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
               </button>
             </div>
+            <HighlightAnnotation
+              highlight={selectedHighlight}
+              notes={getNotesForHighlight(selectedHighlight.id)}
+              onUpdateHighlight={onUpdateHighlight}
+              onDeleteHighlight={(id) => {
+                onDeleteHighlight?.(id);
+                setSelectedHighlight(null);
+              }}
+              onAddNote={onAddNote}
+            />
           </div>
         </div>
       )}
 
-      {/* Note dialog */}
-      {showNoteDialog && (
-        <div className="bg-opacity-50 fixed inset-0 z-50 flex items-end justify-center bg-black p-4 sm:items-center">
-          <div className="w-full rounded-t-lg bg-white sm:max-w-md sm:rounded-lg">
-            <div className="p-4">
-              <h3 className="mb-3 text-lg font-semibold text-gray-900">
-                Add Note
-              </h3>
-              <textarea
-                value={noteContent}
-                onChange={(e) => setNoteContent(e.target.value)}
-                placeholder="Write your note..."
-                className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                rows={4}
-                autoFocus
-              />
-              <div className="mt-3 flex justify-end space-x-2">
-                <button
-                  onClick={() => {
-                    setShowNoteDialog(false);
-                    setNoteContent("");
-                  }}
-                  className="rounded bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddNote}
-                  disabled={!noteContent.trim()}
-                  className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Add Note
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* CSS for highlights */}
+      <style jsx global>{`
+        @supports (background-color: Highlight) {
+          mark[data-hl-id] {
+            background-color: Highlight;
+            color: HighlightText;
+          }
+        }
+        .highlight-yellow {
+          background-color: #fef08a;
+        }
+        .highlight-green {
+          background-color: #bbf7d0;
+        }
+        .highlight-blue {
+          background-color: #bfdbfe;
+        }
+        .highlight-pink {
+          background-color: #fce7f3;
+        }
+        .highlight-purple {
+          background-color: #e9d5ff;
+        }
+        .highlight-orange {
+          background-color: #fed7aa;
+        }
+        .highlight-red {
+          background-color: #fecaca;
+        }
+        .highlight-gray {
+          background-color: #e5e7eb;
+        }
+      `}</style>
     </div>
   );
 }

@@ -11,6 +11,11 @@ export interface Highlight {
   endOffset: number;
   color: HighlightColor;
   note: string | null;
+  quoteExact?: string | null;
+  quotePrefix?: string | null;
+  quoteSuffix?: string | null;
+  contentHash?: string | null;
+  tags?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,6 +53,11 @@ export interface HighlightCreateInput {
   endOffset: number;
   color: HighlightColor;
   note?: string;
+  quoteExact?: string;
+  quotePrefix?: string;
+  quoteSuffix?: string;
+  contentHash?: string;
+  tags?: string[];
 }
 
 export interface HighlightUpdateInput {
@@ -55,7 +65,8 @@ export interface HighlightUpdateInput {
   startOffset?: number;
   endOffset?: number;
   color?: HighlightColor;
-  note?: string;
+  note?: string | null;
+  tags?: string[];
 }
 
 export interface NoteCreateInput {

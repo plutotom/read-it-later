@@ -22,9 +22,23 @@ export const annotationRouter = createTRPCRouter({
         startOffset: z.number(),
         endOffset: z.number(),
         color: z
-          .enum(["yellow", "green", "blue", "red", "purple"])
+          .enum([
+            "yellow",
+            "green",
+            "blue",
+            "pink",
+            "purple",
+            "orange",
+            "red",
+            "gray",
+          ])
           .default("yellow"),
         note: z.string().optional(),
+        quoteExact: z.string().optional(),
+        quotePrefix: z.string().optional(),
+        quoteSuffix: z.string().optional(),
+        contentHash: z.string().optional(),
+        tags: z.array(z.string()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -37,10 +51,53 @@ export const annotationRouter = createTRPCRouter({
           endOffset: input.endOffset,
           color: input.color,
           note: input.note || null,
+          quoteExact: input.quoteExact || null,
+          quotePrefix: input.quotePrefix || null,
+          quoteSuffix: input.quoteSuffix || null,
+          contentHash: input.contentHash || null,
+          tags: input.tags || [],
         })
         .returning();
 
       return newHighlight;
+    }),
+
+  updateHighlight: publicProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        color: z
+          .enum([
+            "yellow",
+            "green",
+            "blue",
+            "pink",
+            "purple",
+            "orange",
+            "red",
+            "gray",
+          ])
+          .optional(),
+        note: z.string().max(2000).optional().nullable(),
+        tags: z.array(z.string().max(50)).max(10).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...updateData } = input;
+      const [updatedHighlight] = await ctx.db
+        .update(highlights)
+        .set({
+          ...updateData,
+          note: updateData.note ?? undefined,
+        })
+        .where(eq(highlights.id, id))
+        .returning();
+
+      if (!updatedHighlight) {
+        throw new Error("Highlight not found");
+      }
+
+      return updatedHighlight;
     }),
 
   deleteHighlight: publicProcedure
