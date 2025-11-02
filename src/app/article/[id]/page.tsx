@@ -6,6 +6,7 @@ import { api } from "~/trpc/react";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { ArticleReader } from "~/app/_components/article-reader";
 import type { NotePosition } from "~/types/annotation";
+import highlight from "~/lib/highlihgter-util";
 
 interface ArticleDetailPageProps {
   params: Promise<{
@@ -181,12 +182,6 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
   return (
     <ArticleReader
       article={article}
-      highlights={highlights}
-      notes={notes}
-      onHighlight={handleHighlight}
-      onUpdateHighlight={handleUpdateHighlight}
-      onDeleteHighlight={handleDeleteHighlight}
-      onAddNote={handleAddNote}
       onBackClick={() => router.back()}
       onMarkAsRead={handleMarkAsRead}
     />

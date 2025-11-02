@@ -12,9 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import { Badge } from "~/components/ui/badge";
-import { getTextPreview } from "~/lib/text-utils";
-import { Bookmark } from "lucide-react";
+
 import { AddArticleForm } from "./_components/add-article-form";
 import { ArticleList } from "./_components/article-list";
 

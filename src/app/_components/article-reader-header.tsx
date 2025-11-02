@@ -19,8 +19,6 @@ interface ArticleReaderHeaderProps {
   onToggleSettings: () => void;
   fontSize: number;
   onFontSizeChange: (size: number) => void;
-  autoHighlightEnabled: boolean;
-  onToggleAutoHighlight: (enabled: boolean) => void;
 }
 
 export function ArticleReaderHeader({
@@ -30,8 +28,6 @@ export function ArticleReaderHeader({
   onToggleSettings,
   fontSize,
   onFontSizeChange,
-  autoHighlightEnabled,
-  onToggleAutoHighlight,
 }: ArticleReaderHeaderProps) {
   const { mutate: markAsRead } = api.article.markAsRead.useMutation();
   const { mutate: archive } = api.article.archive.useMutation();
@@ -151,8 +147,6 @@ export function ArticleReaderHeader({
         <ReadingSettings
           fontSize={fontSize}
           onFontSizeChange={onFontSizeChange}
-          autoHighlightEnabled={autoHighlightEnabled}
-          onToggleAutoHighlight={onToggleAutoHighlight}
         />
       )}
     </div>

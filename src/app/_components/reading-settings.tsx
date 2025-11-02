@@ -5,21 +5,14 @@
 
 "use client";
 
-import { Switch } from "~/components/ui/switch";
-import { Label } from "~/components/ui/label";
-
 interface ReadingSettingsProps {
   fontSize: number;
   onFontSizeChange: (size: number) => void;
-  autoHighlightEnabled: boolean;
-  onToggleAutoHighlight: (enabled: boolean) => void;
 }
 
 export function ReadingSettings({
   fontSize,
   onFontSizeChange,
-  autoHighlightEnabled,
-  onToggleAutoHighlight,
 }: ReadingSettingsProps) {
   return (
     <div className="mt-3 space-y-3 rounded-lg bg-gray-800 p-3">
@@ -68,22 +61,6 @@ export function ReadingSettings({
           </button>
         </div>
       </div>
-
-      {/* Auto Highlight Toggle */}
-      <div className="flex items-center justify-between">
-        <Label
-          htmlFor="auto-highlight-toggle"
-          className="text-sm font-medium text-gray-200"
-        >
-          Auto Highlight Popup
-        </Label>
-        <Switch
-          id="auto-highlight-toggle"
-          checked={autoHighlightEnabled}
-          onCheckedChange={onToggleAutoHighlight}
-        />
-      </div>
     </div>
   );
 }
-
