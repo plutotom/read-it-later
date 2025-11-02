@@ -18,10 +18,11 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
   const router = useRouter();
 
   const { data: article, isLoading, error } = api.article.get.useQuery({ id });
-  const { data: highlightsRaw = [] } = api.annotation.getHighlightsByArticleId.useQuery(
-    { articleId: id },
-    { enabled: !!id },
-  );
+  const { data: highlightsRaw = [] } =
+    api.annotation.getHighlightsByArticleId.useQuery(
+      { articleId: id },
+      { enabled: !!id },
+    );
   const { data: notesRaw = [] } = api.annotation.getNotesByArticleId.useQuery(
     { articleId: id },
     { enabled: !!id },
@@ -43,19 +44,25 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
 
   const createHighlight = api.annotation.createHighlight.useMutation({
     onSuccess: () => {
-      void utils.annotation.getHighlightsByArticleId.invalidate({ articleId: id });
+      void utils.annotation.getHighlightsByArticleId.invalidate({
+        articleId: id,
+      });
     },
   });
 
   const updateHighlight = api.annotation.updateHighlight.useMutation({
     onSuccess: () => {
-      void utils.annotation.getHighlightsByArticleId.invalidate({ articleId: id });
+      void utils.annotation.getHighlightsByArticleId.invalidate({
+        articleId: id,
+      });
     },
   });
 
   const deleteHighlight = api.annotation.deleteHighlight.useMutation({
     onSuccess: () => {
-      void utils.annotation.getHighlightsByArticleId.invalidate({ articleId: id });
+      void utils.annotation.getHighlightsByArticleId.invalidate({
+        articleId: id,
+      });
     },
   });
 
@@ -79,10 +86,8 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
     color: string;
     note?: string;
     tags?: string[];
-    quoteExact?: string;
-    quotePrefix?: string;
-    quoteSuffix?: string;
-    contentHash?: string;
+    contextPrefix?: string;
+    contextSuffix?: string;
   }) => {
     if (!article) return;
 
@@ -94,18 +99,19 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
       color: data.color as any,
       note: data.note,
       tags: data.tags,
-      quoteExact: data.quoteExact,
-      quotePrefix: data.quotePrefix,
-      quoteSuffix: data.quoteSuffix,
-      contentHash: data.contentHash,
+      contextPrefix: data.contextPrefix,
+      contextSuffix: data.contextSuffix,
     });
   };
 
-  const handleUpdateHighlight = (highlightId: string, updateData: {
-    color?: string;
-    note?: string | null;
-    tags?: string[];
-  }) => {
+  const handleUpdateHighlight = (
+    highlightId: string,
+    updateData: {
+      color?: string;
+      note?: string | null;
+      tags?: string[];
+    },
+  ) => {
     updateHighlight.mutate({
       id: highlightId,
       color: updateData.color as any,

@@ -118,12 +118,9 @@ export const highlights = createTable(
     endOffset: d.integer().notNull(),
     color: highlightColorEnum("color").notNull().default("yellow"),
     note: d.text(),
-    // TextQuote selectors for robust re-anchoring
-    quoteExact: d.text(),
-    quotePrefix: d.text(),
-    quoteSuffix: d.text(),
-    // Content hash to detect when article content changes
-    contentHash: d.text(),
+    // Context for disambiguating duplicate text matches
+    contextPrefix: d.text(),
+    contextSuffix: d.text(),
     // Tags for organizing highlights
     tags: d.text().array(),
     createdAt: d

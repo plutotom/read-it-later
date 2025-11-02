@@ -73,10 +73,8 @@ export function HighlightPopover({
       }}
     >
       <div className="mb-3">
-        <div className="mb-2 text-sm font-medium text-gray-700">
-          Highlight
-        </div>
-        <div className="mb-2 max-h-20 overflow-y-auto rounded bg-gray-50 p-2 text-sm italic text-gray-600">
+        <div className="mb-2 text-sm font-medium text-gray-700">Highlight</div>
+        <div className="mb-2 max-h-20 overflow-y-auto rounded bg-gray-50 p-2 text-sm text-gray-600 italic">
           "{selectedText.substring(0, 100)}
           {selectedText.length > 100 ? "..." : ""}"
         </div>
@@ -102,7 +100,7 @@ export function HighlightPopover({
         </div>
 
         {/* Note toggle */}
-        {!showNote ? (
+        {/* {!showNote ? (
           <Button
             type="button"
             variant="outline"
@@ -136,10 +134,10 @@ export function HighlightPopover({
               Remove note
             </Button>
           </div>
-        )}
+        )} */}
 
         {/* Tags toggle */}
-        {!showTags ? (
+        {/* {!showTags ? (
           <Button
             type="button"
             variant="outline"
@@ -174,7 +172,7 @@ export function HighlightPopover({
               Remove tags
             </Button>
           </div>
-        )}
+        )} */}
       </div>
 
       {/* Actions */}
@@ -194,8 +192,9 @@ export function HighlightPopover({
           onClick={handleCreate}
           className="flex-1"
           style={{
-            backgroundColor: HIGHLIGHT_COLORS.find((c) => c.value === selectedColor)
-              ?.bgClass.replace("bg-", ""),
+            backgroundColor: HIGHLIGHT_COLORS.find(
+              (c) => c.value === selectedColor,
+            )?.bgClass.replace("bg-", ""),
           }}
         >
           Highlight
@@ -204,4 +203,3 @@ export function HighlightPopover({
     </div>
   );
 }
-

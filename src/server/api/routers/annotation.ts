@@ -34,10 +34,8 @@ export const annotationRouter = createTRPCRouter({
           ])
           .default("yellow"),
         note: z.string().optional(),
-        quoteExact: z.string().optional(),
-        quotePrefix: z.string().optional(),
-        quoteSuffix: z.string().optional(),
-        contentHash: z.string().optional(),
+        contextPrefix: z.string().max(100).optional(),
+        contextSuffix: z.string().max(100).optional(),
         tags: z.array(z.string()).optional(),
       }),
     )
@@ -51,10 +49,8 @@ export const annotationRouter = createTRPCRouter({
           endOffset: input.endOffset,
           color: input.color,
           note: input.note || null,
-          quoteExact: input.quoteExact || null,
-          quotePrefix: input.quotePrefix || null,
-          quoteSuffix: input.quoteSuffix || null,
-          contentHash: input.contentHash || null,
+          contextPrefix: input.contextPrefix || null,
+          contextSuffix: input.contextSuffix || null,
           tags: input.tags || [],
         })
         .returning();
