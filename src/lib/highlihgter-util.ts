@@ -12,6 +12,15 @@ type HighlightInfo = {
   focusOffset: number;
 };
 
+export type HighlightData = {
+  text: string;
+  startOffset: number;
+  endOffset: number;
+  color?: string;
+  textColor?: string;
+  highlightIndex?: number;
+};
+
 type RecursiveWrapperResult = [boolean, number];
 
 /**
@@ -43,6 +52,198 @@ function initializeHighlightEventListeners(element: HTMLElement): void {
 }
 
 /**
+ * Clear all existing highlights from the container
+ */
+export function clearHighlights(container: HTMLElement): void {
+  const highlightElements = container.querySelectorAll<HTMLElement>(
+    `highlighter-span.${HIGHLIGHT_CLASS}, highlighter-span.${DELETED_CLASS}`,
+  );
+
+  highlightElements.forEach((el) => {
+    const parent = el.parentElement;
+    if (parent) {
+      // Replace the highlight element with its text content
+      const textNode = document.createTextNode(el.textContent ?? "");
+      parent.insertBefore(textNode, el);
+      parent.removeChild(el);
+    }
+  });
+
+  // Normalize the DOM to merge adjacent text nodes
+  container.normalize();
+}
+
+/**
+ * Get plain text content and build a map of text nodes to offsets
+ */
+function buildTextNodeMap(
+  root: HTMLElement,
+): Array<{ node: Text; startOffset: number; endOffset: number }> {
+  const nodeMap: Array<{ node: Text; startOffset: number; endOffset: number }> =
+    [];
+  let currentOffset = 0;
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  let node: Node | null;
+
+  while ((node = walker.nextNode())) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const textNode = node as Text;
+      const length = textNode.textContent?.length ?? 0;
+
+      if (length > 0) {
+        nodeMap.push({
+          node: textNode,
+          startOffset: currentOffset,
+          endOffset: currentOffset + length,
+        });
+        currentOffset += length;
+      }
+    }
+  }
+
+  return nodeMap;
+}
+
+/**
+ * Convert offsets to a Range object
+ */
+function offsetsToRange(
+  root: HTMLElement,
+  startOffset: number,
+  endOffset: number,
+): Range | null {
+  const nodeMap = buildTextNodeMap(root);
+
+  let startNode: Text | null = null;
+  let startNodeOffset = 0;
+  let endNode: Text | null = null;
+  let endNodeOffset = 0;
+
+  for (const entry of nodeMap) {
+    // Check if start is in this node
+    if (!startNode && entry.endOffset > startOffset) {
+      startNode = entry.node;
+      startNodeOffset = Math.max(0, startOffset - entry.startOffset);
+    }
+
+    // Check if end is in this node
+    if (!endNode && entry.endOffset >= endOffset) {
+      endNode = entry.node;
+      endNodeOffset = Math.min(
+        entry.node.textContent?.length ?? 0,
+        endOffset - entry.startOffset,
+      );
+      break;
+    }
+  }
+
+  if (!startNode || !endNode) {
+    return null;
+  }
+
+  try {
+    const range = document.createRange();
+    range.setStart(startNode, startNodeOffset);
+    range.setEnd(endNode, endNodeOffset);
+    return range;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Apply highlights to a container using offset-based highlight data
+ * This is the React-compatible version that can be called from useEffect
+ */
+export function applyHighlights(
+  container: HTMLElement,
+  highlights: HighlightData[],
+): void {
+  if (!container) {
+    return;
+  }
+
+  // Always clear existing highlights first (in case highlights array is empty)
+  clearHighlights(container);
+
+  if (highlights.length === 0) {
+    return;
+  }
+
+  // Sort highlights by startOffset to process in order
+  const sortedHighlights = [...highlights].sort(
+    (a, b) => a.startOffset - b.startOffset,
+  );
+
+  // Apply each highlight
+  for (let i = 0; i < sortedHighlights.length; i++) {
+    const highlight = sortedHighlights[i];
+    if (!highlight) continue;
+
+    const range = offsetsToRange(
+      container,
+      highlight.startOffset,
+      highlight.endOffset,
+    );
+
+    if (!range) {
+      console.warn(
+        `Could not create range for highlight at offsets ${highlight.startOffset}-${highlight.endOffset}`,
+      );
+      continue;
+    }
+
+    // Create a selection from the range
+    const selection = window.getSelection();
+    if (!selection) continue;
+
+    // Save the current selection
+    const savedRanges: Range[] = [];
+    for (let j = 0; j < selection.rangeCount; j++) {
+      const savedRange = selection.getRangeAt(j);
+      if (savedRange) {
+        savedRanges.push(savedRange);
+      }
+    }
+
+    // Set selection to our range
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    // Apply highlight using existing function
+    const highlightInfo: HighlightInfo = {
+      color: highlight.color || "yellow",
+      textColor: highlight.textColor || "inherit",
+      highlightIndex: highlight.highlightIndex ?? i,
+      selectionString: highlight.text,
+      anchor: range.startContainer,
+      anchorOffset: range.startOffset,
+      focus: range.endContainer,
+      focusOffset: range.endOffset,
+    };
+
+    try {
+      recursiveWrapper(container, highlightInfo);
+    } catch (e) {
+      console.error("Error applying highlight:", e);
+    }
+
+    // Restore the saved selection
+    selection.removeAllRanges();
+    savedRanges.forEach((r) => selection.addRange(r));
+  }
+
+  // Initialize event listeners for all highlights
+  const highlightElements = container.querySelectorAll<HTMLElement>(
+    `highlighter-span.${HIGHLIGHT_CLASS}`,
+  );
+  highlightElements.forEach((el) => {
+    initializeHighlightEventListeners(el);
+  });
+}
+
+/**
  * Highlights selected text in a container element
  * @param selString - The selected text string to highlight
  * @param container - The container element where highlighting should occur
@@ -52,7 +253,7 @@ function initializeHighlightEventListeners(element: HTMLElement): void {
  * @param highlightIndex - Index identifier for this highlight
  * @returns true if highlighting succeeded, false otherwise
  */
-function highlight(
+export function highlight(
   selString: string,
   container: HTMLElement,
   selection: Selection,

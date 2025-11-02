@@ -184,6 +184,8 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
       article={article}
       onBackClick={() => router.back()}
       onMarkAsRead={handleMarkAsRead}
+      initialHighlights={highlights}
+      onHighlightCreate={handleHighlight}
     />
   );
 }

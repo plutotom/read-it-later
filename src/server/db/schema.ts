@@ -108,20 +108,27 @@ export const folders = createTable(
 );
 
 // Highlights table
+// Matches the Highlight interface in src/types/annotation.ts
 export const highlights = createTable(
   "highlight",
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
+    // Foreign key to article - required
     articleId: d.uuid().notNull(),
+    // The highlighted text content
     text: d.text().notNull(),
+    // Character offset where highlight starts in article content
     startOffset: d.integer().notNull(),
+    // Character offset where highlight ends in article content
     endOffset: d.integer().notNull(),
+    // Highlight color from HighlightColor enum
     color: highlightColorEnum("color").notNull().default("yellow"),
+    // Optional note attached to this highlight
     note: d.text(),
-    // Context for disambiguating duplicate text matches
+    // Context for disambiguating duplicate text matches (optional)
     contextPrefix: d.text(),
     contextSuffix: d.text(),
-    // Tags for organizing highlights
+    // Tags for organizing highlights (optional)
     tags: d.text().array(),
     createdAt: d
       .timestamp({ withTimezone: true })
