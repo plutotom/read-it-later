@@ -60,7 +60,35 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
   });
 
   const deleteHighlight = api.annotation.deleteHighlight.useMutation({
+    onMutate: async ({ id: highlightId }) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await utils.annotation.getHighlightsByArticleId.cancel({ articleId: id });
+
+      // Snapshot the previous value
+      const previousHighlights = utils.annotation.getHighlightsByArticleId.getData({
+        articleId: id,
+      });
+
+      // Optimistically update to the new value (remove the highlight)
+      utils.annotation.getHighlightsByArticleId.setData({ articleId: id }, (old) => {
+        if (!old) return old;
+        return old.filter((h) => h.id !== highlightId);
+      });
+
+      // Return a context object with the snapshotted value
+      return { previousHighlights };
+    },
+    onError: (_err, _variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousHighlights) {
+        utils.annotation.getHighlightsByArticleId.setData(
+          { articleId: id },
+          context.previousHighlights,
+        );
+      }
+    },
     onSuccess: () => {
+      // Invalidate to refetch and ensure sync with server
       void utils.annotation.getHighlightsByArticleId.invalidate({
         articleId: id,
       });
@@ -186,6 +214,7 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
       onMarkAsRead={handleMarkAsRead}
       initialHighlights={highlights}
       onHighlightCreate={handleHighlight}
+      onHighlightDelete={handleDeleteHighlight}
     />
   );
 }

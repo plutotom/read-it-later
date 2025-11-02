@@ -26,6 +26,7 @@ interface ArticleReaderProps {
     contextPrefix?: string;
     contextSuffix?: string;
   }) => void;
+  onHighlightDelete?: (highlightId: string) => void;
 }
 
 export function ArticleReader({
@@ -34,6 +35,7 @@ export function ArticleReader({
   onMarkAsRead,
   initialHighlights = [],
   onHighlightCreate,
+  onHighlightDelete,
 }: ArticleReaderProps) {
   const [fontSize, setFontSize] = useState(16);
   const [showSettings, setShowSettings] = useState(false);
@@ -245,6 +247,8 @@ export function ArticleReader({
         onFontSizeChange={setFontSize}
         autoHighlight={autoHighlight}
         onAutoHighlightChange={setAutoHighlight}
+        highlights={initialHighlights}
+        onHighlightDelete={onHighlightDelete}
       />
 
       <div className="flex-1 overflow-y-auto">

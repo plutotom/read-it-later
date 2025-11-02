@@ -6,11 +6,13 @@
 "use client";
 
 import { type Article } from "~/types/article";
+import { type Highlight } from "~/types/annotation";
 import { ReadingSettings } from "./reading-settings";
 import { Button } from "~/components/ui/button";
 import { Archive } from "lucide-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
+import { HighlightsMenu } from "./highlights-menu";
 
 interface ArticleReaderHeaderProps {
   article: Article;
@@ -21,6 +23,8 @@ interface ArticleReaderHeaderProps {
   onFontSizeChange: (size: number) => void;
   autoHighlight: boolean;
   onAutoHighlightChange: (enabled: boolean) => void;
+  highlights?: Highlight[];
+  onHighlightDelete?: (highlightId: string) => void;
 }
 
 export function ArticleReaderHeader({
@@ -32,6 +36,8 @@ export function ArticleReaderHeader({
   onFontSizeChange,
   autoHighlight,
   onAutoHighlightChange,
+  highlights = [],
+  onHighlightDelete,
 }: ArticleReaderHeaderProps) {
   const { mutate: markAsRead } = api.article.markAsRead.useMutation();
   const { mutate: archive } = api.article.archive.useMutation();
@@ -83,6 +89,12 @@ export function ArticleReaderHeader({
         </button>
 
         <div className="flex items-center space-x-2">
+          {/* Highlights menu */}
+          <HighlightsMenu
+            highlights={highlights}
+            onHighlightDelete={onHighlightDelete}
+          />
+
           {/* Reading settings */}
           <button
             onClick={onToggleSettings}
