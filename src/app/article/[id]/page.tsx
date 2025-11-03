@@ -52,7 +52,40 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
   });
 
   const updateHighlight = api.annotation.updateHighlight.useMutation({
+    onMutate: async ({ id: highlightId, note }) => {
+      // Only do optimistic update if note is being updated
+      if (note === undefined) return;
+
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await utils.annotation.getHighlightsByArticleId.cancel({ articleId: id });
+
+      // Snapshot the previous value
+      const previousHighlights = utils.annotation.getHighlightsByArticleId.getData({
+        articleId: id,
+      });
+
+      // Optimistically update the highlight's note
+      utils.annotation.getHighlightsByArticleId.setData({ articleId: id }, (old) => {
+        if (!old) return old;
+        return old.map((h) =>
+          h.id === highlightId ? { ...h, note: note ?? null } : h,
+        );
+      });
+
+      // Return a context object with the snapshotted value
+      return { previousHighlights };
+    },
+    onError: (_err, _variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousHighlights) {
+        utils.annotation.getHighlightsByArticleId.setData(
+          { articleId: id },
+          context.previousHighlights,
+        );
+      }
+    },
     onSuccess: () => {
+      // Invalidate to refetch and ensure sync with server
       void utils.annotation.getHighlightsByArticleId.invalidate({
         articleId: id,
       });
@@ -96,6 +129,12 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
   });
 
   const createNote = api.annotation.createNote.useMutation({
+    onSuccess: () => {
+      void utils.annotation.getNotesByArticleId.invalidate({ articleId: id });
+    },
+  });
+
+  const updateNote = api.annotation.updateNote.useMutation({
     onSuccess: () => {
       void utils.annotation.getNotesByArticleId.invalidate({ articleId: id });
     },
@@ -153,12 +192,29 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
     deleteHighlight.mutate({ id: highlightId });
   };
 
+  const handleHighlightNoteUpdate = (
+    highlightId: string,
+    note: string | null,
+  ) => {
+    updateHighlight.mutate({
+      id: highlightId,
+      note,
+    });
+  };
+
   const handleAddNote = (content: string, highlightId?: string) => {
     if (!article) return;
 
     createNote.mutate({
       articleId: article.id,
       content,
+      highlightId,
+    });
+  };
+
+  const handleAttachNoteToHighlight = (noteId: string, highlightId: string) => {
+    updateNote.mutate({
+      id: noteId,
       highlightId,
     });
   };
@@ -213,8 +269,11 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
       onBackClick={() => router.back()}
       onMarkAsRead={handleMarkAsRead}
       initialHighlights={highlights}
+      initialNotes={notes}
       onHighlightCreate={handleHighlight}
       onHighlightDelete={handleDeleteHighlight}
+      onHighlightNoteUpdate={handleHighlightNoteUpdate}
+      onAttachNoteToHighlight={handleAttachNoteToHighlight}
     />
   );
 }

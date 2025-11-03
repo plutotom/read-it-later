@@ -80,9 +80,9 @@ export function ArticleList({
         {/* Loading skeleton */}
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="animate-pulse">
-            <div className="mb-2 h-4 w-3/4 rounded bg-gray-200"></div>
-            <div className="mb-1 h-3 w-full rounded bg-gray-200"></div>
-            <div className="h-3 w-2/3 rounded bg-gray-200"></div>
+            <div className="mb-2 h-4 w-3/4 rounded bg-gray-700"></div>
+            <div className="mb-1 h-3 w-full rounded bg-gray-700"></div>
+            <div className="h-3 w-2/3 rounded bg-gray-700"></div>
           </div>
         ))}
       </div>
@@ -93,7 +93,7 @@ export function ArticleList({
     <div className="flex h-full w-full flex-col">
       {/* Search and filters */}
       {showSearch && (
-        <div className="sticky top-0 z-10 space-y-3 border-b border-gray-200 bg-white p-4">
+        <div className="sticky top-0 z-10 space-y-3 border-b border-gray-700 bg-gray-800 p-4">
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
@@ -106,7 +106,7 @@ export function ArticleList({
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="rounded-lg border border-gray-300 px-3 py-1 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="rounded-lg border border-gray-600 bg-gray-700 px-3 py-1 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -118,7 +118,7 @@ export function ArticleList({
       )}
 
       {/* Article count */}
-      <div className="border-b border-gray-100 px-4 py-2 text-sm text-gray-600">
+      <div className="border-b border-gray-700 px-4 py-2 text-sm text-gray-400">
         {filteredArticles.length}{" "}
         {filteredArticles.length === 1 ? "article" : "articles"}
         {searchQuery && ` found for "${searchQuery}"`}
@@ -128,7 +128,7 @@ export function ArticleList({
       <div className="flex-1 overflow-y-auto">
         {filteredArticles.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-700">
               <svg
                 className="h-8 w-8 text-gray-400"
                 fill="none"
@@ -143,17 +143,17 @@ export function ArticleList({
                 />
               </svg>
             </div>
-            <h3 className="mb-2 text-lg font-medium text-gray-900">
+            <h3 className="mb-2 text-lg font-medium text-white">
               {searchQuery ? "No articles found" : "No articles yet"}
             </h3>
-            <p className="max-w-sm text-gray-500">
+            <p className="max-w-sm text-gray-400">
               {searchQuery
                 ? "Try adjusting your search terms or filters"
                 : "Start by adding your first article to read later"}
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-700">
             {filteredArticles.map((article) => (
               <ArticleCard
                 key={article.id}

@@ -25,6 +25,7 @@ interface ArticleReaderHeaderProps {
   onAutoHighlightChange: (enabled: boolean) => void;
   highlights?: Highlight[];
   onHighlightDelete?: (highlightId: string) => void;
+  onHighlightNoteUpdate?: (highlightId: string, note: string | null) => void;
 }
 
 export function ArticleReaderHeader({
@@ -38,6 +39,7 @@ export function ArticleReaderHeader({
   onAutoHighlightChange,
   highlights = [],
   onHighlightDelete,
+  onHighlightNoteUpdate,
 }: ArticleReaderHeaderProps) {
   const { mutate: markAsRead } = api.article.markAsRead.useMutation();
   const { mutate: archive } = api.article.archive.useMutation();
@@ -93,6 +95,7 @@ export function ArticleReaderHeader({
           <HighlightsMenu
             highlights={highlights}
             onHighlightDelete={onHighlightDelete}
+            onHighlightNoteUpdate={onHighlightNoteUpdate}
           />
 
           {/* Reading settings */}

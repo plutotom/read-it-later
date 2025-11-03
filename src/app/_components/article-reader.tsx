@@ -6,11 +6,12 @@
 "use client";
 
 import { type Article } from "~/types/article";
-import { type Highlight } from "~/types/annotation";
+import { type Highlight, type Note } from "~/types/annotation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ArticleReaderHeader } from "./article-reader-header";
 import { ArticleMetadata } from "./article-metadata";
 import { ArticleContent } from "./article-content";
+import { StandaloneNotes } from "./standalone-notes";
 import { applyHighlights, type HighlightData } from "~/lib/highlihgter-util";
 
 interface ArticleReaderProps {
@@ -18,6 +19,7 @@ interface ArticleReaderProps {
   onBackClick?: () => void;
   onMarkAsRead?: () => void;
   initialHighlights?: Highlight[];
+  initialNotes?: Note[];
   onHighlightCreate?: (data: {
     text: string;
     startOffset: number;
@@ -27,6 +29,8 @@ interface ArticleReaderProps {
     contextSuffix?: string;
   }) => void;
   onHighlightDelete?: (highlightId: string) => void;
+  onHighlightNoteUpdate?: (highlightId: string, note: string | null) => void;
+  onAttachNoteToHighlight?: (noteId: string, highlightId: string) => void;
 }
 
 export function ArticleReader({
@@ -34,8 +38,11 @@ export function ArticleReader({
   onBackClick,
   onMarkAsRead,
   initialHighlights = [],
+  initialNotes = [],
   onHighlightCreate,
   onHighlightDelete,
+  onHighlightNoteUpdate,
+  onAttachNoteToHighlight,
 }: ArticleReaderProps) {
   const [fontSize, setFontSize] = useState(16);
   const [showSettings, setShowSettings] = useState(false);
@@ -249,12 +256,17 @@ export function ArticleReader({
         onAutoHighlightChange={setAutoHighlight}
         highlights={initialHighlights}
         onHighlightDelete={onHighlightDelete}
+        onHighlightNoteUpdate={onHighlightNoteUpdate}
       />
 
       <div className="flex-1 overflow-y-auto">
         <article className="max-w-none px-4 py-6">
           <ArticleMetadata article={article} />
-          {/* <StandaloneNotes notes={notes} /> */}
+          <StandaloneNotes
+            notes={initialNotes}
+            highlights={initialHighlights}
+            onAttachToHighlight={onAttachNoteToHighlight}
+          />
           <ArticleContent
             content={article.content}
             fontSize={fontSize}

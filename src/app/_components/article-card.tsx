@@ -59,12 +59,12 @@ export function ArticleCard({
   };
 
   return (
-    <div className="relative bg-white transition-colors hover:bg-gray-50">
+    <div className="relative bg-gray-800 transition-colors hover:bg-gray-700">
       {/* Main content area - clickable */}
       <div className="cursor-pointer p-4" onClick={onClick}>
         {/* Header with metadata */}
         <div className="mb-2 flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-xs text-gray-500">
+          <div className="flex items-center space-x-2 text-xs text-gray-400">
             <span>{getDomainFromUrl(article.url)}</span>
             <span>•</span>
             <span>{formatDate(article.createdAt)}</span>
@@ -88,13 +88,13 @@ export function ArticleCard({
         </div>
 
         {/* Title */}
-        <h3 className="mb-2 line-clamp-2 text-base leading-tight font-medium text-gray-900">
+        <h3 className="mb-2 line-clamp-2 text-base leading-tight font-medium text-white">
           {article.title}
         </h3>
 
         {/* Excerpt */}
         {article.excerpt && (
-          <p className="mb-3 line-clamp-2 text-sm leading-relaxed text-gray-600">
+          <p className="mb-3 line-clamp-2 text-sm leading-relaxed text-gray-300">
             {article.excerpt}
           </p>
         )}
@@ -104,7 +104,7 @@ export function ArticleCard({
           <div className="flex min-w-0 flex-1 items-center space-x-2">
             {/* Author */}
             {article.author && (
-              <span className="truncate text-xs text-gray-500">
+              <span className="truncate text-xs text-gray-400">
                 by {article.author}
               </span>
             )}
@@ -115,13 +115,13 @@ export function ArticleCard({
                 {article.tags.slice(0, 2).map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800"
+                    className="inline-flex items-center rounded bg-blue-700 px-2 py-0.5 text-xs font-medium text-blue-200"
                   >
                     {tag}
                   </span>
                 ))}
                 {article.tags.length > 2 && (
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-gray-500">
                     +{article.tags.length - 2}
                   </span>
                 )}
@@ -137,11 +137,11 @@ export function ArticleCard({
                   e.stopPropagation();
                   setShowMenu(!showMenu);
                 }}
-                className="rounded p-1 transition-colors hover:bg-gray-200"
+                className="rounded p-1 transition-colors hover:bg-gray-700"
                 aria-label="Article actions"
               >
                 <svg
-                  className="h-4 w-4 text-gray-500"
+                  className="h-4 w-4 text-gray-400"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -159,14 +159,14 @@ export function ArticleCard({
                   />
 
                   {/* Menu */}
-                  <div className="absolute top-full right-0 z-20 mt-1 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                  <div className="absolute top-full right-0 z-20 mt-1 w-48 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-lg">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         window.open(article.url, "_blank");
                         setShowMenu(false);
                       }}
-                      className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="flex w-full items-center px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
                     >
                       <svg
                         className="mr-2 h-4 w-4"
@@ -193,7 +193,7 @@ export function ArticleCard({
                           onUnarchive?.();
                           setShowMenu(false);
                         }}
-                        className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="flex w-full items-center px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
                       >
                         <svg
                           className="mr-2 h-4 w-4"
@@ -217,7 +217,7 @@ export function ArticleCard({
                           onArchive?.();
                           setShowMenu(false);
                         }}
-                        className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="flex w-full items-center px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
                       >
                         <svg
                           className="mr-2 h-4 w-4"
@@ -248,7 +248,7 @@ export function ArticleCard({
                         }
                         setShowMenu(false);
                       }}
-                      className="flex w-full items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                      className="flex w-full items-center px-3 py-2 text-sm text-red-400 hover:bg-red-900"
                     >
                       <svg
                         className="mr-2 h-4 w-4"

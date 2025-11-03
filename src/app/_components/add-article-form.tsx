@@ -272,17 +272,17 @@ export function AddArticleForm({
 
           {/* Detected Metadata Preview */}
           {(detectedMetadata.title || detectedMetadata.author) && (
-            <div className="rounded-lg bg-blue-50 p-3">
-              <p className="mb-2 text-sm font-medium text-blue-900">
+            <div className="rounded-lg bg-blue-900/30 p-3">
+              <p className="mb-2 text-sm font-medium text-blue-300">
                 Detected metadata:
               </p>
               {detectedMetadata.title && (
-                <p className="text-sm text-blue-700">
+                <p className="text-sm text-blue-200">
                   <strong>Title:</strong> {detectedMetadata.title}
                 </p>
               )}
               {detectedMetadata.author && (
-                <p className="text-sm text-blue-700">
+                <p className="text-sm text-blue-200">
                   <strong>Author:</strong> {detectedMetadata.author}
                 </p>
               )}

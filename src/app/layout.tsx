@@ -73,9 +73,9 @@ export default function RootLayout({
         />
         <link rel="manifest" href="/manifest.webmanifest" />
       </head>
-      <body className="bg-gray-50 font-sans antialiased">
+      <body className="bg-gray-900 font-sans antialiased">
         <TRPCReactProvider>
-          <div className="min-h-screen bg-gray-50">{children}</div>
+          <div className="min-h-screen bg-gray-900">{children}</div>
           <InstallPrompt />
           <ServiceWorkerRegistration />
         </TRPCReactProvider>

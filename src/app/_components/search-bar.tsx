@@ -67,7 +67,7 @@ export function SearchBar({
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
             {isLoading ? (
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500" />
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-t-blue-500" />
             ) : (
               <svg
                 className="h-4 w-4 text-gray-400"
@@ -96,7 +96,7 @@ export function SearchBar({
               setTimeout(() => setIsFocused(false), 150);
             }}
             placeholder={placeholder}
-            className="w-full rounded-lg border border-gray-200 bg-gray-50 py-3 pr-10 pl-10 text-sm transition-colors focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="w-full rounded-lg border border-gray-600 bg-gray-700 py-3 pr-10 pl-10 text-sm text-white placeholder:text-gray-400 transition-colors focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
 
           {/* Clear button */}
@@ -104,7 +104,7 @@ export function SearchBar({
             <button
               type="button"
               onClick={handleClear}
-              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-300"
             >
               <svg
                 className="h-4 w-4"
@@ -126,12 +126,12 @@ export function SearchBar({
 
       {/* Search suggestions */}
       {showSuggestions && (
-        <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+        <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-700 bg-gray-800 shadow-lg">
           {suggestions.map((suggestion, index) => (
             <button
               key={index}
               onClick={() => handleSuggestionClick(suggestion)}
-              className="w-full border-b border-gray-100 px-4 py-3 text-left text-sm text-gray-700 first:rounded-t-lg last:rounded-b-lg last:border-b-0 hover:bg-gray-50"
+              className="w-full border-b border-gray-700 px-4 py-3 text-left text-sm text-gray-300 first:rounded-t-lg last:rounded-b-lg last:border-b-0 hover:bg-gray-700"
             >
               <div className="flex items-center">
                 <svg

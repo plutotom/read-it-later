@@ -138,6 +138,39 @@ export const annotationRouter = createTRPCRouter({
       return newNote;
     }),
 
+  updateNote: publicProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        content: z.string().optional(),
+        highlightId: z.string().uuid().nullable().optional(),
+        position: z
+          .object({
+            x: z.number().min(0),
+            y: z.number().min(0),
+            page: z.number().int().min(1).optional(),
+          })
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...updateData } = input;
+      const [updatedNote] = await ctx.db
+        .update(notes)
+        .set({
+          ...updateData,
+          highlightId: updateData.highlightId ?? undefined,
+        })
+        .where(eq(notes.id, id))
+        .returning();
+
+      if (!updatedNote) {
+        throw new Error("Note not found");
+      }
+
+      return updatedNote;
+    }),
+
   deleteNote: publicProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {

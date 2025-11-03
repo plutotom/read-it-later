@@ -80,11 +80,15 @@ export default function HomePage() {
 
   if (isLoading)
     return (
-      <div className="p-4 text-center text-gray-500">Loading articles...</div>
+      <div className="flex min-h-screen flex-col bg-gray-900">
+        <div className="p-4 text-center text-gray-400">Loading articles...</div>
+      </div>
     );
   if (error)
     return (
-      <div className="p-4 text-center text-red-500">Error: {error.message}</div>
+      <div className="flex min-h-screen flex-col bg-gray-900">
+        <div className="p-4 text-center text-red-400">Error: {error.message}</div>
+      </div>
     );
 
   const handleArchive = (articleId: string) => {
@@ -96,10 +100,10 @@ export default function HomePage() {
   };
 
   return (
-    <div className="bg-background flex min-h-screen flex-col">
-      <header className="bg-card border-b p-4 shadow-sm">
+    <div className="flex min-h-screen flex-col bg-gray-900">
+      <header className="border-b border-gray-700 bg-gray-800 p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">Read It Later</h1>
+          <h1 className="text-xl font-bold text-white">Read It Later</h1>
           <Button variant="outline" onClick={() => router.push("/archived")}>
             View Archived
           </Button>
