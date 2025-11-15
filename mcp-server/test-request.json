@@ -1,0 +1,18 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "save_article_to_read_it_later",
+    "arguments": {
+      "content": "<h1>Test Article</h1><p>This is a test article to verify the MCP server is working correctly.</p><p>It contains multiple paragraphs and some basic HTML formatting.</p>",
+      "title": "MCP Server Test Article",
+      "author": "Test User",
+      "publishedAt": "2024-01-15T10:30:00Z",
+      "tags": ["test", "mcp", "article"]
+    }
+  }
+}
+
+
+

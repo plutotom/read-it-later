@@ -1,0 +1,66 @@
+{
+  "examples": [
+    {
+      "description": "Minimal required fields only",
+      "input": {
+        "content": "<p>This is a simple article about testing the MCP server. It contains some basic HTML content.</p><p>This is the second paragraph of the article.</p>",
+        "title": "Test Article - Minimal"
+      }
+    },
+    {
+      "description": "With all optional fields",
+      "input": {
+        "content": "<h1>Complete Test Article</h1><p>This article tests all the optional fields available in the MCP tool.</p><p>It includes author information, publication date, folder organization, and tags.</p>",
+        "title": "Test Article - Complete",
+        "author": "John Doe",
+        "publishedAt": "2024-01-15T10:30:00Z",
+        "folderId": "123e4567-e89b-12d3-a456-426614174000",
+        "tags": ["testing", "mcp", "article", "example"]
+      }
+    },
+    {
+      "description": "Plain text content (no HTML)",
+      "input": {
+        "content": "This is a plain text article without any HTML formatting. It's just regular text that will be saved to the read-it-later app.",
+        "title": "Plain Text Article Test",
+        "author": "Jane Smith"
+      }
+    },
+    {
+      "description": "With custom baseUrl",
+      "input": {
+        "content": "<article><h1>Article with Custom Base URL</h1><p>This example shows how to specify a custom base URL for the read-it-later app.</p></article>",
+        "title": "Custom Base URL Test",
+        "baseUrl": "http://localhost:3000"
+      }
+    },
+    {
+      "description": "Rich HTML content",
+      "input": {
+        "content": "<article><header><h1>Rich HTML Article</h1><p class=\"author\">By Test Author</p></header><section><p>This article contains <strong>bold text</strong>, <em>italic text</em>, and <a href=\"https://example.com\">links</a>.</p><ul><li>First bullet point</li><li>Second bullet point</li></ul><blockquote>This is a quote from the article.</blockquote></section></article>",
+        "title": "Rich HTML Content Test",
+        "author": "Test Author",
+        "publishedAt": "2024-01-20T14:00:00Z",
+        "tags": ["html", "rich-content", "test"]
+      }
+    }
+  ],
+  "mcpRequestFormat": {
+    "description": "When calling via MCP protocol, the request format is:",
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "save_article_to_read_it_later",
+      "arguments": {
+        "content": "<p>Article content here</p>",
+        "title": "Article Title",
+        "author": "Optional Author",
+        "publishedAt": "2024-01-15T10:30:00Z",
+        "folderId": "optional-uuid-here",
+        "tags": ["tag1", "tag2"],
+        "baseUrl": "http://localhost:3000"
+      }
+    }
+  }
+}

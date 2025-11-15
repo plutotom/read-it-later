@@ -21,5 +21,3 @@ export function getHighlightColorHex(color: HighlightColor): string {
   };
   return colors[color] ?? colors.yellow;
 }
-
-

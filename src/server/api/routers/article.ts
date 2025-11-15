@@ -65,7 +65,7 @@ export const articleRouter = createTRPCRouter({
     .input(articleCreateFromTextSchema)
     .mutation(async ({ ctx, input }) => {
       // Generate placeholder URL for text articles
-      const placeholderUrl = `text://manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const placeholderUrl = `text://manual-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
       // Calculate word count and reading time from HTML content
       const dom = new JSDOM(input.content);
