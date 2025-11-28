@@ -1,5 +1,4 @@
-import type { BasicTarget } from './use-click-away'
-import { getTargetElement } from './utils'
+import type { BasicTarget } from "./use-click-away";
 
 /**
  * Utility to create an effect that works with DOM targets
@@ -11,24 +10,24 @@ export function createEffectWithTarget(
   effect: (target: Element | null) => void | (() => void),
   deps: BasicTarget<any>[],
 ) {
-  const destroyRef = { current: undefined as (() => void) | undefined }
+  const destroyRef = { current: undefined as (() => void) | undefined };
 
   const cleanup = () => {
     if (destroyRef.current) {
-      destroyRef.current()
-      destroyRef.current = undefined
+      destroyRef.current();
+      destroyRef.current = undefined;
     }
-  }
+  };
 
   deps.forEach((dep) => {
-    const target = getTargetElement(dep)
+    const target = getTargetElement(dep);
     if (target) {
-      cleanup()
-      destroyRef.current = effect(target) as (() => void) | undefined
+      cleanup();
+      destroyRef.current = effect(target) as (() => void) | undefined;
     }
-  })
+  });
 
-  return cleanup
+  return cleanup;
 }
 
 /**
@@ -39,19 +38,19 @@ export function createEffectWithTarget(
 export function getTargetElement(
   target?: BasicTarget | BasicTarget[],
 ): Element | null {
-  if (!target) return null
+  if (!target) return null;
 
-  let targetElement: Element | null = null
+  let targetElement: Element | null = null;
 
   if (Array.isArray(target)) {
-    targetElement = target[0] as Element
-  } else if (typeof target === 'function') {
-    targetElement = target()
-  } else if ('current' in target) {
-    targetElement = target.current
+    targetElement = (target[0] as Element) ?? null;
+  } else if (typeof target === "function") {
+    targetElement = target() ?? null;
+  } else if ("current" in target) {
+    targetElement = target.current ?? null;
   } else {
-    targetElement = target
+    targetElement = target ?? null;
   }
 
-  return targetElement
+  return targetElement;
 }
