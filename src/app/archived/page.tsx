@@ -1,18 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
+
 import { ArrowLeft } from "lucide-react";
 import { ArticleList } from "../_components/article-list";
+import { Layout } from "../_components/layout";
 
 export default function ArchivedPage() {
   const utils = api.useUtils();
@@ -56,34 +50,36 @@ export default function ArchivedPage() {
     );
 
   return (
-    <div className="bg-background flex min-h-screen flex-col">
-      <header className="bg-card border-b p-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm" onClick={() => router.back()}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
+    <Layout pageTitle="Archived Articles">
+      <div className="bg-background flex min-h-screen flex-col">
+        {/* <header className="bg-card border-b p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" size="sm" onClick={() => router.back()}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+              <h1 className="text-xl font-bold">Archived Articles</h1>
+            </div>
+            <Button variant="outline" onClick={() => router.push("/")}>
+              View All Articles
             </Button>
-            <h1 className="text-xl font-bold">Archived Articles</h1>
           </div>
-          <Button variant="outline" onClick={() => router.push("/")}>
-            View All Articles
-          </Button>
-        </div>
-      </header>
+        </header> */}
 
-      <main className="flex-1 p-4">
-        {/* Articles List */}
-        <ArticleList
-          articles={articles || []}
-          isLoading={isLoading}
-          onArticleClick={(article) => router.push(`/article/${article.id}`)}
-          onUnarchive={handleUnarchive}
-          onDelete={handleDelete}
-          showSearch={true}
-          showFilters={true}
-        />
-      </main>
-    </div>
+        <main className="flex-1 p-4">
+          {/* Articles List */}
+          <ArticleList
+            articles={articles || []}
+            isLoading={isLoading}
+            onArticleClick={(article) => router.push(`/article/${article.id}`)}
+            onUnarchive={handleUnarchive}
+            onDelete={handleDelete}
+            showSearch={true}
+            showFilters={true}
+          />
+        </main>
+      </div>
+    </Layout>
   );
 }

@@ -118,11 +118,11 @@ export function ArticleList({
       )}
 
       {/* Article count */}
-      <div className="border-b border-gray-700 px-4 py-2 text-sm text-gray-400">
+      {/* <div className="border-b border-gray-700 px-4 py-2 text-sm text-gray-400">
         {filteredArticles.length}{" "}
         {filteredArticles.length === 1 ? "article" : "articles"}
         {searchQuery && ` found for "${searchQuery}"`}
-      </div>
+      </div> */}
 
       {/* Articles list */}
       <div className="flex-1 overflow-y-auto">

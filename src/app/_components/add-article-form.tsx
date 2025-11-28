@@ -234,7 +234,6 @@ export function AddArticleForm({
       {!isTextMode ? (
         /* URL Mode */
         <div className="space-y-2">
-          <Label htmlFor="url">Article URL *</Label>
           <Input
             id="url"
             type="url"
@@ -249,9 +248,6 @@ export function AddArticleForm({
             className={errors.url ? "border-red-500" : ""}
           />
           {errors.url && <p className="text-sm text-red-600">{errors.url}</p>}
-          <p className="text-muted-foreground text-xs">
-            Paste any article URL and we'll extract the content for you
-          </p>
         </div>
       ) : (
         /* Text Mode */

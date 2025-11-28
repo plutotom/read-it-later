@@ -15,6 +15,7 @@ import {
 
 import { AddArticleForm } from "./_components/add-article-form";
 import { ArticleList } from "./_components/article-list";
+import { Layout } from "./_components/layout";
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -80,15 +81,17 @@ export default function HomePage() {
 
   if (isLoading)
     return (
-      <div className="flex min-h-screen flex-col bg-gray-900">
+      <Layout pageTitle="Inbox">
         <div className="p-4 text-center text-gray-400">Loading articles...</div>
-      </div>
+      </Layout>
     );
   if (error)
     return (
-      <div className="flex min-h-screen flex-col bg-gray-900">
-        <div className="p-4 text-center text-red-400">Error: {error.message}</div>
-      </div>
+      <Layout pageTitle="Inbox">
+        <div className="p-4 text-center text-red-400">
+          Error: {error.message}
+        </div>
+      </Layout>
     );
 
   const handleArchive = (articleId: string) => {
@@ -100,19 +103,10 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-900">
-      <header className="border-b border-gray-700 bg-gray-800 p-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-white">Read It Later</h1>
-          <Button variant="outline" onClick={() => router.push("/archived")}>
-            View Archived
-          </Button>
-        </div>
-      </header>
-
-      <main className="flex-1 p-4">
+    <Layout pageTitle="Inbox">
+      <div className="flex-1 p-4">
         {/* Add Article Form */}
-        <Card className="mb-6">
+        {/* <Card className="mb-6">
           <CardHeader>
             <CardTitle>Add New Article</CardTitle>
             <CardDescription>
@@ -128,7 +122,7 @@ export default function HomePage() {
               }
             />
           </CardContent>
-        </Card>
+        </Card> */}
 
         {/* Articles List */}
         <ArticleList
@@ -137,10 +131,10 @@ export default function HomePage() {
           onArticleClick={(article) => router.push(`/article/${article.id}`)}
           onArchive={handleArchive}
           onDelete={handleDelete}
-          showSearch={true}
-          showFilters={true}
+          showSearch={false}
+          showFilters={false}
         />
-      </main>
-    </div>
+      </div>
+    </Layout>
   );
 }
