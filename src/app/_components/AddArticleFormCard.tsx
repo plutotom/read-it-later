@@ -97,15 +97,15 @@ export function AddArticleFormCard() {
       )}
       onClick={handleBackdropClick}
     >
-      <div className="flex h-full items-center justify-center">
-        <Card className="relative z-10 w-full max-w-md">
-          <CardHeader>
+      <div className="flex h-full items-center justify-center p-4">
+        <Card className="relative z-10 w-full max-w-md max-h-[90vh] flex flex-col">
+          <CardHeader className="flex-shrink-0">
             <CardTitle>Add New Article</CardTitle>
             <CardDescription>
               Paste a URL to save an article for later reading
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 overflow-y-auto">
             <AddArticleForm
               onSubmit={handleArticleSubmit}
               // folders={folders}
