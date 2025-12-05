@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/button";
 
 import { ArrowLeft } from "lucide-react";
-import { ArticleList } from "../_components/article-list";
-import { Layout } from "../_components/layout";
+import { ArticleList } from "../../_components/article-list";
+import { Layout } from "../../_components/layout";
 
 export default function ArchivedPage() {
   const utils = api.useUtils();

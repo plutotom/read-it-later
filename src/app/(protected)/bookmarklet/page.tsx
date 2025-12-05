@@ -1,4 +1,4 @@
-import { BookmarkletInstructions } from "../_components/bookmarklet-instructions";
+import { BookmarkletInstructions } from "../../_components/bookmarklet-instructions";
 
 export default function BookmarkletPage() {
   return (
@@ -9,5 +9,3 @@ export default function BookmarkletPage() {
     </div>
   );
 }
-
-

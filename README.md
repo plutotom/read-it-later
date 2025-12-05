@@ -2,6 +2,9 @@
 
 A modern "read it later" application built with the T3 Stack and Shadcn UI.
 
+<!-- TODO make db items bound to user id on create, read, update, etc. -->
+<!-- TODO validate loged in user gets redirected propperly. need to check what happens on cached instances. -->
+
 ## Features
 
 - Save articles from URLs for later reading
