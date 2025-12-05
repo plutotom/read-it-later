@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect } from 'react'
-import type { BasicTarget } from './use-click-away'
-import { createEffectWithTarget } from './create-effect-with-target'
+import { useEffect, useLayoutEffect } from "react";
+import type { BasicTarget } from "./use-click-away";
+import { createEffectWithTarget } from "./create-effect-with-target";
 
 /**
  * A hook that runs an effect when the target changes
@@ -15,8 +15,11 @@ export function useEffectWithTarget(
   target: BasicTarget | BasicTarget[],
 ) {
   useEffect(() => {
-    return createEffectWithTarget(effect, Array.isArray(target) ? target : [target])
-  }, deps)
+    return createEffectWithTarget(
+      effect,
+      Array.isArray(target) ? target : [target],
+    );
+  }, deps);
 }
 
 /**
@@ -32,9 +35,9 @@ export function useLayoutEffectWithTarget(
   target: BasicTarget | BasicTarget[],
 ) {
   useLayoutEffect(() => {
-    return createEffectWithTarget(effect, Array.isArray(target) ? target : [target])
-  }, deps)
+    return createEffectWithTarget(
+      effect,
+      Array.isArray(target) ? target : [target],
+    );
+  }, deps);
 }
-
-
-

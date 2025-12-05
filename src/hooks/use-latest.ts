@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef } from "react";
 
 /**
  * A hook to get the latest value
@@ -6,11 +6,8 @@ import { useRef } from 'react'
  * @returns A ref object containing the latest value
  */
 export function useLatest<T>(value: T) {
-  const ref = useRef(value)
-  ref.current = value
+  const ref = useRef(value);
+  ref.current = value;
 
-  return ref
+  return ref;
 }
-
-
-
