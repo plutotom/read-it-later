@@ -1,4 +1,4 @@
-import { GeneralContext } from "../contexts/general-context";
+import { GeneralContext } from "../(protected)/contexts/general-context";
 import { useContext, useRef, useEffect } from "react";
 import {
   Card,

@@ -1,11 +1,13 @@
 import "~/styles/globals.css";
 
-import { type Metadata, type Viewport } from "next";
+import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 import { Geist } from "next/font/google";
 
-import { TRPCReactProvider } from "~/trpc/react";
-import { InstallPrompt } from "./_components/install-prompt";
-import { ServiceWorkerRegistration } from "./_components/service-worker-registration";
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist-sans",
+});
 
 export const metadata: Metadata = {
   title: "Read It Later",
@@ -40,14 +42,9 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-const geist = Geist({
-  subsets: ["latin"],
-  variable: "--font-geist-sans",
-});
-
 export default function RootLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+}: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en" className={`dark ${geist.variable}`}>
       <head>
@@ -73,13 +70,8 @@ export default function RootLayout({
         />
         <link rel="manifest" href="/manifest.webmanifest" />
       </head>
-      <body className="bg-gray-900 font-sans antialiased">
-        <TRPCReactProvider>
-          <div className="min-h-screen bg-gray-900">{children}</div>
-          <InstallPrompt />
-          <ServiceWorkerRegistration />
-        </TRPCReactProvider>
-      </body>
+      <body className="bg-gray-900 font-sans antialiased">{children}</body>
     </html>
   );
 }
+

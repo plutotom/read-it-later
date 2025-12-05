@@ -13,9 +13,9 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 
-import { AddArticleForm } from "./_components/add-article-form";
-import { ArticleList } from "./_components/article-list";
-import { Layout } from "./_components/layout";
+import { AddArticleForm } from "../_components/add-article-form";
+import { ArticleList } from "../_components/article-list";
+import { Layout } from "../_components/layout";
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");

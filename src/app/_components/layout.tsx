@@ -4,7 +4,7 @@ import { SidebarProvider } from "~/components/ui/sidebar";
 
 import { AppSidebar } from "./AppSidebar";
 import { DesktopNav } from "./DesktopNav";
-import { GeneralProvider } from "../contexts/general-context";
+import { GeneralProvider } from "../(protected)/contexts/general-context";
 import { AddArticleButton } from "../_components/AddArticleButton";
 
 import { AddArticleFormCard } from "./AddArticleFormCard";

@@ -1,7 +1,7 @@
 import { Plus, X } from "lucide-react";
 import { useContext, useEffect } from "react";
 import { Button } from "~/components/ui/button";
-import { GeneralContext } from "../contexts/general-context";
+import { GeneralContext } from "../(protected)/contexts/general-context";
 
 export function AddArticleButton() {
   const { isAddFormOpen, setIsAddFormOpen } = useContext(GeneralContext);
