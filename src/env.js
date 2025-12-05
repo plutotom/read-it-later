@@ -11,6 +11,16 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+    AUTH_SECRET: z.string().min(1).default("dev-secret-change-me"),
+    AUTH_URL: z.string().url().default("http://localhost:3000"),
+    DISCORD_CLIENT_ID: z
+      .string()
+      .min(1)
+      .default("placeholder-discord-client-id"),
+    DISCORD_CLIENT_SECRET: z
+      .string()
+      .min(1)
+      .default("placeholder-discord-client-secret"),
   },
 
   /**
@@ -19,7 +29,7 @@ export const env = createEnv({
    * `NEXT_PUBLIC_`.
    */
   client: {
-    // NEXT_PUBLIC_CLIENTVAR: z.string(),
+    NEXT_PUBLIC_AUTH_URL: z.string().url().optional(),
   },
 
   /**
@@ -29,7 +39,11 @@ export const env = createEnv({
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
-    // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
+    AUTH_SECRET: process.env.AUTH_SECRET,
+    AUTH_URL: process.env.AUTH_URL,
+    DISCORD_CLIENT_ID: process.env.DISCORD_CLIENT_ID,
+    DISCORD_CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET,
+    NEXT_PUBLIC_AUTH_URL: process.env.NEXT_PUBLIC_AUTH_URL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

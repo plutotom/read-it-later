@@ -5,18 +5,16 @@
 
 import { sql } from "drizzle-orm";
 import { relations } from "drizzle-orm";
+import { index, pgTableCreator, pgEnum } from "drizzle-orm/pg-core";
 import {
-  index,
-  pgTableCreator,
-  text,
-  timestamp,
-  uuid,
-  boolean,
-  integer,
-  jsonb,
-  varchar,
-  pgEnum,
-} from "drizzle-orm/pg-core";
+  account,
+  accountRelations,
+  session,
+  sessionRelations,
+  user,
+  userRelations,
+  verification,
+} from "~/schemas/auth";
 
 /**
  * Multi-project schema feature of Drizzle ORM
@@ -213,3 +211,14 @@ export const notesRelations = relations(notes, ({ one }) => ({
     references: [highlights.id],
   }),
 }));
+
+// Auth tables (Better Auth)
+export {
+  user,
+  session,
+  account,
+  verification,
+  userRelations,
+  sessionRelations,
+  accountRelations,
+};

@@ -36,6 +36,20 @@
       "when": 1762010863529,
       "tag": "0004_soft_anita_blake",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1764908991136,
+      "tag": "0005_silent_iron_lad",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1764909870847,
+      "tag": "0006_equal_jack_murdock",
+      "breakpoints": true
     }
   ]
 }
