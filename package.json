@@ -80,6 +80,11 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.48.1"
   },
+  "pnpm": {
+    "overrides": {
+      "parse5": "7.1.2"
+    }
+  },
   "ct3aMetadata": {
     "initVersion": "7.39.3"
   },
