@@ -4,7 +4,8 @@ import { Button } from "~/components/ui/button";
 import { GeneralContext } from "../(protected)/contexts/general-context";
 
 export function AddArticleButton() {
-  const { isAddFormOpen, setIsAddFormOpen } = useContext(GeneralContext);
+  const { isAddFormOpen, setIsAddFormOpen, setMetadataEditArticle } =
+    useContext(GeneralContext);
 
   useEffect(() => {
     // add event listener for esc button to close the add article form
@@ -25,6 +26,7 @@ export function AddArticleButton() {
         size="icon"
         onClick={() => {
           setIsAddFormOpen(!isAddFormOpen);
+          setMetadataEditArticle(null);
         }}
         className="transition-transform duration-200 ease-in-out hover:scale-110 active:scale-95"
         aria-label={

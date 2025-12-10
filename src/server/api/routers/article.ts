@@ -64,8 +64,9 @@ export const articleRouter = createTRPCRouter({
   createFromText: publicProcedure
     .input(articleCreateFromTextSchema)
     .mutation(async ({ ctx, input }) => {
-      // Generate placeholder URL for text articles
+      // Generate placeholder URL for text articles when manual URL not provided
       const placeholderUrl = `text://manual-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+      const articleUrl = input.url ?? placeholderUrl;
 
       // Calculate word count and reading time from HTML content
       const dom = new JSDOM(input.content);
@@ -85,7 +86,7 @@ export const articleRouter = createTRPCRouter({
       const [newArticle] = await ctx.db
         .insert(articles)
         .values({
-          url: placeholderUrl,
+          url: articleUrl,
           title: input.title,
           content: input.content,
           excerpt: excerpt.length > 0 ? excerpt : null,
@@ -97,7 +98,7 @@ export const articleRouter = createTRPCRouter({
           tags: input.tags || null,
           metadata: {
             siteName: "Manual Entry",
-            siteUrl: placeholderUrl,
+            siteUrl: articleUrl,
             description: excerpt,
             language: "en",
             category: "Manual Entry",
@@ -106,6 +107,35 @@ export const articleRouter = createTRPCRouter({
         .returning();
 
       return newArticle;
+    }),
+
+  updateMetadata: publicProcedure
+    .input(
+      z
+        .object({
+          id: z.string(),
+          title: z.string().min(1).optional(),
+          url: z.string().url().optional(),
+        })
+        .refine((data) => data.title || data.url, {
+          message: "At least one field (title or url) must be provided",
+        }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const updateData: Record<string, unknown> = {};
+      if (input.title) updateData.title = input.title;
+      if (input.url) updateData.url = input.url;
+
+      const [updatedArticle] = await ctx.db
+        .update(articles)
+        .set(updateData)
+        .where(eq(articles.id, input.id))
+        .returning();
+
+      return {
+        success: !!updatedArticle,
+        article: updatedArticle,
+      };
     }),
 
   archive: publicProcedure

@@ -40,6 +40,7 @@ export interface ArticleCreateInput {
 }
 
 export interface ArticleUpdateInput {
+  url?: string;
   title?: string;
   content?: string;
   excerpt?: string;

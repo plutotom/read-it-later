@@ -6,7 +6,8 @@
 "use client";
 
 import { type Article } from "~/types/article";
-import { useState } from "react";
+import { useContext, useState } from "react";
+import { GeneralContext } from "../(protected)/contexts/general-context";
 
 interface ArticleCardProps {
   article: Article;
@@ -28,6 +29,7 @@ export function ArticleCard({
   showActions = true,
 }: ArticleCardProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const { setMetadataEditArticle } = useContext(GeneralContext);
 
   const formatDate = (date: Date) => {
     const now = new Date();
@@ -185,6 +187,34 @@ export function ArticleCard({
                     </button>
 
                     <hr className="my-1" />
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMetadataEditArticle({
+                          id: article.id,
+                          title: article.title,
+                          url: article.url,
+                        });
+                        setShowMenu(false);
+                      }}
+                      className="flex w-full items-center px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                    >
+                      <svg
+                        className="mr-2 h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v4m0 0H8m4-4h4m-8 8h8m-8 4h8"
+                        />
+                      </svg>
+                      Edit metadata
+                    </button>
 
                     {article.isArchived ? (
                       <button
