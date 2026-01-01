@@ -21,6 +21,7 @@ export const env = createEnv({
       .string()
       .min(1)
       .default("placeholder-discord-client-secret"),
+    BETTER_AUTH_SECRET: z.string().min(1).default("dev-secret-change-me"),
   },
 
   /**
@@ -44,6 +45,7 @@ export const env = createEnv({
     DISCORD_CLIENT_ID: process.env.DISCORD_CLIENT_ID,
     DISCORD_CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET,
     NEXT_PUBLIC_AUTH_URL: process.env.NEXT_PUBLIC_AUTH_URL,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

@@ -14,6 +14,9 @@ import {
   user,
   userRelations,
   verification,
+  userPreferences,
+  themeEnum,
+  userPreferencesRelations,
 } from "~/schemas/auth";
 
 /**
@@ -218,7 +221,10 @@ export {
   session,
   account,
   verification,
+  userPreferences,
+  themeEnum,
   userRelations,
   sessionRelations,
   accountRelations,
+  userPreferencesRelations,
 };
