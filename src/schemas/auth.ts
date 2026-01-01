@@ -1,11 +1,7 @@
 import { relations } from "drizzle-orm";
 import {
-  pgTable,
-  text,
-  timestamp,
-  boolean,
-  index,
   pgTableCreator,
+  pgEnum,
 } from "drizzle-orm/pg-core";
 // import { createTable } from "~/server/db/schema";
 /**
@@ -27,6 +23,7 @@ export const user = createTable("user", (d) => ({
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
+    deletedAt: d.timestamp(),
 }));
 
 export const session = createTable("session", (d) => ({
@@ -83,9 +80,38 @@ export const verification = createTable("verification", (d) => ({
     .notNull(),
 }));
 
-export const userRelations = relations(user, ({ many }) => ({
+// Theme enum for user preferences
+export const themeEnum = pgEnum("theme", ["light", "dark"]);
+
+// User preferences table
+export const userPreferences = createTable("user_preferences", (d) => ({
+  id: d.text().primaryKey(),
+  userId: d
+    .text()
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: "cascade" }),
+  theme: themeEnum("theme").default("light").notNull(),
+  settings: d.jsonb().default({}).$type<Record<string, unknown>>(),
+  createdAt: d.timestamp().defaultNow().notNull(),
+  updatedAt: d
+    .timestamp()
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+}));
+
+export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
   accounts: many(account),
+  preferences: one(userPreferences),
+}));
+
+export const userPreferencesRelations = relations(userPreferences, ({ one }) => ({
+  user: one(user, {
+    fields: [userPreferences.userId],
+    references: [user.id],
+  }),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
