@@ -2,6 +2,7 @@ import { postRouter } from "~/server/api/routers/post";
 import { articleRouter } from "~/server/api/routers/article";
 import { folderRouter } from "~/server/api/routers/folder";
 import { annotationRouter } from "~/server/api/routers/annotation";
+import { ttsRouter } from "~/server/api/routers/tts";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -14,6 +15,7 @@ export const appRouter = createTRPCRouter({
   article: articleRouter,
   folder: folderRouter,
   annotation: annotationRouter,
+  tts: ttsRouter,
 });
 
 // export type definition of API
