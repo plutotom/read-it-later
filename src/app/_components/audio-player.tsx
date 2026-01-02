@@ -24,6 +24,8 @@ import {
   Loader2,
   AlertCircle,
   Volume2,
+  Volume1,
+  VolumeX,
 } from "lucide-react";
 
 
@@ -51,6 +53,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [volume, setVolume] = useState(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Check if audio already exists
@@ -223,6 +226,15 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
     }
   }, []);
 
+  // Handle volume change
+  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    if (audioRef.current) {
+      audioRef.current.volume = newVolume;
+    }
+  }, []);
+
   // Handle seeking via progress bar
   const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
@@ -356,6 +368,27 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
           <span className="font-mono">{formatTime(currentTime)}</span>
           <span className="mx-1">/</span>
           <span className="font-mono">{formatTime(duration)}</span>
+        </div>
+
+        {/* Volume control */}
+        <div className="flex items-center gap-1">
+          {volume === 0 ? (
+            <VolumeX className="size-4 text-gray-400" />
+          ) : volume < 0.5 ? (
+            <Volume1 className="size-4 text-gray-400" />
+          ) : (
+            <Volume2 className="size-4 text-gray-400" />
+          )}
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={volume}
+            onChange={handleVolumeChange}
+            className="h-1 w-16 cursor-pointer appearance-none rounded-full bg-gray-600 accent-blue-500"
+            title={`Volume: ${Math.round(volume * 100)}%`}
+          />
         </div>
 
         {/* Speed selector */}

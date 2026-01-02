@@ -17,7 +17,6 @@ import { AudioPlayer } from "./audio-player";
 
 interface ArticleReaderProps {
   article: Article;
-  onBackClick?: () => void;
   onMarkAsRead?: () => void;
   initialHighlights?: Highlight[];
   initialNotes?: Note[];
@@ -36,7 +35,6 @@ interface ArticleReaderProps {
 
 export function ArticleReader({
   article,
-  onBackClick,
   onMarkAsRead,
   initialHighlights = [],
   initialNotes = [],
@@ -248,7 +246,6 @@ export function ArticleReader({
     <div className="flex h-full flex-col bg-gray-900">
       <ArticleReaderHeader
         article={article}
-        onBackClick={onBackClick}
         showSettings={showSettings}
         onToggleSettings={() => setShowSettings(!showSettings)}
         fontSize={fontSize}

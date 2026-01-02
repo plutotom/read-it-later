@@ -213,4 +213,35 @@ export const ttsRouter = createTRPCRouter({
       languageCode: process.env.TTS_VOICE_LANGUAGE ?? "en-US",
     };
   }),
+
+  /**
+   * Get audio status for a shared article (public, by share token)
+   */
+  getStatusByShareToken: publicProcedure
+    .input(z.object({ shareToken: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // First find the article by share token
+      const article = await ctx.db.query.articles.findFirst({
+        where: eq(articles.shareToken, input.shareToken),
+        columns: { id: true },
+      });
+
+      if (!article) {
+        return { hasAudio: false, audio: null };
+      }
+
+      // Then get the audio for that article
+      const audio = await ctx.db.query.articleAudio.findFirst({
+        where: eq(articleAudio.articleId, article.id),
+        columns: {
+          audioUrl: true,
+          durationSeconds: true,
+        },
+      });
+
+      return {
+        hasAudio: !!audio,
+        audio: audio ?? null,
+      };
+    }),
 });

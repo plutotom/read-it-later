@@ -45,6 +45,7 @@ export const articles = createTable(
     url: d.text().notNull(),
     title: d.text().notNull(),
     content: d.text().notNull(),
+    shareToken: d.varchar({ length: 21 }).unique(), // nanoid for public sharing
     excerpt: d.text(),
     author: d.text(),
     publishedAt: d.timestamp({ withTimezone: true }),
@@ -69,6 +70,7 @@ export const articles = createTable(
   }),
   (t) => [
     index("article_url_idx").on(t.url),
+    index("article_share_token_idx").on(t.shareToken),
     index("article_folder_idx").on(t.folderId),
     index("article_created_at_idx").on(t.createdAt),
     index("article_is_favorite_idx").on(t.isFavorite),
