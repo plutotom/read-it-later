@@ -8,6 +8,7 @@
 import { type Article } from "~/types/article";
 import { useContext, useState } from "react";
 import { GeneralContext } from "../(protected)/contexts/general-context";
+import { ListenProgress } from "./listen-progress";
 
 interface ArticleCardProps {
   article: Article;
@@ -17,6 +18,8 @@ interface ArticleCardProps {
   onDelete?: () => void;
   onMoveToFolder?: (folderId: string | null) => void;
   showActions?: boolean;
+  /** Listen progress as a fraction (0-1), undefined if no audio */
+  listenProgress?: number;
 }
 
 export function ArticleCard({
@@ -27,6 +30,7 @@ export function ArticleCard({
   onDelete,
   onMoveToFolder,
   showActions = true,
+  listenProgress,
 }: ArticleCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const { setMetadataEditArticle } = useContext(GeneralContext);
@@ -80,6 +84,9 @@ export function ArticleCard({
 
           {/* Status indicators */}
           <div className="flex items-center space-x-1">
+            {listenProgress !== undefined && (
+              <ListenProgress progress={listenProgress} size={20} />
+            )}
             {article.isArchived && (
               <div
                 className="h-2 w-2 rounded-full bg-gray-400"

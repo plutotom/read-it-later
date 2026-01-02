@@ -21,6 +21,13 @@ export const env = createEnv({
       .string()
       .min(1)
       .default("placeholder-discord-client-secret"),
+    BETTER_AUTH_SECRET: z.string().min(1).default("dev-secret-change-me"),
+    // Google Cloud TTS
+    GOOGLE_CLOUD_TTS_CREDENTIALS: z.string().optional(),
+    TTS_VOICE_NAME: z.string().default("en-US-Standard-A"),
+    TTS_VOICE_LANGUAGE: z.string().default("en-US"),
+    // Vercel Blob
+    BLOB_READ_WRITE_TOKEN: z.string().optional(),
   },
 
   /**
@@ -44,6 +51,13 @@ export const env = createEnv({
     DISCORD_CLIENT_ID: process.env.DISCORD_CLIENT_ID,
     DISCORD_CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET,
     NEXT_PUBLIC_AUTH_URL: process.env.NEXT_PUBLIC_AUTH_URL,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    // Google Cloud TTS
+    GOOGLE_CLOUD_TTS_CREDENTIALS: process.env.GOOGLE_CLOUD_TTS_CREDENTIALS,
+    TTS_VOICE_NAME: process.env.TTS_VOICE_NAME,
+    TTS_VOICE_LANGUAGE: process.env.TTS_VOICE_LANGUAGE,
+    // Vercel Blob
+    BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

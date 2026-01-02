@@ -14,6 +14,9 @@ import {
   user,
   userRelations,
   verification,
+  userPreferences,
+  themeEnum,
+  userPreferencesRelations,
 } from "~/schemas/auth";
 
 /**
@@ -173,6 +176,38 @@ export const notes = createTable(
   ],
 );
 
+// Article Audio table - for TTS audio caching and playback progress
+export const articleAudio = createTable(
+  "article_audio",
+  (d) => ({
+    id: d.uuid().primaryKey().defaultRandom(),
+    articleId: d.uuid().notNull().unique(), // One audio per article
+    audioUrl: d.text().notNull(), // Vercel Blob URL
+    voiceName: d.text().notNull(), // e.g., "en-US-Standard-A"
+    durationSeconds: d.real(), // Total audio length
+    fileSizeBytes: d.integer(), // For UI display
+
+    // Playback progress
+    currentTimeSeconds: d.real().notNull().default(0),
+    lastPlayedAt: d.timestamp({ withTimezone: true }),
+
+    generatedAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  }),
+  (t) => [index("article_audio_article_idx").on(t.articleId)],
+);
+
 // Relations
 export const articlesRelations = relations(articles, ({ one, many }) => ({
   folder: one(folders, {
@@ -181,6 +216,7 @@ export const articlesRelations = relations(articles, ({ one, many }) => ({
   }),
   highlights: many(highlights),
   notes: many(notes),
+  audio: one(articleAudio),
 }));
 
 export const foldersRelations = relations(folders, ({ one, many }) => ({
@@ -214,13 +250,23 @@ export const notesRelations = relations(notes, ({ one }) => ({
   }),
 }));
 
+export const articleAudioRelations = relations(articleAudio, ({ one }) => ({
+  article: one(articles, {
+    fields: [articleAudio.articleId],
+    references: [articles.id],
+  }),
+}));
+
 // Auth tables (Better Auth)
 export {
   user,
   session,
   account,
   verification,
+  userPreferences,
+  themeEnum,
   userRelations,
   sessionRelations,
   accountRelations,
+  userPreferencesRelations,
 };

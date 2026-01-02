@@ -1,8 +1,17 @@
 "use client";
 import { useRouter } from "next/navigation";
+import { Settings, LogOut, ChevronDown, User } from "lucide-react";
 import { SidebarTrigger } from "~/components/ui/sidebar";
 import { Separator } from "~/components/ui/separator";
 import { Button } from "~/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import { authClient, useSession } from "~/lib/auth-client";
 
 export function DesktopNav({
@@ -52,17 +61,32 @@ export function DesktopNav({
           {session?.user && (
             <>
               <Separator orientation="vertical" className="h-4" />
-              <span className="text-sm text-gray-400">
-                {session.user.name ?? session.user.email}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSignOut}
-                className="text-gray-300 hover:bg-gray-700 hover:text-white"
-              >
-                Sign out
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex items-center gap-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                  >
+                    <User className="h-4 w-4" />
+                    <span>{session.user.name ?? session.user.email}</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push("/preferences")}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Preferences
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           )}
         </nav>
