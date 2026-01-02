@@ -5,6 +5,7 @@ import { articles } from "~/server/db/schema";
 import { ArticleExtractor } from "~/server/services/articleExtractor";
 import { articleCreateFromTextSchema } from "~/schemas/article";
 import { JSDOM } from "jsdom";
+import { nanoid } from "nanoid";
 
 export const articleRouter = createTRPCRouter({
   getAll: publicProcedure.query(async ({ ctx }) => {
@@ -186,5 +187,46 @@ export const articleRouter = createTRPCRouter({
         .returning();
 
       return { success: !!updatedArticle };
+    }),
+
+  /**
+   * Generate or get existing share link for an article
+   */
+  generateShareLink: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const article = await ctx.db.query.articles.findFirst({
+        where: eq(articles.id, input.id),
+        columns: { id: true, shareToken: true },
+      });
+
+      if (!article) {
+        throw new Error("Article not found");
+      }
+
+      // Return existing token if already shared
+      if (article.shareToken) {
+        return { shareToken: article.shareToken };
+      }
+
+      // Generate new token
+      const token = nanoid();
+      await ctx.db
+        .update(articles)
+        .set({ shareToken: token })
+        .where(eq(articles.id, input.id));
+
+      return { shareToken: token };
+    }),
+
+  /**
+   * Get article by share token (public, no auth required)
+   */
+  getByShareToken: publicProcedure
+    .input(z.object({ token: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.articles.findFirst({
+        where: eq(articles.shareToken, input.token),
+      });
     }),
 });

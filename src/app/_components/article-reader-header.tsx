@@ -5,18 +5,29 @@
 
 "use client";
 
+import { useState } from "react";
 import { type Article } from "~/types/article";
 import { type Highlight } from "~/types/annotation";
 import { ReadingSettings } from "./reading-settings";
+import { ShareDialog } from "./share-dialog";
 import { Button } from "~/components/ui/button";
-import { Archive } from "lucide-react";
+import { Archive, Settings, LogOut, ChevronDown, User, ArrowLeft, Home, FolderArchive } from "lucide-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
 import { HighlightsMenu } from "./highlights-menu";
+import { Separator } from "~/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
+import { authClient, useSession } from "~/lib/auth-client";
 
 interface ArticleReaderHeaderProps {
   article: Article;
-  onBackClick?: () => void;
   showSettings: boolean;
   onToggleSettings: () => void;
   fontSize: number;
@@ -30,7 +41,6 @@ interface ArticleReaderHeaderProps {
 
 export function ArticleReaderHeader({
   article,
-  onBackClick,
   showSettings,
   onToggleSettings,
   fontSize,
@@ -41,20 +51,36 @@ export function ArticleReaderHeader({
   onHighlightDelete,
   onHighlightNoteUpdate,
 }: ArticleReaderHeaderProps) {
-  const { mutate: markAsRead } = api.article.markAsRead.useMutation();
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const { mutate: archive } = api.article.archive.useMutation();
   const { mutate: unarchive } = api.article.unarchive.useMutation();
+  const { data: session } = useSession();
 
   const router = useRouter();
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: article.title,
-        url: article.url,
-      });
+  
+  // Smart back navigation: use history if available, otherwise go to inbox
+  const handleBackClick = () => {
+    // Check if we have meaningful history (more than just this page)
+    // Also check if the referrer is from the same origin (user came from within the app)
+    const hasHistory = typeof window !== "undefined" && window.history.length > 2;
+    const referrer = typeof document !== "undefined" ? document.referrer : "";
+    const isFromSameOrigin = referrer && typeof window !== "undefined" && 
+      referrer.startsWith(window.location.origin);
+    
+    if (hasHistory && isFromSameOrigin) {
+      router.back();
     } else {
-      navigator.clipboard.writeText(article.url);
+      router.push("/");
     }
+  };
+
+  const handleSignOut = async () => {
+    await authClient.signOut();
+    router.push("/login");
+  };
+
+  const handleShare = () => {
+    setShowShareDialog(true);
   };
 
   const onArchive = () => {
@@ -70,26 +96,65 @@ export function ArticleReaderHeader({
   return (
     <div className="sticky top-0 z-10 border-b border-gray-700 bg-gray-900 px-4 py-3">
       <div className="flex items-center justify-between">
-        <button
-          onClick={onBackClick}
-          className="flex items-center text-gray-400 hover:text-gray-200"
-        >
-          <svg
-            className="mr-1 h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        {/* Left side: Back button and navigation */}
+        <div className="flex items-center gap-2">
+          {/* Back button with smart navigation */}
+          <button
+            onClick={handleBackClick}
+            className="flex items-center text-gray-400 hover:text-gray-200"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          Back
-        </button>
+            <ArrowLeft className="mr-1 h-5 w-5" />
+            <span className="hidden sm:inline">Back</span>
+          </button>
 
+          <Separator orientation="vertical" className="mx-2 h-6 hidden sm:block" />
+
+          {/* Desktop navigation links */}
+          <nav className="hidden sm:flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/")}
+              className="text-gray-300 hover:bg-gray-700 hover:text-white"
+            >
+              <Home className="mr-1 h-4 w-4" />
+              Inbox
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/archived")}
+              className="text-gray-300 hover:bg-gray-700 hover:text-white"
+            >
+              <FolderArchive className="mr-1 h-4 w-4" />
+              Archived
+            </Button>
+          </nav>
+
+          {/* Mobile navigation dropdown */}
+          <div className="sm:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-gray-400">
+                  Navigate
+                  <ChevronDown className="ml-1 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => router.push("/")}>
+                  <Home className="mr-2 h-4 w-4" />
+                  Inbox
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/archived")}>
+                  <FolderArchive className="mr-2 h-4 w-4" />
+                  Archived
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        {/* Right side: Article actions */}
         <div className="flex items-center space-x-2">
           {/* Highlights menu */}
           <HighlightsMenu
@@ -104,33 +169,14 @@ export function ArticleReaderHeader({
             className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-gray-200"
             aria-label="Reading settings"
           >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
+            <Settings className="h-5 w-5" />
           </button>
 
           {/* Share button */}
           <Button
-            // variant=""
             size="icon"
+            variant="ghost"
             onClick={handleShare}
-            // className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-gray-200"
             aria-label="Share article"
           >
             <svg
@@ -147,16 +193,51 @@ export function ArticleReaderHeader({
               />
             </svg>
           </Button>
+
+          {/* Archive/Unarchive button */}
           {article.isArchived ? (
-            <Button variant="outline" onClick={onUnarchive}>
-              <Archive className="mr-2 h-4 w-4" />
-              Unarchive Article
+            <Button variant="outline" size="sm" onClick={onUnarchive}>
+              <Archive className="mr-1 h-4 w-4" />
+              <span className="hidden sm:inline">Unarchive</span>
             </Button>
           ) : (
-            <Button variant="outline" onClick={onArchive}>
-              <Archive className="mr-2 h-4 w-4" />
-              Archive Article
+            <Button variant="outline" size="sm" onClick={onArchive}>
+              <Archive className="mr-1 h-4 w-4" />
+              <span className="hidden sm:inline">Archive</span>
             </Button>
+          )}
+
+          {/* User menu (desktop) */}
+          {session?.user && (
+            <div className="hidden md:block">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex items-center gap-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                  >
+                    <User className="h-4 w-4" />
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>
+                    {session.user.name ?? session.user.email}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push("/preferences")}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Preferences
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => void handleSignOut()}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
         </div>
       </div>
@@ -170,6 +251,15 @@ export function ArticleReaderHeader({
           onAutoHighlightChange={onAutoHighlightChange}
         />
       )}
+
+      {/* Share dialog */}
+      <ShareDialog
+        articleId={article.id}
+        articleTitle={article.title}
+        originalUrl={article.url}
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+      />
     </div>
   );
 }

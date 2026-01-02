@@ -1,12 +1,10 @@
 "use client";
 
 import React, { use } from "react";
-import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { ArticleReader } from "~/app/_components/article-reader";
 import type { NotePosition } from "~/types/annotation";
-import highlight from "~/lib/highlihgter-util";
 
 interface ArticleDetailPageProps {
   params: Promise<{
@@ -16,7 +14,6 @@ interface ArticleDetailPageProps {
 
 export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
   const { id } = use(params);
-  const router = useRouter();
 
   const { data: article, isLoading, error } = api.article.get.useQuery({ id });
   const { data: highlightsRaw = [] } =
@@ -266,7 +263,6 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
   return (
     <ArticleReader
       article={article}
-      onBackClick={() => router.back()}
       onMarkAsRead={handleMarkAsRead}
       initialHighlights={highlights}
       initialNotes={notes}
