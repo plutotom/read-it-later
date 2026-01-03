@@ -11,7 +11,7 @@ import { type Highlight } from "~/types/annotation";
 import { ReadingSettings } from "./reading-settings";
 import { ShareDialog } from "./share-dialog";
 import { Button } from "~/components/ui/button";
-import { Archive, Settings, LogOut, ChevronDown, User, ArrowLeft, Home, FolderArchive } from "lucide-react";
+import { Archive, Settings, ChevronDown, ArrowLeft, Home, FolderArchive } from "lucide-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
 import { HighlightsMenu } from "./highlights-menu";
@@ -20,11 +20,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { authClient, useSession } from "~/lib/auth-client";
+import { useSession } from "~/lib/auth-client";
+import { UserMenu } from "./user-menu";
 
 interface ArticleReaderHeaderProps {
   article: Article;
@@ -72,11 +71,6 @@ export function ArticleReaderHeader({
     } else {
       router.push("/");
     }
-  };
-
-  const handleSignOut = async () => {
-    await authClient.signOut();
-    router.push("/login");
   };
 
   const handleShare = () => {
@@ -207,36 +201,10 @@ export function ArticleReaderHeader({
             </Button>
           )}
 
-          {/* User menu (desktop) */}
+          {/* User menu (desktop) - shared component */}
           {session?.user && (
             <div className="hidden md:block">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-2 text-gray-300 hover:bg-gray-700 hover:text-white"
-                  >
-                    <User className="h-4 w-4" />
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>
-                    {session.user.name ?? session.user.email}
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => router.push("/preferences")}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    Preferences
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => void handleSignOut()}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <UserMenu showName={false} />
             </div>
           )}
         </div>

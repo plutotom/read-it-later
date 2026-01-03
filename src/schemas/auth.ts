@@ -101,6 +101,23 @@ export const userPreferences = createTable("user_preferences", (d) => ({
     .notNull(),
 }));
 
+// TTS usage tracking table - tracks monthly character consumption
+export const ttsUsage = createTable("tts_usage", (d) => ({
+  id: d.text().primaryKey(),
+  // Year-month in format "YYYY-MM" for easy querying
+  billingPeriod: d.varchar({ length: 7 }).notNull(),
+  // Total characters used in this billing period
+  charactersUsed: d.integer().notNull().default(0),
+  // Voice type used (for different free tier limits)
+  voiceType: d.varchar({ length: 50 }).notNull().default("standard"),
+  createdAt: d.timestamp().defaultNow().notNull(),
+  updatedAt: d
+    .timestamp()
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+}));
+
 export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
   accounts: many(account),

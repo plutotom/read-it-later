@@ -184,6 +184,7 @@ export interface GenerateAudioResult {
   durationSeconds: number;
   fileSizeBytes: number;
   voiceName: string;
+  charactersUsed: number; // Total characters sent to TTS API
 }
 
 /**
@@ -230,11 +231,15 @@ export async function generateAudioForArticle(
     contentType: AUDIO_CONTENT_TYPE,
   });
 
+  // Calculate total characters used
+  const totalCharactersUsed = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+
   return {
     audioUrl: blob.url,
     durationSeconds: estimateAudioDuration(finalAudio),
     fileSizeBytes: finalAudio.length,
     voiceName,
+    charactersUsed: totalCharactersUsed,
   };
 }
 
