@@ -1,8 +1,74 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
-import { articleAudio, articles } from "~/server/db/schema";
+import { articleAudio, articles, ttsUsage } from "~/server/db/schema";
 import { generateAudioForArticle, deleteAudioFromBlob } from "~/server/services/tts";
+import { nanoid } from "nanoid";
+
+// Free tier limits (characters per month)
+const FREE_TIER_LIMITS = {
+  standard: 4_000_000, // 4 million for Standard voices
+  wavenet: 1_000_000, // 1 million for WaveNet voices
+  neural2: 1_000_000, // 1 million for Neural2 voices
+  studio: 1_000_000, // 1 million for Studio voices
+};
+
+/**
+ * Get the current billing period in YYYY-MM format
+ */
+function getCurrentBillingPeriod(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+/**
+ * Determine voice type from voice name
+ */
+function getVoiceType(voiceName: string): keyof typeof FREE_TIER_LIMITS {
+  const lowerName = voiceName.toLowerCase();
+  if (lowerName.includes("wavenet")) return "wavenet";
+  if (lowerName.includes("neural2")) return "neural2";
+  if (lowerName.includes("studio")) return "studio";
+  return "standard";
+}
+
+/**
+ * Record TTS character usage in the database
+ */
+async function recordTTSUsage(
+  db: typeof import("~/server/db").db,
+  charactersUsed: number,
+  voiceName: string
+): Promise<void> {
+  const billingPeriod = getCurrentBillingPeriod();
+  const voiceType = getVoiceType(voiceName);
+
+  // Try to update existing record, or insert new one
+  const existingUsage = await db.query.ttsUsage.findFirst({
+    where: and(
+      eq(ttsUsage.billingPeriod, billingPeriod),
+      eq(ttsUsage.voiceType, voiceType)
+    ),
+  });
+
+  if (existingUsage) {
+    await db
+      .update(ttsUsage)
+      .set({
+        charactersUsed: sql`${ttsUsage.charactersUsed} + ${charactersUsed}`,
+      })
+      .where(eq(ttsUsage.id, existingUsage.id));
+  } else {
+    await db.insert(ttsUsage).values({
+      id: nanoid(),
+      billingPeriod,
+      voiceType,
+      charactersUsed,
+    });
+  }
+}
 
 export const ttsRouter = createTRPCRouter({
   /**
@@ -40,6 +106,9 @@ export const ttsRouter = createTRPCRouter({
 
       // Generate audio
       const result = await generateAudioForArticle(input.articleId, article.content);
+
+      // Record TTS usage
+      await recordTTSUsage(ctx.db, result.charactersUsed, result.voiceName);
 
       // Save to database
       const [newAudio] = await ctx.db
@@ -127,6 +196,9 @@ export const ttsRouter = createTRPCRouter({
       // Generate new audio
       const result = await generateAudioForArticle(input.articleId, article.content);
 
+      // Record TTS usage
+      await recordTTSUsage(ctx.db, result.charactersUsed, result.voiceName);
+
       // Save to database
       const [newAudio] = await ctx.db
         .insert(articleAudio)
@@ -211,6 +283,42 @@ export const ttsRouter = createTRPCRouter({
     return {
       voiceName: process.env.TTS_VOICE_NAME ?? "en-US-Standard-A",
       languageCode: process.env.TTS_VOICE_LANGUAGE ?? "en-US",
+    };
+  }),
+
+  /**
+   * Get TTS usage statistics for the current billing period
+   */
+  getUsage: publicProcedure.query(async ({ ctx }) => {
+    const billingPeriod = getCurrentBillingPeriod();
+    const voiceName = process.env.TTS_VOICE_NAME ?? "en-US-Standard-A";
+    const voiceType = getVoiceType(voiceName);
+    const freeLimit = FREE_TIER_LIMITS[voiceType];
+
+    // Get usage for current billing period
+    const usage = await ctx.db.query.ttsUsage.findFirst({
+      where: and(
+        eq(ttsUsage.billingPeriod, billingPeriod),
+        eq(ttsUsage.voiceType, voiceType)
+      ),
+    });
+
+    const charactersUsed = usage?.charactersUsed ?? 0;
+    const charactersRemaining = Math.max(0, freeLimit - charactersUsed);
+    const percentageUsed = Math.min(100, (charactersUsed / freeLimit) * 100);
+
+    // Calculate the reset date (first day of next month)
+    const now = new Date();
+    const resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    return {
+      billingPeriod,
+      voiceType,
+      charactersUsed,
+      charactersRemaining,
+      freeLimit,
+      percentageUsed,
+      resetDate: resetDate.toISOString(),
     };
   }),
 

@@ -1,36 +1,36 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { Settings, LogOut, ChevronDown, User } from "lucide-react";
 import { SidebarTrigger } from "~/components/ui/sidebar";
 import { Separator } from "~/components/ui/separator";
 import { Button } from "~/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
-import { authClient, useSession } from "~/lib/auth-client";
+import { useSession } from "~/lib/auth-client";
+import { UserMenu } from "./user-menu";
+
+interface NavItem {
+  title: string;
+  url: string;
+}
+
+interface NavGroup {
+  items: NavItem[];
+}
+
+interface NavData {
+  navMain: NavGroup[];
+}
 
 export function DesktopNav({
   navData,
   pageTitle,
 }: {
-  navData: any;
+  navData: NavData;
   pageTitle: string;
 }) {
   const router = useRouter();
   const { data: session } = useSession();
 
   // Flatten all navigation items from all groups
-  const allNavItems = navData.navMain.flatMap((group: any) => group.items);
-
-  const handleSignOut = async () => {
-    await authClient.signOut();
-    router.push("/login");
-  };
+  const allNavItems = navData.navMain.flatMap((group) => group.items);
 
   return (
     <header className="border-b border-gray-700 bg-gray-800 p-4 shadow-sm">
@@ -47,7 +47,7 @@ export function DesktopNav({
         </div>
         {/* Desktop: Show navigation links and user info */}
         <nav className="hidden items-center gap-4 md:flex">
-          {allNavItems.map((item: any) => (
+          {allNavItems.map((item) => (
             <Button
               key={item.title}
               variant="ghost"
@@ -61,32 +61,7 @@ export function DesktopNav({
           {session?.user && (
             <>
               <Separator orientation="vertical" className="h-4" />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-2 text-gray-300 hover:bg-gray-700 hover:text-white"
-                  >
-                    <User className="h-4 w-4" />
-                    <span>{session.user.name ?? session.user.email}</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => router.push("/preferences")}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    Preferences
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <UserMenu showName />
             </>
           )}
         </nav>

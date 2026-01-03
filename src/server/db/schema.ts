@@ -16,6 +16,7 @@ import {
   verification,
   userPreferences,
   themeEnum,
+  ttsUsage,
   userPreferencesRelations,
 } from "~/schemas/auth";
 
@@ -265,6 +266,7 @@ export {
   verification,
   userPreferences,
   themeEnum,
+  ttsUsage,
   userRelations,
   sessionRelations,
   accountRelations,
