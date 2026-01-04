@@ -106,7 +106,7 @@ export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
 
   // Full display (for settings page or other contexts)
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
+    <div className="rounded-lg border border-gray-700 bg-card p-4">
       <h3 className="mb-3 text-lg font-semibold text-white">TTS Usage</h3>
 
       <div className="mb-2 text-sm text-gray-300">

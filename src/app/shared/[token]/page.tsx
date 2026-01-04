@@ -21,7 +21,7 @@ export default function SharedArticlePage({ params }: SharedArticlePageProps) {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-900">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <div className="mb-4 text-lg text-gray-300">Loading article...</div>
         </div>
@@ -31,7 +31,7 @@ export default function SharedArticlePage({ params }: SharedArticlePageProps) {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-900 p-4">
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <Alert variant="destructive" className="max-w-md">
           <AlertDescription>
             Error loading article: {error.message}
@@ -43,7 +43,7 @@ export default function SharedArticlePage({ params }: SharedArticlePageProps) {
 
   if (!article) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-900 p-4">
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <div className="text-center">
           <h1 className="mb-4 text-2xl font-bold text-gray-100">
             Article Not Found

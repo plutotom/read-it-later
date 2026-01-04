@@ -180,7 +180,7 @@ export function PublicAudioPlayer({ shareToken, articleId }: PublicAudioPlayerPr
   // If loading, show nothing
   if (isLoading) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-gray-700 bg-gray-800/50 p-3">
+      <div className="flex items-center gap-3 rounded-lg border border-gray-700 bg-card/50 p-3">
         <Loader2 className="size-5 animate-spin text-gray-400" />
         <span className="text-sm text-gray-300">Loading audio...</span>
       </div>
@@ -195,7 +195,7 @@ export function PublicAudioPlayer({ shareToken, articleId }: PublicAudioPlayerPr
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
+    <div className="rounded-lg border border-gray-700 bg-card/50 p-3">
       <audio
         ref={audioRef}
         key={audioStatus.audio.audioUrl}

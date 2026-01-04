@@ -83,7 +83,7 @@ function HighlightItem({
                 onChange={(e) => setNoteValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Add a note..."
-                className="min-h-[60px] resize-none border-gray-600 bg-gray-900 text-sm text-gray-200 placeholder:text-gray-500 focus:border-gray-500"
+                className="min-h-[60px] resize-none border-gray-600 bg-background text-sm text-gray-200 placeholder:text-gray-500 focus:border-gray-500"
                 autoFocus
               />
               <div className="flex gap-2">
@@ -100,7 +100,7 @@ function HighlightItem({
                   size="sm"
                   variant="ghost"
                   onClick={handleCancelEdit}
-                  className="h-7 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-800"
+                  className="h-7 text-xs text-gray-400 hover:text-gray-300 hover:bg-muted"
                 >
                   <X className="mr-1 h-3 w-3" />
                   Cancel
@@ -165,7 +165,7 @@ export function HighlightsMenu({
         <Button
           size="icon"
           variant="ghost"
-          className="relative text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+          className="relative text-gray-400 hover:text-gray-200 hover:bg-muted"
           aria-label="Highlights"
         >
           <Highlighter className="h-5 w-5" />
@@ -178,7 +178,7 @@ export function HighlightsMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="max-h-[400px] w-[300px] overflow-y-auto border-gray-700 bg-gray-800"
+        className="max-h-[400px] w-[300px] overflow-y-auto border-gray-700 bg-card"
       >
         {highlights.length === 0 ? (
           <div className="px-2 py-4 text-center text-sm text-gray-400">

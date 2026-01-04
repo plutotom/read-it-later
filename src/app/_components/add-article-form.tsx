@@ -11,6 +11,13 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Alert, AlertDescription } from "~/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import { RichTextInput } from "./rich-text-input";
 import { FileText, Link } from "lucide-react";
 
@@ -519,20 +526,23 @@ export function AddArticleForm({
       {folders && folders.length > 0 && (
         <div className="space-y-2">
           <Label htmlFor="folder">Folder (optional)</Label>
-          <select
-            id="folder"
+          <Select
             value={folderId}
-            onChange={(e) => setFolderId(e.target.value)}
+            onValueChange={setFolderId}
             disabled={isLoading || isPasting}
-            className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <option value="">No folder</option>
-            {folders.map((folder) => (
-              <option key={folder.id} value={folder.id}>
-                {folder.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="folder">
+              <SelectValue placeholder="No folder" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">No folder</SelectItem>
+              {folders.map((folder) => (
+                <SelectItem key={folder.id} value={folder.id}>
+                  {folder.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
 

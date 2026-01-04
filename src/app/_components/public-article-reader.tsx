@@ -36,9 +36,9 @@ function getDomainFromUrl(url: string) {
 
 export function PublicArticleReader({ article, shareToken }: PublicArticleReaderProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-gray-900">
+    <div className="flex min-h-screen flex-col bg-background">
       {/* Simple header */}
-      <header className="sticky top-0 z-10 border-b border-gray-700 bg-gray-900 px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-gray-700 bg-background px-4 py-3">
         <div className="mx-auto max-w-3xl">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-400">
@@ -115,7 +115,7 @@ export function PublicArticleReader({ article, shareToken }: PublicArticleReader
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-700 bg-gray-900 px-4 py-4">
+      <footer className="border-t border-gray-700 bg-background px-4 py-4">
         <div className="mx-auto max-w-3xl text-center text-sm text-gray-500">
           <p>
             This article was shared via{" "}

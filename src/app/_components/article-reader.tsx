@@ -14,6 +14,8 @@ import { ArticleContent } from "./article-content";
 import { StandaloneNotes } from "./standalone-notes";
 import { applyHighlights, type HighlightData } from "~/lib/highlihgter-util";
 import { AudioPlayer } from "./audio-player";
+import { SidebarProvider } from "~/components/ui/sidebar";
+import { AppSidebar } from "./AppSidebar";
 
 interface ArticleReaderProps {
   article: Article;
@@ -243,44 +245,52 @@ export function ArticleReader({
   }, [autoHighlight]);
 
   return (
-    <div className="flex h-full flex-col bg-gray-900">
-      <ArticleReaderHeader
-        article={article}
-        showSettings={showSettings}
-        onToggleSettings={() => setShowSettings(!showSettings)}
-        fontSize={fontSize}
-        onFontSizeChange={setFontSize}
-        autoHighlight={autoHighlight}
-        onAutoHighlightChange={setAutoHighlight}
-        highlights={initialHighlights}
-        onHighlightDelete={onHighlightDelete}
-        onHighlightNoteUpdate={onHighlightNoteUpdate}
-      />
+    <SidebarProvider defaultOpen={false}>
+      <div className="flex h-full min-h-screen w-full flex-col bg-background">
+        <ArticleReaderHeader
+          article={article}
+          showSettings={showSettings}
+          onToggleSettings={() => setShowSettings(!showSettings)}
+          fontSize={fontSize}
+          onFontSizeChange={setFontSize}
+          autoHighlight={autoHighlight}
+          onAutoHighlightChange={setAutoHighlight}
+          highlights={initialHighlights}
+          onHighlightDelete={onHighlightDelete}
+          onHighlightNoteUpdate={onHighlightNoteUpdate}
+        />
 
-      <div className="flex-1 overflow-y-auto">
-        <article className="max-w-none px-4 py-6">
-          <ArticleMetadata article={article} />
-          
-          {/* Audio Player */}
-          <div className="mb-6">
-            <AudioPlayer articleId={article.id} />
-          </div>
-          
-          <StandaloneNotes
-            notes={initialNotes}
-            highlights={initialHighlights}
-            onAttachToHighlight={onAttachNoteToHighlight}
-          />
-          <ArticleContent
-            content={article.content}
-            fontSize={fontSize}
-            contentRef={contentRef}
-            onTextSelection={onTextSelection}
-          />
-        </article>
+        {/* Mobile sidebar - same as main layout */}
+        <div className="md:hidden">
+          <AppSidebar />
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          <article className="max-w-none px-4 py-6">
+            <ArticleMetadata article={article} />
+            
+            {/* Audio Player */}
+            <div className="mb-6">
+              <AudioPlayer articleId={article.id} />
+            </div>
+            
+            <StandaloneNotes
+              notes={initialNotes}
+              highlights={initialHighlights}
+              onAttachToHighlight={onAttachNoteToHighlight}
+            />
+            <ArticleContent
+              content={article.content}
+              fontSize={fontSize}
+              contentRef={contentRef}
+              onTextSelection={onTextSelection}
+            />
+          </article>
+        </div>
+
+        {/* <HighlightStyles /> */}
       </div>
-
-      {/* <HighlightStyles /> */}
-    </div>
+    </SidebarProvider>
   );
 }
+

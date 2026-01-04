@@ -70,7 +70,7 @@ export default function RootLayout({
         />
         <link rel="manifest" href="/manifest.webmanifest" />
       </head>
-      <body className="bg-gray-900 font-sans antialiased">{children}</body>
+      <body className="bg-background font-sans antialiased">{children}</body>
     </html>
   );
 }

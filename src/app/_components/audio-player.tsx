@@ -252,7 +252,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   // Idle state - show generate button
   if (playerState === "idle" && !isCheckingStatus) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-gray-700 bg-gray-800/50 p-3">
+      <div className="flex items-center gap-3 rounded-lg border border-gray-700 bg-card/50 p-3">
         <Headphones className="size-5 text-gray-400" />
         <span className="flex-1 text-sm text-gray-300">Listen to this article</span>
         <Button
@@ -271,7 +271,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   // Generating state
   if (playerState === "generating") {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-gray-700 bg-gray-800/50 p-3">
+      <div className="flex items-center gap-3 rounded-lg border border-gray-700 bg-card/50 p-3">
         <Loader2 className="size-5 animate-spin text-blue-400" />
         <span className="text-sm text-gray-300">Generating audio... This may take a moment</span>
       </div>
@@ -299,7 +299,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   // Loading or checking state
   if (isCheckingStatus || playerState === "loading" && !audioUrl) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-gray-700 bg-gray-800/50 p-3">
+      <div className="flex items-center gap-3 rounded-lg border border-gray-700 bg-card/50 p-3">
         <Loader2 className="size-5 animate-spin text-gray-400" />
         <span className="text-sm text-gray-300">Loading audio...</span>
       </div>
@@ -308,7 +308,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
 
   // Ready state - full player
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
+    <div className="rounded-lg border border-gray-700 bg-card/50 p-3">
       {audioUrl && (
         <audio ref={audioRef} src={audioUrl} preload="metadata" />
       )}
