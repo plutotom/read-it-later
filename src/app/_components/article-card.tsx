@@ -6,9 +6,24 @@
 "use client";
 
 import { type Article } from "~/types/article";
-import { useContext, useState } from "react";
+import { useContext } from "react";
 import { GeneralContext } from "../(protected)/contexts/general-context";
 import { ListenProgress } from "./listen-progress";
+import { Button } from "~/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
+import {
+  MoreVertical,
+  ExternalLink,
+  Pencil,
+  Archive,
+  Trash2,
+} from "lucide-react";
 
 interface ArticleCardProps {
   article: Article;
@@ -28,11 +43,10 @@ export function ArticleCard({
   onArchive,
   onUnarchive,
   onDelete,
-  onMoveToFolder,
+  onMoveToFolder: _onMoveToFolder,
   showActions = true,
   listenProgress,
 }: ArticleCardProps) {
-  const [showMenu, setShowMenu] = useState(false);
   const { setMetadataEditArticle } = useContext(GeneralContext);
 
   const formatDate = (date: Date) => {
@@ -65,7 +79,7 @@ export function ArticleCard({
   };
 
   return (
-    <div className="relative bg-gray-800 transition-colors hover:bg-gray-700">
+    <div className="relative bg-card transition-colors hover:bg-muted">
       {/* Main content area - clickable */}
       <div className="cursor-pointer p-4" onClick={onClick}>
         {/* Header with metadata */}
@@ -140,175 +154,89 @@ export function ArticleCard({
 
           {/* Actions menu */}
           {showActions && (
-            <div className="relative ml-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowMenu(!showMenu);
-                }}
-                className="rounded p-1 transition-colors hover:bg-gray-700"
-                aria-label="Article actions"
-              >
-                <svg
-                  className="h-4 w-4 text-gray-400"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="ml-2 h-7 w-7 text-gray-400 hover:text-white hover:bg-gray-700"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Article actions"
                 >
-                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                </svg>
-              </button>
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(article.url, "_blank");
+                  }}
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Open Original
+                </DropdownMenuItem>
 
-              {/* Dropdown menu */}
-              {showMenu && (
-                <>
-                  {/* Backdrop */}
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setShowMenu(false)}
-                  />
+                <DropdownMenuSeparator />
 
-                  {/* Menu */}
-                  <div className="absolute top-full right-0 z-20 mt-1 w-48 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-lg">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(article.url, "_blank");
-                        setShowMenu(false);
-                      }}
-                      className="flex w-full items-center px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                    >
-                      <svg
-                        className="mr-2 h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                        />
-                      </svg>
-                      Open Original
-                    </button>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMetadataEditArticle({
+                      id: article.id,
+                      title: article.title,
+                      url: article.url,
+                    });
+                  }}
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit metadata
+                </DropdownMenuItem>
 
-                    <hr className="my-1" />
+                {article.isArchived ? (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUnarchive?.();
+                    }}
+                  >
+                    <Archive className="mr-2 h-4 w-4" />
+                    Unarchive
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onArchive?.();
+                    }}
+                  >
+                    <Archive className="mr-2 h-4 w-4" />
+                    Archive
+                  </DropdownMenuItem>
+                )}
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMetadataEditArticle({
-                          id: article.id,
-                          title: article.title,
-                          url: article.url,
-                        });
-                        setShowMenu(false);
-                      }}
-                      className="flex w-full items-center px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                    >
-                      <svg
-                        className="mr-2 h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4v4m0 0H8m4-4h4m-8 8h8m-8 4h8"
-                        />
-                      </svg>
-                      Edit metadata
-                    </button>
-
-                    {article.isArchived ? (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onUnarchive?.();
-                          setShowMenu(false);
-                        }}
-                        className="flex w-full items-center px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                      >
-                        <svg
-                          className="mr-2 h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 8l6 6 6-6"
-                          />
-                        </svg>
-                        Unarchive
-                      </button>
-                    ) : (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onArchive?.();
-                          setShowMenu(false);
-                        }}
-                        className="flex w-full items-center px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                      >
-                        <svg
-                          className="mr-2 h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 8l6 6 6-6"
-                          />
-                        </svg>
-                        Archive
-                      </button>
-                    )}
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (
-                          confirm(
-                            "Are you sure you want to delete this article?",
-                          )
-                        ) {
-                          onDelete?.();
-                        }
-                        setShowMenu(false);
-                      }}
-                      className="flex w-full items-center px-3 py-2 text-sm text-red-400 hover:bg-red-900"
-                    >
-                      <svg
-                        className="mr-2 h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                      Delete
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (
+                      confirm(
+                        "Are you sure you want to delete this article?",
+                      )
+                    ) {
+                      onDelete?.();
+                    }
+                  }}
+                  className="text-red-400 focus:text-red-400 focus:bg-red-900/30"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
     </div>
   );
 }
+

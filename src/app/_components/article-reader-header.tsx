@@ -11,19 +11,17 @@ import { type Highlight } from "~/types/annotation";
 import { ReadingSettings } from "./reading-settings";
 import { ShareDialog } from "./share-dialog";
 import { Button } from "~/components/ui/button";
-import { Archive, Settings, ChevronDown, ArrowLeft, Home, FolderArchive } from "lucide-react";
+import { Archive, Settings, ArrowLeft } from "lucide-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
 import { HighlightsMenu } from "./highlights-menu";
 import { Separator } from "~/components/ui/separator";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
+import { SidebarTrigger } from "~/components/ui/sidebar";
 import { useSession } from "~/lib/auth-client";
 import { UserMenu } from "./user-menu";
+import { NavLink } from "./navigation/NavLink";
+import { mainNavItems } from "~/config/nav-config";
+import { cn } from "~/lib/utils";
 
 interface ArticleReaderHeaderProps {
   article: Article;
@@ -59,8 +57,6 @@ export function ArticleReaderHeader({
   
   // Smart back navigation: use history if available, otherwise go to inbox
   const handleBackClick = () => {
-    // Check if we have meaningful history (more than just this page)
-    // Also check if the referrer is from the same origin (user came from within the app)
     const hasHistory = typeof window !== "undefined" && window.history.length > 2;
     const referrer = typeof document !== "undefined" ? document.referrer : "";
     const isFromSameOrigin = referrer && typeof window !== "undefined" && 
@@ -88,68 +84,38 @@ export function ArticleReaderHeader({
   };
 
   return (
-    <div className="sticky top-0 z-10 border-b border-gray-700 bg-gray-900 px-4 py-3">
+    <div className="sticky top-0 z-10 border-b border-white/5 bg-background/80 px-4 py-3 backdrop-blur-xl">
       <div className="flex items-center justify-between">
-        {/* Left side: Back button and navigation */}
+        {/* Left side: Mobile sidebar trigger, Back button, and navigation */}
         <div className="flex items-center gap-2">
-          {/* Back button with smart navigation */}
-          <button
-            onClick={handleBackClick}
-            className="flex items-center text-gray-400 hover:text-gray-200"
-          >
-            <ArrowLeft className="mr-1 h-5 w-5" />
-            <span className="hidden sm:inline">Back</span>
-          </button>
+          {/* Mobile: Sidebar trigger (same as main layout) */}
+          <div className="md:hidden">
+            <SidebarTrigger className="h-8 w-8 text-gray-400 hover:text-white" />
+          </div>
 
-          <Separator orientation="vertical" className="mx-2 h-6 hidden sm:block" />
+          {/* Back button with smart navigation */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBackClick}
+            className="flex items-center gap-1 text-gray-400 hover:bg-white/5 hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden text-sm md:inline">Back</span>
+          </Button>
+
+          <Separator orientation="vertical" className="mx-1 hidden h-5 bg-white/10 md:block" />
 
           {/* Desktop navigation links */}
-          <nav className="hidden sm:flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/")}
-              className="text-gray-300 hover:bg-gray-700 hover:text-white"
-            >
-              <Home className="mr-1 h-4 w-4" />
-              Inbox
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/archived")}
-              className="text-gray-300 hover:bg-gray-700 hover:text-white"
-            >
-              <FolderArchive className="mr-1 h-4 w-4" />
-              Archived
-            </Button>
+          <nav className="hidden items-center gap-1 md:flex">
+            {mainNavItems.map((item) => (
+              <NavLink key={item.title} item={item} variant="desktop" />
+            ))}
           </nav>
-
-          {/* Mobile navigation dropdown */}
-          <div className="sm:hidden">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-gray-400">
-                  Navigate
-                  <ChevronDown className="ml-1 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => router.push("/")}>
-                  <Home className="mr-2 h-4 w-4" />
-                  Inbox
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push("/archived")}>
-                  <FolderArchive className="mr-2 h-4 w-4" />
-                  Archived
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
         </div>
 
         {/* Right side: Article actions */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-1">
           {/* Highlights menu */}
           <HighlightsMenu
             highlights={highlights}
@@ -158,13 +124,19 @@ export function ArticleReaderHeader({
           />
 
           {/* Reading settings */}
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onToggleSettings}
-            className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+            className={cn(
+              showSettings 
+                ? "bg-white/10 text-white" 
+                : "text-gray-400 hover:bg-white/5 hover:text-white"
+            )}
             aria-label="Reading settings"
           >
-            <Settings className="h-5 w-5" />
-          </button>
+            <Settings className="h-4 w-4" />
+          </Button>
 
           {/* Share button */}
           <Button
@@ -172,9 +144,10 @@ export function ArticleReaderHeader({
             variant="ghost"
             onClick={handleShare}
             aria-label="Share article"
+            className="text-gray-400 hover:bg-white/5 hover:text-white"
           >
             <svg
-              className="h-5 w-5"
+              className="h-4 w-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -190,18 +163,28 @@ export function ArticleReaderHeader({
 
           {/* Archive/Unarchive button */}
           {article.isArchived ? (
-            <Button variant="outline" size="sm" onClick={onUnarchive}>
-              <Archive className="mr-1 h-4 w-4" />
-              <span className="hidden sm:inline">Unarchive</span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onUnarchive}
+              className="text-gray-400 hover:bg-white/5 hover:text-white"
+            >
+              <Archive className="h-4 w-4 md:mr-1.5" />
+              <span className="hidden md:inline">Unarchive</span>
             </Button>
           ) : (
-            <Button variant="outline" size="sm" onClick={onArchive}>
-              <Archive className="mr-1 h-4 w-4" />
-              <span className="hidden sm:inline">Archive</span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onArchive}
+              className="text-gray-400 hover:bg-white/5 hover:text-white"
+            >
+              <Archive className="h-4 w-4 md:mr-1.5" />
+              <span className="hidden md:inline">Archive</span>
             </Button>
           )}
 
-          {/* User menu (desktop) - shared component */}
+          {/* User menu (desktop only - mobile uses sidebar) */}
           {session?.user && (
             <div className="hidden md:block">
               <UserMenu showName={false} />

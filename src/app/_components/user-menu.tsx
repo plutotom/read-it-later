@@ -13,17 +13,20 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { authClient, useSession } from "~/lib/auth-client";
 import { TTSUsageDisplay } from "./tts-usage-display";
+import { cn } from "~/lib/utils";
 
 interface UserMenuProps {
-  /** Whether to show the username next to the icon (desktop nav shows it, article header hides it) */
+  /** Whether to show the username next to the icon */
   showName?: boolean;
+  /** Display variant - dropdown for headers, sidebar for inline display */
+  variant?: "dropdown" | "sidebar";
 }
 
 /**
- * Shared user menu dropdown component
- * Used in both DesktopNav and ArticleReaderHeader for consistent UX
+ * Shared user menu component
+ * Supports dropdown (header) and sidebar (inline) variants
  */
-export function UserMenu({ showName = true }: UserMenuProps) {
+export function UserMenu({ showName = true, variant = "dropdown" }: UserMenuProps) {
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -36,37 +39,76 @@ export function UserMenu({ showName = true }: UserMenuProps) {
     return null;
   }
 
+  // Sidebar variant - inline buttons instead of dropdown
+  if (variant === "sidebar") {
+    return (
+      <div className="space-y-1">
+        <button
+          onClick={() => router.push("/preferences")}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
+        >
+          <Settings className="h-4 w-4" />
+          <span>Preferences</span>
+        </button>
+        <button
+          onClick={() => void handleSignOut()}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Sign out</span>
+        </button>
+      </div>
+    );
+  }
+
+  // Dropdown variant - for headers
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           size="sm"
-          className="flex items-center gap-2 text-gray-300 hover:bg-gray-700 hover:text-white"
-        >
-          <User className="h-4 w-4" />
-          {showName && (
-            <span>{session.user.name ?? session.user.email}</span>
+          className={cn(
+            "flex items-center gap-2 transition-all duration-200",
+            "text-gray-300 hover:bg-white/10 hover:text-white"
           )}
-          <ChevronDown className="h-4 w-4" />
+        >
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
+            <span className="text-xs font-medium text-white">
+              {(session.user.name ?? session.user.email ?? "U").charAt(0).toUpperCase()}
+            </span>
+          </div>
+          {showName && (
+            <span className="max-w-[100px] truncate">{session.user.name ?? session.user.email}</span>
+          )}
+          <ChevronDown className="h-3 w-3 opacity-60" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel>
+      <DropdownMenuContent 
+        align="end" 
+        className="w-64 border-white/10 bg-background/95 backdrop-blur-lg"
+      >
+        <DropdownMenuLabel className="text-gray-400">
           {showName ? "My Account" : (session.user.name ?? session.user.email)}
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
+        <DropdownMenuSeparator className="bg-white/10" />
 
         {/* TTS Usage Progress Bar */}
         <TTSUsageDisplay compact />
 
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push("/preferences")}>
+        <DropdownMenuSeparator className="bg-white/10" />
+        <DropdownMenuItem 
+          onClick={() => router.push("/preferences")}
+          className="cursor-pointer text-gray-300 focus:bg-white/10 focus:text-white"
+        >
           <Settings className="mr-2 h-4 w-4" />
           Preferences
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => void handleSignOut()}>
+        <DropdownMenuSeparator className="bg-white/10" />
+        <DropdownMenuItem 
+          onClick={() => void handleSignOut()}
+          className="cursor-pointer text-gray-300 focus:bg-red-500/10 focus:text-red-400"
+        >
           <LogOut className="mr-2 h-4 w-4" />
           Sign out
         </DropdownMenuItem>

@@ -63,7 +63,7 @@ export function StandaloneNotes({
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-8 w-8 flex-shrink-0 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-gray-200 hover:bg-gray-800"
+                    className="h-8 w-8 flex-shrink-0 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-gray-200 hover:bg-muted"
                     aria-label="Attach to highlight"
                   >
                     <Link2 className="h-4 w-4" />
@@ -71,7 +71,7 @@ export function StandaloneNotes({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
-                  className="max-h-[300px] w-[250px] overflow-y-auto border-gray-700 bg-gray-800"
+                  className="max-h-[300px] w-[250px] overflow-y-auto border-gray-700 bg-card"
                 >
                   <DropdownMenuItem
                     disabled

@@ -100,7 +100,7 @@ export function ShareDialog({
                 <Input
                   value={shareUrl}
                   readOnly
-                  className="flex-1 bg-gray-800 text-sm"
+                  className="flex-1 bg-card text-sm"
                 />
                 <Button
                   size="icon"
@@ -140,7 +140,7 @@ export function ShareDialog({
               <Input
                 value={originalUrl}
                 readOnly
-                className="flex-1 bg-gray-800 text-sm"
+                className="flex-1 bg-card text-sm"
               />
               <Button
                 size="icon"

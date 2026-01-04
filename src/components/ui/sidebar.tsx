@@ -65,10 +65,8 @@ const SidebarProvider = React.forwardRef<
         const openState = typeof value === "function" ? value(open) : value;
         if (setOpenProp) {
           setOpenProp(openState);
-          console.log("setOpenProp", openState);
         } else {
           _setOpen(openState);
-          console.log("else", openState);
         }
 
         // This sets the cookie to keep the sidebar state.
@@ -84,7 +82,13 @@ const SidebarProvider = React.forwardRef<
     const [openMobile, setOpenMobile] = React.useState(false);
 
     // isMobile is used to show the mobile sidebar.
-    const [isMobile, setIsMobile] = React.useState(false);
+    // Initialize with SSR-safe check to prevent sizing flash on load
+    const [isMobile, setIsMobile] = React.useState(() => {
+      if (typeof window !== "undefined") {
+        return window.innerWidth < 768;
+      }
+      return false;
+    });
 
     // Handles the mobile sidebar.
     React.useEffect(() => {

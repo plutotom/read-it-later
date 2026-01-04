@@ -93,7 +93,7 @@ export function ArticleList({
     <div className="flex h-full w-full flex-col">
       {/* Search and filters */}
       {showSearch && (
-        <div className="sticky top-0 z-10 space-y-3 border-b border-gray-700 bg-gray-800 p-4">
+        <div className="sticky top-0 z-10 space-y-3 border-b border-gray-700 bg-card p-4">
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}

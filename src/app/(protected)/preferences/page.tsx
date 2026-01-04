@@ -71,7 +71,7 @@ export default function PreferencesPage() {
         <p className="text-gray-400">Manage your account settings and preferences.</p>
       </div>
 
-      <Card className="border-gray-700 bg-gray-800">
+      <Card className="border-gray-700 bg-card">
         <CardHeader>
           <CardTitle className="text-white">Appearance</CardTitle>
           <CardDescription>Customize how the app looks and feels.</CardDescription>
@@ -106,7 +106,7 @@ export default function PreferencesPage() {
         </CardContent>
       </Card>
 
-      <Card className="mt-6 border-gray-700 bg-gray-800">
+      <Card className="mt-6 border-gray-700 bg-card">
         <CardHeader>
           <CardTitle className="text-white">Account</CardTitle>
           <CardDescription>Your account information.</CardDescription>
