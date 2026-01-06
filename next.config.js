@@ -3,6 +3,21 @@
  * for Docker builds.
  */
 import "./src/env.js";
+import { spawnSync } from "node:child_process";
+import withSerwistInit from "@serwist/next";
+
+// Using git rev-parse HEAD for revision-based cache busting
+const revision =
+  spawnSync("git", ["rev-parse", "HEAD"], {
+    encoding: "utf-8",
+  }).stdout?.trim() ?? crypto.randomUUID();
+
+const withSerwist = withSerwistInit({
+  swSrc: "src/app/sw.ts",
+  swDest: "public/sw.js",
+  additionalPrecacheEntries: [{ url: "/~offline", revision }],
+  disable: process.env.NODE_ENV === "development",
+});
 
 /** @type {import("next").NextConfig} */
 const config = {
@@ -48,54 +63,10 @@ const config = {
             key: "Cache-Control",
             value: "no-cache, no-store, must-revalidate",
           },
-          {
-            key: "Content-Security-Policy",
-            value: "default-src 'self'; script-src 'self'",
-          },
-        ],
-      },
-      {
-        source: "/manifest.json",
-        headers: [
-          {
-            key: "Content-Type",
-            value: "application/manifest+json",
-          },
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
-      {
-        source: "/manifest.webmanifest",
-        headers: [
-          {
-            key: "Content-Type",
-            value: "application/manifest+json",
-          },
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
         ],
       },
     ];
   },
 };
 
-export default config;
-
-// const withPWA = require('next-pwa')({
-//   dest: 'public', // Destination directory for PWA files
-//   register: true, // Register the service worker
-//   skipWaiting: true, // Skip waiting for service worker activation
-//   disable: process.env.NODE_ENV === 'development', // Disable PWA in development
-// });
-
-// /** @type {import('next').NextConfig} */
-// const nextConfig = {
-//   // Your existing Next.js configuration
-// };
-
-// module.exports = withPWA(nextConfig);
+export default withSerwist(config);

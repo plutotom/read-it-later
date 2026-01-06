@@ -44,3 +44,7 @@ JSON.json
 
 # idea files
 .idea
+
+# Serwist generated files
+public/sw*
+public/swe-worker*

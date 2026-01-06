@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { auth } from "~/server/auth";
 import { TRPCReactProvider } from "~/trpc/react";
 import { InstallPrompt } from "../_components/install-prompt";
-import { ServiceWorkerRegistration } from "../_components/service-worker-registration";
 
 export default async function RootLayout({
   children,
@@ -22,7 +21,6 @@ export default async function RootLayout({
     <TRPCReactProvider>
       <div className="min-h-screen bg-background">{children}</div>
       <InstallPrompt />
-      <ServiceWorkerRegistration />
     </TRPCReactProvider>
   );
 }

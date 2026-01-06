@@ -16,13 +16,16 @@
     "checkJs": true,
 
     /* Bundled projects */
-    "lib": ["dom", "dom.iterable", "ES2022"],
+    "lib": ["dom", "dom.iterable", "ES2022", "webworker"],
     "noEmit": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "preserve",
     "plugins": [{ "name": "next" }],
     "incremental": true,
+
+    /* Serwist types */
+    "types": ["@serwist/next/typings"],
 
     /* Path Aliases */
     "baseUrl": ".",
@@ -39,5 +42,5 @@
     "**/*.js",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "mcp-server", "dist"]
+  "exclude": ["node_modules", "mcp-server", "dist", "public/sw.js"]
 }
