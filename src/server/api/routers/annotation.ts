@@ -1,20 +1,23 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { eq, and } from "drizzle-orm";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { highlights, notes } from "~/server/db/schema";
 
 export const annotationRouter = createTRPCRouter({
   // Highlights
-  getHighlightsByArticleId: publicProcedure
+  getHighlightsByArticleId: protectedProcedure
     .input(z.object({ articleId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.query.highlights.findMany({
-        where: eq(highlights.articleId, input.articleId),
+        where: and(
+          eq(highlights.articleId, input.articleId),
+          eq(highlights.userId, ctx.session.user.id)
+        ),
         orderBy: (highlights, { asc }) => [asc(highlights.startOffset)],
       });
     }),
 
-  createHighlight: publicProcedure
+  createHighlight: protectedProcedure
     .input(
       z.object({
         articleId: z.string(),
@@ -43,22 +46,23 @@ export const annotationRouter = createTRPCRouter({
       const [newHighlight] = await ctx.db
         .insert(highlights)
         .values({
+          userId: ctx.session.user.id,
           articleId: input.articleId,
           text: input.text,
           startOffset: input.startOffset,
           endOffset: input.endOffset,
           color: input.color,
-          note: input.note || null,
-          contextPrefix: input.contextPrefix || null,
-          contextSuffix: input.contextSuffix || null,
-          tags: input.tags || [],
+          note: input.note ?? null,
+          contextPrefix: input.contextPrefix ?? null,
+          contextSuffix: input.contextSuffix ?? null,
+          tags: input.tags ?? [],
         })
         .returning();
 
       return newHighlight;
     }),
 
-  updateHighlight: publicProcedure
+  updateHighlight: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -86,7 +90,10 @@ export const annotationRouter = createTRPCRouter({
           ...updateData,
           note: updateData.note ?? undefined,
         })
-        .where(eq(highlights.id, id))
+        .where(and(
+          eq(highlights.id, id),
+          eq(highlights.userId, ctx.session.user.id)
+        ))
         .returning();
 
       if (!updatedHighlight) {
@@ -96,28 +103,34 @@ export const annotationRouter = createTRPCRouter({
       return updatedHighlight;
     }),
 
-  deleteHighlight: publicProcedure
+  deleteHighlight: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.db
         .delete(highlights)
-        .where(eq(highlights.id, input.id))
+        .where(and(
+          eq(highlights.id, input.id),
+          eq(highlights.userId, ctx.session.user.id)
+        ))
         .returning();
 
       return { success: result.length > 0 };
     }),
 
   // Notes
-  getNotesByArticleId: publicProcedure
+  getNotesByArticleId: protectedProcedure
     .input(z.object({ articleId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.query.notes.findMany({
-        where: eq(notes.articleId, input.articleId),
+        where: and(
+          eq(notes.articleId, input.articleId),
+          eq(notes.userId, ctx.session.user.id)
+        ),
         orderBy: (notes, { desc }) => [desc(notes.createdAt)],
       });
     }),
 
-  createNote: publicProcedure
+  createNote: protectedProcedure
     .input(
       z.object({
         articleId: z.string(),
@@ -129,16 +142,17 @@ export const annotationRouter = createTRPCRouter({
       const [newNote] = await ctx.db
         .insert(notes)
         .values({
+          userId: ctx.session.user.id,
           articleId: input.articleId,
           content: input.content,
-          highlightId: input.highlightId || null,
+          highlightId: input.highlightId ?? null,
         })
         .returning();
 
       return newNote;
     }),
 
-  updateNote: publicProcedure
+  updateNote: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -161,7 +175,10 @@ export const annotationRouter = createTRPCRouter({
           ...updateData,
           highlightId: updateData.highlightId ?? undefined,
         })
-        .where(eq(notes.id, id))
+        .where(and(
+          eq(notes.id, id),
+          eq(notes.userId, ctx.session.user.id)
+        ))
         .returning();
 
       if (!updatedNote) {
@@ -171,12 +188,15 @@ export const annotationRouter = createTRPCRouter({
       return updatedNote;
     }),
 
-  deleteNote: publicProcedure
+  deleteNote: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.db
         .delete(notes)
-        .where(eq(notes.id, input.id))
+        .where(and(
+          eq(notes.id, input.id),
+          eq(notes.userId, ctx.session.user.id)
+        ))
         .returning();
 
       return { success: result.length > 0 };

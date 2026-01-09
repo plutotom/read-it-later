@@ -43,6 +43,7 @@ export const articles = createTable(
   "article",
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
+    userId: d.text().notNull().references(() => user.id),
     url: d.text().notNull(),
     title: d.text().notNull(),
     content: d.text().notNull(),
@@ -93,7 +94,7 @@ export const folders = createTable(
     parentId: d.uuid(),
     isDefault: d.boolean().notNull().default(false),
     articleCount: d.integer().notNull().default(0),
-    userId: d.uuid(), // For future multi-user support
+    userId: d.text().notNull().references(() => user.id),
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
@@ -117,6 +118,7 @@ export const highlights = createTable(
   "highlight",
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
+    userId: d.text().notNull().references(() => user.id),
     // Foreign key to article - required
     articleId: d.uuid().notNull(),
     // The highlighted text content
@@ -156,6 +158,7 @@ export const notes = createTable(
   "note",
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
+    userId: d.text().notNull().references(() => user.id),
     articleId: d.uuid().notNull(),
     highlightId: d.uuid(),
     content: d.text().notNull(),
@@ -182,6 +185,7 @@ export const articleAudio = createTable(
   "article_audio",
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
+    userId: d.text().notNull().references(() => user.id),
     articleId: d.uuid().notNull().unique(), // One audio per article
     audioUrl: d.text().notNull(), // Vercel Blob URL
     voiceName: d.text().notNull(), // e.g., "en-US-Standard-A"
@@ -211,6 +215,10 @@ export const articleAudio = createTable(
 
 // Relations
 export const articlesRelations = relations(articles, ({ one, many }) => ({
+  user: one(user, {
+    fields: [articles.userId],
+    references: [user.id],
+  }),
   folder: one(folders, {
     fields: [articles.folderId],
     references: [folders.id],
@@ -221,6 +229,10 @@ export const articlesRelations = relations(articles, ({ one, many }) => ({
 }));
 
 export const foldersRelations = relations(folders, ({ one, many }) => ({
+  user: one(user, {
+    fields: [folders.userId],
+    references: [user.id],
+  }),
   parent: one(folders, {
     fields: [folders.parentId],
     references: [folders.id],
@@ -233,6 +245,10 @@ export const foldersRelations = relations(folders, ({ one, many }) => ({
 }));
 
 export const highlightsRelations = relations(highlights, ({ one, many }) => ({
+  user: one(user, {
+    fields: [highlights.userId],
+    references: [user.id],
+  }),
   article: one(articles, {
     fields: [highlights.articleId],
     references: [articles.id],
@@ -241,6 +257,10 @@ export const highlightsRelations = relations(highlights, ({ one, many }) => ({
 }));
 
 export const notesRelations = relations(notes, ({ one }) => ({
+  user: one(user, {
+    fields: [notes.userId],
+    references: [user.id],
+  }),
   article: one(articles, {
     fields: [notes.articleId],
     references: [articles.id],
@@ -252,6 +272,10 @@ export const notesRelations = relations(notes, ({ one }) => ({
 }));
 
 export const articleAudioRelations = relations(articleAudio, ({ one }) => ({
+  user: one(user, {
+    fields: [articleAudio.userId],
+    references: [user.id],
+  }),
   article: one(articles, {
     fields: [articleAudio.articleId],
     references: [articles.id],

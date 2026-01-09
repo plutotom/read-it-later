@@ -1,17 +1,34 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { db } from "~/server/db";
 import { articles } from "~/server/db/schema";
 import { articleCreateFromTextSchema } from "~/schemas/article";
+import { auth } from "~/server/auth";
 import { JSDOM } from "jsdom";
 import { ZodError } from "zod";
 
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   try {
-    const body = await req.json();
+    // Get session from auth
+    const headersList = await headers();
+    const session = await auth.api.getSession({
+      headers: headersList,
+    });
+
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const body: unknown = await _req.json();
 
     // Transform string dates to Date objects for REST API
-    if (body.publishedAt && typeof body.publishedAt === "string") {
-      body.publishedAt = new Date(body.publishedAt);
+    const bodyWithDate = body as { publishedAt?: string | Date };
+    if (bodyWithDate.publishedAt && typeof bodyWithDate.publishedAt === "string") {
+      bodyWithDate.publishedAt = new Date(bodyWithDate.publishedAt);
     }
 
     // Validate input using the same schema as tRPC
@@ -23,7 +40,7 @@ export async function POST(req: NextRequest) {
     // Calculate word count and reading time from HTML content
     const dom = new JSDOM(validated.content);
     const document = dom.window.document;
-    const plainText = document.textContent || "";
+    const plainText = document.textContent ?? "";
     const wordCount = plainText
       .split(/\s+/)
       .filter((word) => word.length > 0).length;
@@ -32,21 +49,22 @@ export async function POST(req: NextRequest) {
     // Extract excerpt from first paragraph
     const firstParagraph = document.querySelector("p");
     const excerpt =
-      firstParagraph?.textContent?.trim() || plainText.substring(0, 200).trim();
+      firstParagraph?.textContent?.trim() ?? plainText.substring(0, 200).trim();
 
     const [newArticle] = await db
       .insert(articles)
       .values({
+        userId: session.user.id,
         url: placeholderUrl,
         title: validated.title,
         content: validated.content,
         excerpt: excerpt.length > 0 ? excerpt : null,
-        author: validated.author || null,
-        publishedAt: validated.publishedAt || null,
+        author: validated.author ?? null,
+        publishedAt: validated.publishedAt ?? null,
         wordCount: wordCount,
         readingTime: readingTime,
-        folderId: validated.folderId || null,
-        tags: validated.tags || null,
+        folderId: validated.folderId ?? null,
+        tags: validated.tags ?? null,
         metadata: {
           siteName: "Manual Entry",
           siteUrl: placeholderUrl,

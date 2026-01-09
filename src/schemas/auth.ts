@@ -104,6 +104,7 @@ export const userPreferences = createTable("user_preferences", (d) => ({
 // TTS usage tracking table - tracks monthly character consumption
 export const ttsUsage = createTable("tts_usage", (d) => ({
   id: d.text().primaryKey(),
+  userId: d.text().notNull().references(() => user.id, { onDelete: "cascade" }),
   // Year-month in format "YYYY-MM" for easy querying
   billingPeriod: d.varchar({ length: 7 }).notNull(),
   // Total characters used in this billing period

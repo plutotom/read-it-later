@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq, and, sql } from "drizzle-orm";
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
 import { articleAudio, articles, ttsUsage } from "~/server/db/schema";
 import { generateAudioForArticle, deleteAudioFromBlob } from "~/server/services/tts";
 import { nanoid } from "nanoid";
@@ -39,6 +39,7 @@ function getVoiceType(voiceName: string): keyof typeof FREE_TIER_LIMITS {
  */
 async function recordTTSUsage(
   db: typeof import("~/server/db").db,
+  userId: string,
   charactersUsed: number,
   voiceName: string
 ): Promise<void> {
@@ -48,6 +49,7 @@ async function recordTTSUsage(
   // Try to update existing record, or insert new one
   const existingUsage = await db.query.ttsUsage.findFirst({
     where: and(
+      eq(ttsUsage.userId, userId),
       eq(ttsUsage.billingPeriod, billingPeriod),
       eq(ttsUsage.voiceType, voiceType)
     ),
@@ -63,6 +65,7 @@ async function recordTTSUsage(
   } else {
     await db.insert(ttsUsage).values({
       id: nanoid(),
+      userId,
       billingPeriod,
       voiceType,
       charactersUsed,
@@ -75,12 +78,15 @@ export const ttsRouter = createTRPCRouter({
    * Get audio for an article
    * Generates audio if not cached, returns cached audio if available
    */
-  getAudio: publicProcedure
+  getAudio: protectedProcedure
     .input(z.object({ articleId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       // Check for existing audio
       const existingAudio = await ctx.db.query.articleAudio.findFirst({
-        where: eq(articleAudio.articleId, input.articleId),
+        where: and(
+          eq(articleAudio.articleId, input.articleId),
+          eq(articleAudio.userId, ctx.session.user.id)
+        ),
       });
 
       if (existingAudio) {
@@ -95,9 +101,12 @@ export const ttsRouter = createTRPCRouter({
         };
       }
 
-      // Fetch article content
+      // Fetch article content (ensure user owns it)
       const article = await ctx.db.query.articles.findFirst({
-        where: eq(articles.id, input.articleId),
+        where: and(
+          eq(articles.id, input.articleId),
+          eq(articles.userId, ctx.session.user.id)
+        ),
       });
 
       if (!article) {
@@ -108,12 +117,13 @@ export const ttsRouter = createTRPCRouter({
       const result = await generateAudioForArticle(input.articleId, article.content);
 
       // Record TTS usage
-      await recordTTSUsage(ctx.db, result.charactersUsed, result.voiceName);
+      await recordTTSUsage(ctx.db, ctx.session.user.id, result.charactersUsed, result.voiceName);
 
       // Save to database
       const [newAudio] = await ctx.db
         .insert(articleAudio)
         .values({
+          userId: ctx.session.user.id,
           articleId: input.articleId,
           audioUrl: result.audioUrl,
           voiceName: result.voiceName,
@@ -137,11 +147,14 @@ export const ttsRouter = createTRPCRouter({
   /**
    * Check if audio exists without generating
    */
-  getStatus: publicProcedure
+  getStatus: protectedProcedure
     .input(z.object({ articleId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const audio = await ctx.db.query.articleAudio.findFirst({
-        where: eq(articleAudio.articleId, input.articleId),
+        where: and(
+          eq(articleAudio.articleId, input.articleId),
+          eq(articleAudio.userId, ctx.session.user.id)
+        ),
         columns: {
           id: true,
           audioUrl: true,
@@ -162,12 +175,15 @@ export const ttsRouter = createTRPCRouter({
   /**
    * Force regenerate audio (e.g., after voice change)
    */
-  regenerateAudio: publicProcedure
+  regenerateAudio: protectedProcedure
     .input(z.object({ articleId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       // Check for existing audio and delete from blob storage
       const existingAudio = await ctx.db.query.articleAudio.findFirst({
-        where: eq(articleAudio.articleId, input.articleId),
+        where: and(
+          eq(articleAudio.articleId, input.articleId),
+          eq(articleAudio.userId, ctx.session.user.id)
+        ),
       });
 
       if (existingAudio) {
@@ -181,12 +197,18 @@ export const ttsRouter = createTRPCRouter({
         // Delete from database
         await ctx.db
           .delete(articleAudio)
-          .where(eq(articleAudio.articleId, input.articleId));
+          .where(and(
+            eq(articleAudio.articleId, input.articleId),
+            eq(articleAudio.userId, ctx.session.user.id)
+          ));
       }
 
-      // Fetch article content
+      // Fetch article content (ensure user owns it)
       const article = await ctx.db.query.articles.findFirst({
-        where: eq(articles.id, input.articleId),
+        where: and(
+          eq(articles.id, input.articleId),
+          eq(articles.userId, ctx.session.user.id)
+        ),
       });
 
       if (!article) {
@@ -197,12 +219,13 @@ export const ttsRouter = createTRPCRouter({
       const result = await generateAudioForArticle(input.articleId, article.content);
 
       // Record TTS usage
-      await recordTTSUsage(ctx.db, result.charactersUsed, result.voiceName);
+      await recordTTSUsage(ctx.db, ctx.session.user.id, result.charactersUsed, result.voiceName);
 
       // Save to database
       const [newAudio] = await ctx.db
         .insert(articleAudio)
         .values({
+          userId: ctx.session.user.id,
           articleId: input.articleId,
           audioUrl: result.audioUrl,
           voiceName: result.voiceName,
@@ -223,11 +246,14 @@ export const ttsRouter = createTRPCRouter({
   /**
    * Delete cached audio for an article
    */
-  deleteAudio: publicProcedure
+  deleteAudio: protectedProcedure
     .input(z.object({ articleId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const existingAudio = await ctx.db.query.articleAudio.findFirst({
-        where: eq(articleAudio.articleId, input.articleId),
+        where: and(
+          eq(articleAudio.articleId, input.articleId),
+          eq(articleAudio.userId, ctx.session.user.id)
+        ),
       });
 
       if (!existingAudio) {
@@ -244,7 +270,10 @@ export const ttsRouter = createTRPCRouter({
       // Delete from database
       await ctx.db
         .delete(articleAudio)
-        .where(eq(articleAudio.articleId, input.articleId));
+        .where(and(
+          eq(articleAudio.articleId, input.articleId),
+          eq(articleAudio.userId, ctx.session.user.id)
+        ));
 
       return { success: true, deleted: true };
     }),
@@ -252,7 +281,7 @@ export const ttsRouter = createTRPCRouter({
   /**
    * Update playback progress
    */
-  updateProgress: publicProcedure
+  updateProgress: protectedProcedure
     .input(
       z.object({
         articleId: z.string().uuid(),
@@ -266,7 +295,10 @@ export const ttsRouter = createTRPCRouter({
           currentTimeSeconds: input.currentTimeSeconds,
           lastPlayedAt: new Date(),
         })
-        .where(eq(articleAudio.articleId, input.articleId))
+        .where(and(
+          eq(articleAudio.articleId, input.articleId),
+          eq(articleAudio.userId, ctx.session.user.id)
+        ))
         .returning();
 
       if (!updated) {
@@ -289,15 +321,16 @@ export const ttsRouter = createTRPCRouter({
   /**
    * Get TTS usage statistics for the current billing period
    */
-  getUsage: publicProcedure.query(async ({ ctx }) => {
+  getUsage: protectedProcedure.query(async ({ ctx }) => {
     const billingPeriod = getCurrentBillingPeriod();
     const voiceName = process.env.TTS_VOICE_NAME ?? "en-US-Standard-A";
     const voiceType = getVoiceType(voiceName);
     const freeLimit = FREE_TIER_LIMITS[voiceType];
 
-    // Get usage for current billing period
+    // Get usage for current billing period for this user
     const usage = await ctx.db.query.ttsUsage.findFirst({
       where: and(
+        eq(ttsUsage.userId, ctx.session.user.id),
         eq(ttsUsage.billingPeriod, billingPeriod),
         eq(ttsUsage.voiceType, voiceType)
       ),
@@ -338,7 +371,7 @@ export const ttsRouter = createTRPCRouter({
         return { hasAudio: false, audio: null };
       }
 
-      // Then get the audio for that article
+      // Then get the audio for that article (any user's audio for shared view)
       const audio = await ctx.db.query.articleAudio.findFirst({
         where: eq(articleAudio.articleId, article.id),
         columns: {

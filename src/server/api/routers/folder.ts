@@ -1,24 +1,28 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { eq, and } from "drizzle-orm";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { folders } from "~/server/db/schema";
 
 export const folderRouter = createTRPCRouter({
-  getAll: publicProcedure.query(async ({ ctx }) => {
+  getAll: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.query.folders.findMany({
+      where: eq(folders.userId, ctx.session.user.id),
       orderBy: (folders, { asc }) => [asc(folders.name)],
     });
   }),
 
-  get: publicProcedure
+  get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.query.folders.findFirst({
-        where: eq(folders.id, input.id),
+        where: and(
+          eq(folders.id, input.id),
+          eq(folders.userId, ctx.session.user.id)
+        ),
       });
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         name: z.string().min(1),
@@ -28,6 +32,7 @@ export const folderRouter = createTRPCRouter({
       const [newFolder] = await ctx.db
         .insert(folders)
         .values({
+          userId: ctx.session.user.id,
           name: input.name,
         })
         .returning();
@@ -35,12 +40,15 @@ export const folderRouter = createTRPCRouter({
       return newFolder;
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.db
         .delete(folders)
-        .where(eq(folders.id, input.id))
+        .where(and(
+          eq(folders.id, input.id),
+          eq(folders.userId, ctx.session.user.id)
+        ))
         .returning();
 
       return { success: result.length > 0 };

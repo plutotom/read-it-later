@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { eq, and } from "drizzle-orm";
+import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
 import { articles } from "~/server/db/schema";
 import { ArticleExtractor } from "~/server/services/articleExtractor";
 import { articleCreateFromTextSchema } from "~/schemas/article";
@@ -8,29 +8,38 @@ import { JSDOM } from "jsdom";
 import { nanoid } from "nanoid";
 
 export const articleRouter = createTRPCRouter({
-  getAll: publicProcedure.query(async ({ ctx }) => {
+  getAll: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.query.articles.findMany({
-      where: eq(articles.isArchived, false),
+      where: and(
+        eq(articles.userId, ctx.session.user.id),
+        eq(articles.isArchived, false)
+      ),
       orderBy: (articles, { desc }) => [desc(articles.createdAt)],
     });
   }),
 
-  getArchived: publicProcedure.query(async ({ ctx }) => {
+  getArchived: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.query.articles.findMany({
-      where: eq(articles.isArchived, true),
+      where: and(
+        eq(articles.userId, ctx.session.user.id),
+        eq(articles.isArchived, true)
+      ),
       orderBy: (articles, { desc }) => [desc(articles.createdAt)],
     });
   }),
 
-  get: publicProcedure
+  get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.query.articles.findFirst({
-        where: eq(articles.id, input.id),
+        where: and(
+          eq(articles.id, input.id),
+          eq(articles.userId, ctx.session.user.id)
+        ),
       });
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         url: z.string().url(),
@@ -45,24 +54,25 @@ export const articleRouter = createTRPCRouter({
       const [newArticle] = await ctx.db
         .insert(articles)
         .values({
+          userId: ctx.session.user.id,
           url: input.url,
           title: extractedContent.title,
           content: extractedContent.content,
-          excerpt: extractedContent.excerpt || null,
-          author: extractedContent.author || null,
-          publishedAt: extractedContent.publishedAt || null,
-          wordCount: extractedContent.wordCount || null,
-          readingTime: extractedContent.readingTime || null,
-          folderId: input.folderId || null,
-          tags: input.tags || null,
-          metadata: extractedContent.metadata || null,
+          excerpt: extractedContent.excerpt ?? null,
+          author: extractedContent.author ?? null,
+          publishedAt: extractedContent.publishedAt ?? null,
+          wordCount: extractedContent.wordCount ?? null,
+          readingTime: extractedContent.readingTime ?? null,
+          folderId: input.folderId ?? null,
+          tags: input.tags ?? null,
+          metadata: extractedContent.metadata ?? null,
         })
         .returning();
 
       return newArticle;
     }),
 
-  createFromText: publicProcedure
+  createFromText: protectedProcedure
     .input(articleCreateFromTextSchema)
     .mutation(async ({ ctx, input }) => {
       // Generate placeholder URL for text articles when manual URL not provided
@@ -72,7 +82,7 @@ export const articleRouter = createTRPCRouter({
       // Calculate word count and reading time from HTML content
       const dom = new JSDOM(input.content);
       const document = dom.window.document;
-      const plainText = document.textContent || "";
+      const plainText = document.textContent ?? "";
       const wordCount = plainText
         .split(/\s+/)
         .filter((word) => word.length > 0).length;
@@ -81,22 +91,23 @@ export const articleRouter = createTRPCRouter({
       // Extract excerpt from first paragraph
       const firstParagraph = document.querySelector("p");
       const excerpt =
-        firstParagraph?.textContent?.trim() ||
+        firstParagraph?.textContent?.trim() ??
         plainText.substring(0, 200).trim();
 
       const [newArticle] = await ctx.db
         .insert(articles)
         .values({
+          userId: ctx.session.user.id,
           url: articleUrl,
           title: input.title,
           content: input.content,
           excerpt: excerpt.length > 0 ? excerpt : null,
-          author: input.author || null,
-          publishedAt: input.publishedAt || null,
+          author: input.author ?? null,
+          publishedAt: input.publishedAt ?? null,
           wordCount: wordCount,
           readingTime: readingTime,
-          folderId: input.folderId || null,
-          tags: input.tags || null,
+          folderId: input.folderId ?? null,
+          tags: input.tags ?? null,
           metadata: {
             siteName: "Manual Entry",
             siteUrl: articleUrl,
@@ -110,7 +121,7 @@ export const articleRouter = createTRPCRouter({
       return newArticle;
     }),
 
-  updateMetadata: publicProcedure
+  updateMetadata: protectedProcedure
     .input(
       z
         .object({
@@ -130,7 +141,10 @@ export const articleRouter = createTRPCRouter({
       const [updatedArticle] = await ctx.db
         .update(articles)
         .set(updateData)
-        .where(eq(articles.id, input.id))
+        .where(and(
+          eq(articles.id, input.id),
+          eq(articles.userId, ctx.session.user.id)
+        ))
         .returning();
 
       return {
@@ -139,42 +153,51 @@ export const articleRouter = createTRPCRouter({
       };
     }),
 
-  archive: publicProcedure
+  archive: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.db
         .update(articles)
         .set({ isArchived: true })
-        .where(eq(articles.id, input.id))
+        .where(and(
+          eq(articles.id, input.id),
+          eq(articles.userId, ctx.session.user.id)
+        ))
         .returning();
 
       return { success: result.length > 0 };
     }),
 
-  unarchive: publicProcedure
+  unarchive: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.db
         .update(articles)
         .set({ isArchived: false })
-        .where(eq(articles.id, input.id))
+        .where(and(
+          eq(articles.id, input.id),
+          eq(articles.userId, ctx.session.user.id)
+        ))
         .returning();
 
       return { success: result.length > 0 };
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.db
         .delete(articles)
-        .where(eq(articles.id, input.id))
+        .where(and(
+          eq(articles.id, input.id),
+          eq(articles.userId, ctx.session.user.id)
+        ))
         .returning();
 
       return { success: result.length > 0 };
     }),
 
-  markAsRead: publicProcedure
+  markAsRead: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const [updatedArticle] = await ctx.db
@@ -183,7 +206,10 @@ export const articleRouter = createTRPCRouter({
           isRead: true,
           readAt: new Date(),
         })
-        .where(eq(articles.id, input.id))
+        .where(and(
+          eq(articles.id, input.id),
+          eq(articles.userId, ctx.session.user.id)
+        ))
         .returning();
 
       return { success: !!updatedArticle };
@@ -192,11 +218,14 @@ export const articleRouter = createTRPCRouter({
   /**
    * Generate or get existing share link for an article
    */
-  generateShareLink: publicProcedure
+  generateShareLink: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const article = await ctx.db.query.articles.findFirst({
-        where: eq(articles.id, input.id),
+        where: and(
+          eq(articles.id, input.id),
+          eq(articles.userId, ctx.session.user.id)
+        ),
         columns: { id: true, shareToken: true },
       });
 
@@ -214,7 +243,10 @@ export const articleRouter = createTRPCRouter({
       await ctx.db
         .update(articles)
         .set({ shareToken: token })
-        .where(eq(articles.id, input.id));
+        .where(and(
+          eq(articles.id, input.id),
+          eq(articles.userId, ctx.session.user.id)
+        ));
 
       return { shareToken: token };
     }),
