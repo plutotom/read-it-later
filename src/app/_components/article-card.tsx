@@ -79,7 +79,7 @@ export function ArticleCard({
   };
 
   return (
-    <div className="relative bg-card transition-colors hover:bg-muted">
+    <div className="bg-card hover:bg-muted relative transition-colors">
       {/* Main content area - clickable */}
       <div className="cursor-pointer p-4" onClick={onClick}>
         {/* Header with metadata */}
@@ -159,7 +159,7 @@ export function ArticleCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="ml-2 h-7 w-7 text-gray-400 hover:text-white hover:bg-gray-700"
+                  className="ml-2 h-7 w-7 text-gray-400 hover:bg-gray-700 hover:text-white"
                   onClick={(e) => e.stopPropagation()}
                   aria-label="Article actions"
                 >
@@ -219,14 +219,12 @@ export function ArticleCard({
                   onClick={(e) => {
                     e.stopPropagation();
                     if (
-                      confirm(
-                        "Are you sure you want to delete this article?",
-                      )
+                      confirm("Are you sure you want to delete this article?")
                     ) {
                       onDelete?.();
                     }
                   }}
-                  className="text-red-400 focus:text-red-400 focus:bg-red-900/30"
+                  className="text-red-400 focus:bg-red-900/30 focus:text-red-400"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete
@@ -239,4 +237,3 @@ export function ArticleCard({
     </div>
   );
 }
-

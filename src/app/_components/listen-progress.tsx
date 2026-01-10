@@ -24,7 +24,7 @@ export function ListenProgress({
 }: ListenProgressProps) {
   // Clamp progress between 0 and 1
   const clampedProgress = Math.max(0, Math.min(1, progress));
-  
+
   // SVG circle calculations
   const strokeWidth = 2;
   const radius = (size - strokeWidth) / 2;
@@ -33,7 +33,10 @@ export function ListenProgress({
 
   return (
     <div
-      className={cn("relative inline-flex items-center justify-center", className)}
+      className={cn(
+        "relative inline-flex items-center justify-center",
+        className,
+      )}
       style={{ width: size, height: size }}
       title={`${Math.round(clampedProgress * 100)}% listened`}
     >
@@ -72,7 +75,7 @@ export function ListenProgress({
           }}
         />
       </svg>
-      
+
       {/* Center icon */}
       <Headphones className="size-3 text-blue-400" />
     </div>

@@ -19,7 +19,7 @@ export function DesktopNav({ pageTitle }: DesktopNavProps) {
   const { data: session } = useSession();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/5 bg-background/80 backdrop-blur-xl">
+    <header className="bg-background/80 sticky top-0 z-40 border-b border-white/5 backdrop-blur-xl">
       <div className="flex h-14 items-center justify-between px-4">
         {/* Left side: Mobile trigger + Title */}
         <div className="flex items-center gap-3">
@@ -27,7 +27,7 @@ export function DesktopNav({ pageTitle }: DesktopNavProps) {
           <div className="md:hidden">
             <SidebarTrigger className="h-8 w-8 text-gray-400 hover:text-white" />
           </div>
-          
+
           {/* Logo/Brand */}
           <div className="flex items-center gap-2">
             <div className="hidden h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 md:flex">
@@ -45,10 +45,13 @@ export function DesktopNav({ pageTitle }: DesktopNavProps) {
           {mainNavItems.map((item) => (
             <NavLink key={item.title} item={item} variant="desktop" />
           ))}
-          
+
           {session?.user && (
             <>
-              <Separator orientation="vertical" className="mx-2 h-5 bg-white/10" />
+              <Separator
+                orientation="vertical"
+                className="mx-2 h-5 bg-white/10"
+              />
               <UserMenu showName />
             </>
           )}
@@ -59,7 +62,9 @@ export function DesktopNav({ pageTitle }: DesktopNavProps) {
           {session?.user && (
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
               <span className="text-xs font-medium text-white">
-                {(session.user.name ?? session.user.email ?? "U").charAt(0).toUpperCase()}
+                {(session.user.name ?? session.user.email ?? "U")
+                  .charAt(0)
+                  .toUpperCase()}
               </span>
             </div>
           )}

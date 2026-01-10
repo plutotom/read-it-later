@@ -28,7 +28,6 @@ import {
   VolumeX,
 } from "lucide-react";
 
-
 interface AudioPlayerProps {
   articleId: string;
 }
@@ -63,7 +62,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
       {
         refetchOnWindowFocus: false,
         staleTime: Infinity,
-      }
+      },
     );
 
   // Generate audio mutation
@@ -72,7 +71,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
     {
       enabled: false, // Only fetch when explicitly called
       refetchOnWindowFocus: false,
-    }
+    },
   );
 
   // Update progress mutation
@@ -148,7 +147,12 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
     };
-  }, [articleId, audioStatus?.audio?.currentTimeSeconds, playbackSpeed, updateProgress]);
+  }, [
+    articleId,
+    audioStatus?.audio?.currentTimeSeconds,
+    playbackSpeed,
+    updateProgress,
+  ]);
 
   // Periodic progress saving
   useEffect(() => {
@@ -213,7 +217,10 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   const skip = useCallback((seconds: number) => {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + seconds));
+    audio.currentTime = Math.max(
+      0,
+      Math.min(audio.duration, audio.currentTime + seconds),
+    );
   }, []);
 
   // Handle speed change
@@ -227,24 +234,30 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   }, []);
 
   // Handle volume change
-  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value);
-    setVolume(newVolume);
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume;
-    }
-  }, []);
+  const handleVolumeChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newVolume = parseFloat(e.target.value);
+      setVolume(newVolume);
+      if (audioRef.current) {
+        audioRef.current.volume = newVolume;
+      }
+    },
+    [],
+  );
 
   // Handle seeking via progress bar
-  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const audio = audioRef.current;
-    if (!audio || !duration) return;
+  const handleSeek = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const audio = audioRef.current;
+      if (!audio || !duration) return;
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percentage = x / rect.width;
-    audio.currentTime = percentage * duration;
-  }, [duration]);
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percentage = x / rect.width;
+      audio.currentTime = percentage * duration;
+    },
+    [duration],
+  );
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const audioUrl = audioStatus?.audio?.audioUrl ?? generateAudio.data?.audioUrl;
@@ -252,9 +265,11 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   // Idle state - show generate button
   if (playerState === "idle" && !isCheckingStatus) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-gray-700 bg-card/50 p-3">
+      <div className="bg-card/50 flex items-center gap-3 rounded-lg border border-gray-700 p-3">
         <Headphones className="size-5 text-gray-400" />
-        <span className="flex-1 text-sm text-gray-300">Listen to this article</span>
+        <span className="flex-1 text-sm text-gray-300">
+          Listen to this article
+        </span>
         <Button
           variant="secondary"
           size="sm"
@@ -271,9 +286,11 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   // Generating state
   if (playerState === "generating") {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-gray-700 bg-card/50 p-3">
+      <div className="bg-card/50 flex items-center gap-3 rounded-lg border border-gray-700 p-3">
         <Loader2 className="size-5 animate-spin text-blue-400" />
-        <span className="text-sm text-gray-300">Generating audio... This may take a moment</span>
+        <span className="text-sm text-gray-300">
+          Generating audio... This may take a moment
+        </span>
       </div>
     );
   }
@@ -283,7 +300,9 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
     return (
       <div className="flex items-center gap-3 rounded-lg border border-red-900/50 bg-red-950/30 p-3">
         <AlertCircle className="size-5 text-red-400" />
-        <span className="flex-1 text-sm text-red-300">{errorMessage ?? "Something went wrong"}</span>
+        <span className="flex-1 text-sm text-red-300">
+          {errorMessage ?? "Something went wrong"}
+        </span>
         <Button
           variant="secondary"
           size="sm"
@@ -297,9 +316,9 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   }
 
   // Loading or checking state
-  if (isCheckingStatus || playerState === "loading" && !audioUrl) {
+  if (isCheckingStatus || (playerState === "loading" && !audioUrl)) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-gray-700 bg-card/50 p-3">
+      <div className="bg-card/50 flex items-center gap-3 rounded-lg border border-gray-700 p-3">
         <Loader2 className="size-5 animate-spin text-gray-400" />
         <span className="text-sm text-gray-300">Loading audio...</span>
       </div>
@@ -308,10 +327,8 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
 
   // Ready state - full player
   return (
-    <div className="rounded-lg border border-gray-700 bg-card/50 p-3">
-      {audioUrl && (
-        <audio ref={audioRef} src={audioUrl} preload="metadata" />
-      )}
+    <div className="bg-card/50 rounded-lg border border-gray-700 p-3">
+      {audioUrl && <audio ref={audioRef} src={audioUrl} preload="metadata" />}
 
       {/* Progress bar */}
       <div
@@ -348,7 +365,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
           {isPlaying ? (
             <Pause className="size-5" />
           ) : (
-            <Play className="size-5 ml-0.5" />
+            <Play className="ml-0.5 size-5" />
           )}
         </Button>
 

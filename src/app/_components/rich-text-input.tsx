@@ -219,7 +219,7 @@ export function RichTextInput({
       </div>
 
       {/* Editor */}
-      <div className="min-h-[200px] max-h-[400px] rounded-md border bg-white overflow-y-auto">
+      <div className="max-h-[400px] min-h-[200px] overflow-y-auto rounded-md border bg-white">
         <EditorContent editor={editor} />
       </div>
 

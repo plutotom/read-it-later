@@ -26,7 +26,10 @@ interface UserMenuProps {
  * Shared user menu component
  * Supports dropdown (header) and sidebar (inline) variants
  */
-export function UserMenu({ showName = true, variant = "dropdown" }: UserMenuProps) {
+export function UserMenu({
+  showName = true,
+  variant = "dropdown",
+}: UserMenuProps) {
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -70,23 +73,27 @@ export function UserMenu({ showName = true, variant = "dropdown" }: UserMenuProp
           size="sm"
           className={cn(
             "flex items-center gap-2 transition-all duration-200",
-            "text-gray-300 hover:bg-white/10 hover:text-white"
+            "text-gray-300 hover:bg-white/10 hover:text-white",
           )}
         >
           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
             <span className="text-xs font-medium text-white">
-              {(session.user.name ?? session.user.email ?? "U").charAt(0).toUpperCase()}
+              {(session.user.name ?? session.user.email ?? "U")
+                .charAt(0)
+                .toUpperCase()}
             </span>
           </div>
           {showName && (
-            <span className="max-w-[100px] truncate">{session.user.name ?? session.user.email}</span>
+            <span className="max-w-[100px] truncate">
+              {session.user.name ?? session.user.email}
+            </span>
           )}
           <ChevronDown className="h-3 w-3 opacity-60" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent 
-        align="end" 
-        className="w-64 border-white/10 bg-background/95 backdrop-blur-lg"
+      <DropdownMenuContent
+        align="end"
+        className="bg-background/95 w-64 border-white/10 backdrop-blur-lg"
       >
         <DropdownMenuLabel className="text-gray-400">
           {showName ? "My Account" : (session.user.name ?? session.user.email)}
@@ -97,7 +104,7 @@ export function UserMenu({ showName = true, variant = "dropdown" }: UserMenuProp
         <TTSUsageDisplay compact />
 
         <DropdownMenuSeparator className="bg-white/10" />
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onClick={() => router.push("/preferences")}
           className="cursor-pointer text-gray-300 focus:bg-white/10 focus:text-white"
         >
@@ -105,7 +112,7 @@ export function UserMenu({ showName = true, variant = "dropdown" }: UserMenuProp
           Preferences
         </DropdownMenuItem>
         <DropdownMenuSeparator className="bg-white/10" />
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onClick={() => void handleSignOut()}
           className="cursor-pointer text-gray-300 focus:bg-red-500/10 focus:text-red-400"
         >

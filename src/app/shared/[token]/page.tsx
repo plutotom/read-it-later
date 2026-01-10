@@ -14,14 +14,15 @@ interface SharedArticlePageProps {
 export default function SharedArticlePage({ params }: SharedArticlePageProps) {
   const { token } = use(params);
 
-  const { data: article, isLoading, error } = api.article.getByShareToken.useQuery(
-    { token },
-    { enabled: !!token }
-  );
+  const {
+    data: article,
+    isLoading,
+    error,
+  } = api.article.getByShareToken.useQuery({ token }, { enabled: !!token });
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="bg-background flex min-h-screen items-center justify-center">
         <div className="text-center">
           <div className="mb-4 text-lg text-gray-300">Loading article...</div>
         </div>
@@ -31,7 +32,7 @@ export default function SharedArticlePage({ params }: SharedArticlePageProps) {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="bg-background flex min-h-screen items-center justify-center p-4">
         <Alert variant="destructive" className="max-w-md">
           <AlertDescription>
             Error loading article: {error.message}
@@ -43,7 +44,7 @@ export default function SharedArticlePage({ params }: SharedArticlePageProps) {
 
   if (!article) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="bg-background flex min-h-screen items-center justify-center p-4">
         <div className="text-center">
           <h1 className="mb-4 text-2xl font-bold text-gray-100">
             Article Not Found

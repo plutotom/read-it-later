@@ -87,7 +87,7 @@ export function SearchBar({
               setTimeout(() => setIsFocused(false), 150);
             }}
             placeholder={placeholder}
-            className="py-3 pr-10 pl-10 border-gray-600 bg-gray-700 text-white placeholder:text-gray-400"
+            className="border-gray-600 bg-gray-700 py-3 pr-10 pl-10 text-white placeholder:text-gray-400"
           />
 
           {/* Clear button */}
@@ -97,7 +97,7 @@ export function SearchBar({
               variant="ghost"
               size="icon"
               onClick={handleClear}
-              className="absolute inset-y-0 right-0 h-full w-10 text-gray-400 hover:text-gray-300 hover:bg-transparent"
+              className="absolute inset-y-0 right-0 h-full w-10 text-gray-400 hover:bg-transparent hover:text-gray-300"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -107,7 +107,7 @@ export function SearchBar({
 
       {/* Search suggestions */}
       {showSuggestions && (
-        <div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-700 bg-card shadow-lg">
+        <div className="bg-card absolute top-full right-0 left-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-700 shadow-lg">
           {suggestions.map((suggestion, index) => (
             <Button
               key={index}
@@ -124,4 +124,3 @@ export function SearchBar({
     </div>
   );
 }
-

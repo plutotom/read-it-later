@@ -43,9 +43,7 @@ export function AppSidebar() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
               <span className="text-sm font-bold text-white">R</span>
             </div>
-            <h2 className="text-lg font-semibold text-white">
-              Read It Later
-            </h2>
+            <h2 className="text-lg font-semibold text-white">Read It Later</h2>
           </div>
           <Button
             variant="ghost"
@@ -62,16 +60,16 @@ export function AppSidebar() {
       <SidebarContent className="px-2 py-4">
         {navGroups.map((group) => (
           <SidebarGroup key={group.title}>
-            <SidebarGroupLabel className="px-3 text-xs font-medium uppercase tracking-wider text-gray-500">
+            <SidebarGroupLabel className="px-3 text-xs font-medium tracking-wider text-gray-500 uppercase">
               {group.title}
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="mt-2 space-y-1">
                 {group.items.map((item: NavItem) => (
                   <SidebarMenuItem key={item.title}>
-                    <NavLink 
-                      item={item} 
-                      variant="sidebar" 
+                    <NavLink
+                      item={item}
+                      variant="sidebar"
                       onClick={handleNavClick}
                     />
                   </SidebarMenuItem>
@@ -89,10 +87,12 @@ export function AppSidebar() {
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
                 <span className="text-sm font-medium text-white">
-                  {(session.user.name ?? session.user.email ?? "U").charAt(0).toUpperCase()}
+                  {(session.user.name ?? session.user.email ?? "U")
+                    .charAt(0)
+                    .toUpperCase()}
                 </span>
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-white">
                   {session.user.name ?? "User"}
                 </p>

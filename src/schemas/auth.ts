@@ -1,8 +1,5 @@
 import { relations } from "drizzle-orm";
-import {
-  pgTableCreator,
-  pgEnum,
-} from "drizzle-orm/pg-core";
+import { pgTableCreator, pgEnum } from "drizzle-orm/pg-core";
 // import { createTable } from "~/server/db/schema";
 /**
  * Multi-project schema feature of Drizzle ORM
@@ -23,7 +20,7 @@ export const user = createTable("user", (d) => ({
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
-    deletedAt: d.timestamp(),
+  deletedAt: d.timestamp(),
 }));
 
 export const session = createTable("session", (d) => ({
@@ -104,7 +101,10 @@ export const userPreferences = createTable("user_preferences", (d) => ({
 // TTS usage tracking table - tracks monthly character consumption
 export const ttsUsage = createTable("tts_usage", (d) => ({
   id: d.text().primaryKey(),
-  userId: d.text().notNull().references(() => user.id, { onDelete: "cascade" }),
+  userId: d
+    .text()
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   // Year-month in format "YYYY-MM" for easy querying
   billingPeriod: d.varchar({ length: 7 }).notNull(),
   // Total characters used in this billing period
@@ -125,12 +125,15 @@ export const userRelations = relations(user, ({ many, one }) => ({
   preferences: one(userPreferences),
 }));
 
-export const userPreferencesRelations = relations(userPreferences, ({ one }) => ({
-  user: one(user, {
-    fields: [userPreferences.userId],
-    references: [user.id],
+export const userPreferencesRelations = relations(
+  userPreferences,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [userPreferences.userId],
+      references: [user.id],
+    }),
   }),
-}));
+);
 
 export const sessionRelations = relations(session, ({ one }) => ({
   user: one(user, {

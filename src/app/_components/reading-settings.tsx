@@ -24,7 +24,7 @@ export function ReadingSettings({
   onAutoHighlightChange,
 }: ReadingSettingsProps) {
   return (
-    <div className="mt-3 space-y-3 rounded-lg bg-card p-3">
+    <div className="bg-card mt-3 space-y-3 rounded-lg p-3">
       {/* Font Size */}
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-200">Font Size</span>
@@ -33,7 +33,7 @@ export function ReadingSettings({
             variant="ghost"
             size="icon"
             onClick={() => onFontSizeChange(Math.max(12, fontSize - 2))}
-            className="h-7 w-7 text-gray-400 hover:text-gray-200 hover:bg-gray-700"
+            className="h-7 w-7 text-gray-400 hover:bg-gray-700 hover:text-gray-200"
           >
             <Minus className="h-4 w-4" />
           </Button>
@@ -44,7 +44,7 @@ export function ReadingSettings({
             variant="ghost"
             size="icon"
             onClick={() => onFontSizeChange(Math.min(24, fontSize + 2))}
-            className="h-7 w-7 text-gray-400 hover:text-gray-200 hover:bg-gray-700"
+            className="h-7 w-7 text-gray-400 hover:bg-gray-700 hover:text-gray-200"
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -53,7 +53,10 @@ export function ReadingSettings({
 
       {/* Auto Highlight */}
       <div className="flex items-center justify-between">
-        <Label htmlFor="auto-highlight" className="text-sm font-medium text-gray-200">
+        <Label
+          htmlFor="auto-highlight"
+          className="text-sm font-medium text-gray-200"
+        >
           Auto Highlight
         </Label>
         <Switch

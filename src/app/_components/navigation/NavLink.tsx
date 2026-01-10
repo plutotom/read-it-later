@@ -18,7 +18,8 @@ interface NavLinkProps {
 export function NavLink({ item, variant = "desktop", onClick }: NavLinkProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const isActive = pathname === item.url || 
+  const isActive =
+    pathname === item.url ||
     (item.url === "/" && pathname === "") ||
     (item.url !== "/" && pathname.startsWith(item.url));
   const Icon = item.icon;
@@ -35,14 +36,17 @@ export function NavLink({ item, variant = "desktop", onClick }: NavLinkProps) {
         className={cn(
           "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
           "text-gray-400 hover:bg-white/5 hover:text-white",
-          isActive && "bg-gradient-to-r from-blue-500/20 to-purple-500/10 text-white"
+          isActive &&
+            "bg-gradient-to-r from-blue-500/20 to-purple-500/10 text-white",
         )}
       >
         {Icon && (
-          <Icon className={cn(
-            "h-4 w-4 transition-colors",
-            isActive ? "text-blue-400" : "text-gray-500"
-          )} />
+          <Icon
+            className={cn(
+              "h-4 w-4 transition-colors",
+              isActive ? "text-blue-400" : "text-gray-500",
+            )}
+          />
         )}
         <span>{item.title}</span>
         {isActive && (
@@ -61,7 +65,7 @@ export function NavLink({ item, variant = "desktop", onClick }: NavLinkProps) {
       className={cn(
         "text-gray-300 transition-all duration-200",
         "hover:bg-white/10 hover:text-white",
-        isActive && "bg-white/5 text-white"
+        isActive && "bg-white/5 text-white",
       )}
     >
       {Icon && <Icon className="mr-1.5 h-4 w-4" />}

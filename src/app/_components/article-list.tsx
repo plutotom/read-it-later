@@ -46,10 +46,9 @@ export function ArticleList({
       filtered = filtered.filter(
         (article) =>
           article.title.toLowerCase().includes(query) ||
-          article.excerpt?.toLowerCase().includes(query) ||
+          (article.excerpt?.toLowerCase().includes(query) ?? false) ||
           article.content.toLowerCase().includes(query) ||
-          (article.tags &&
-            article.tags.some((tag) => tag.toLowerCase().includes(query))),
+          article.tags?.some((tag) => tag.toLowerCase().includes(query)),
       );
     }
 
@@ -93,7 +92,7 @@ export function ArticleList({
     <div className="flex h-full w-full flex-col">
       {/* Search and filters */}
       {showSearch && (
-        <div className="sticky top-0 z-10 space-y-3 border-b border-gray-700 bg-card p-4">
+        <div className="bg-card sticky top-0 z-10 space-y-3 border-b border-gray-700 p-4">
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}

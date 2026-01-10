@@ -39,7 +39,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json() as { theme?: "light" | "dark"; settings?: Record<string, unknown> };
+  const body = (await request.json()) as {
+    theme?: "light" | "dark";
+    settings?: Record<string, unknown>;
+  };
 
   const existingPrefs = await db.query.userPreferences.findFirst({
     where: eq(userPreferences.userId, session.user.id),

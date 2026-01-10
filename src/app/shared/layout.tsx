@@ -7,7 +7,7 @@ export default function SharedLayout({
 }) {
   return (
     <TRPCReactProvider>
-      <div className="min-h-screen bg-background">{children}</div>
+      <div className="bg-background min-h-screen">{children}</div>
     </TRPCReactProvider>
   );
 }

@@ -41,7 +41,10 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-export function PublicAudioPlayer({ shareToken, articleId }: PublicAudioPlayerProps) {
+export function PublicAudioPlayer({
+  shareToken,
+  articleId,
+}: PublicAudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressSaveRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -60,30 +63,36 @@ export function PublicAudioPlayer({ shareToken, articleId }: PublicAudioPlayerPr
       {
         refetchOnWindowFocus: false,
         staleTime: Infinity,
-      }
+      },
     );
 
-  const handleLoadedMetadata = useCallback((e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
-    const audio = e.currentTarget;
-    if (!isFinite(audio.duration)) return;
-    setDuration(audio.duration);
-    audio.playbackRate = playbackSpeed;
-    // Restore saved position from localStorage
-    const savedProgress = localStorage.getItem(`tts-progress-${articleId}`);
-    if (savedProgress) {
-      const savedTime = parseFloat(savedProgress);
-      if (!isNaN(savedTime) && savedTime < audio.duration) {
-        audio.currentTime = savedTime;
-        setCurrentTime(savedTime);
+  const handleLoadedMetadata = useCallback(
+    (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
+      const audio = e.currentTarget;
+      if (!isFinite(audio.duration)) return;
+      setDuration(audio.duration);
+      audio.playbackRate = playbackSpeed;
+      // Restore saved position from localStorage
+      const savedProgress = localStorage.getItem(`tts-progress-${articleId}`);
+      if (savedProgress) {
+        const savedTime = parseFloat(savedProgress);
+        if (!isNaN(savedTime) && savedTime < audio.duration) {
+          audio.currentTime = savedTime;
+          setCurrentTime(savedTime);
+        }
       }
-    }
-    setIsLoaded(true);
-    setError(null);
-  }, [playbackSpeed, articleId]);
+      setIsLoaded(true);
+      setError(null);
+    },
+    [playbackSpeed, articleId],
+  );
 
-  const handleTimeUpdate = useCallback((e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
-    setCurrentTime(e.currentTarget.currentTime);
-  }, []);
+  const handleTimeUpdate = useCallback(
+    (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
+      setCurrentTime(e.currentTarget.currentTime);
+    },
+    [],
+  );
 
   const handleEnded = useCallback(() => {
     setIsPlaying(false);
@@ -107,7 +116,10 @@ export function PublicAudioPlayer({ shareToken, articleId }: PublicAudioPlayerPr
       progressSaveRef.current = setInterval(() => {
         const audio = audioRef.current;
         if (audio && !audio.paused) {
-          localStorage.setItem(`tts-progress-${articleId}`, String(audio.currentTime));
+          localStorage.setItem(
+            `tts-progress-${articleId}`,
+            String(audio.currentTime),
+          );
         }
       }, PROGRESS_SAVE_INTERVAL);
     }
@@ -131,7 +143,10 @@ export function PublicAudioPlayer({ shareToken, articleId }: PublicAudioPlayerPr
       audio.pause();
       setIsPlaying(false);
       // Save progress on pause
-      localStorage.setItem(`tts-progress-${articleId}`, String(audio.currentTime));
+      localStorage.setItem(
+        `tts-progress-${articleId}`,
+        String(audio.currentTime),
+      );
     }
   }, [articleId]);
 
@@ -139,7 +154,10 @@ export function PublicAudioPlayer({ shareToken, articleId }: PublicAudioPlayerPr
   const skip = useCallback((seconds: number) => {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + seconds));
+    audio.currentTime = Math.max(
+      0,
+      Math.min(audio.duration, audio.currentTime + seconds),
+    );
   }, []);
 
   // Handle speed change
@@ -149,24 +167,30 @@ export function PublicAudioPlayer({ shareToken, articleId }: PublicAudioPlayerPr
   }, []);
 
   // Handle volume change
-  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value);
-    setVolume(newVolume);
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume;
-    }
-  }, []);
+  const handleVolumeChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newVolume = parseFloat(e.target.value);
+      setVolume(newVolume);
+      if (audioRef.current) {
+        audioRef.current.volume = newVolume;
+      }
+    },
+    [],
+  );
 
   // Handle seeking via progress bar
-  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const audio = audioRef.current;
-    if (!audio || !duration) return;
+  const handleSeek = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const audio = audioRef.current;
+      if (!audio || !duration) return;
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percentage = x / rect.width;
-    audio.currentTime = percentage * duration;
-  }, [duration]);
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percentage = x / rect.width;
+      audio.currentTime = percentage * duration;
+    },
+    [duration],
+  );
 
   // Check for cached audio state on mount/update
   useEffect(() => {
@@ -180,7 +204,7 @@ export function PublicAudioPlayer({ shareToken, articleId }: PublicAudioPlayerPr
   // If loading, show nothing
   if (isLoading) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-gray-700 bg-card/50 p-3">
+      <div className="bg-card/50 flex items-center gap-3 rounded-lg border border-gray-700 p-3">
         <Loader2 className="size-5 animate-spin text-gray-400" />
         <span className="text-sm text-gray-300">Loading audio...</span>
       </div>
@@ -195,7 +219,7 @@ export function PublicAudioPlayer({ shareToken, articleId }: PublicAudioPlayerPr
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="rounded-lg border border-gray-700 bg-card/50 p-3">
+    <div className="bg-card/50 rounded-lg border border-gray-700 p-3">
       <audio
         ref={audioRef}
         key={audioStatus.audio.audioUrl}
@@ -210,13 +234,15 @@ export function PublicAudioPlayer({ shareToken, articleId }: PublicAudioPlayerPr
 
       {error ? (
         <div className="flex items-center gap-3 text-red-400">
-           <VolumeX className="size-5" />
-           <span className="text-sm">{error}</span>
+          <VolumeX className="size-5" />
+          <span className="text-sm">{error}</span>
         </div>
       ) : !isLoaded ? (
         <div className="flex items-center gap-3">
           <Headphones className="size-5 text-gray-400" />
-          <span className="flex-1 text-sm text-gray-300">Listen to this article</span>
+          <span className="flex-1 text-sm text-gray-300">
+            Listen to this article
+          </span>
           <Loader2 className="size-4 animate-spin text-gray-400" />
         </div>
       ) : (
@@ -255,7 +281,7 @@ export function PublicAudioPlayer({ shareToken, articleId }: PublicAudioPlayerPr
               {isPlaying ? (
                 <Pause className="size-5" />
               ) : (
-                <Play className="size-5 ml-0.5" />
+                <Play className="ml-0.5 size-5" />
               )}
             </Button>
 
@@ -299,7 +325,10 @@ export function PublicAudioPlayer({ shareToken, articleId }: PublicAudioPlayerPr
             </div>
 
             {/* Speed selector */}
-            <Select value={String(playbackSpeed)} onValueChange={handleSpeedChange}>
+            <Select
+              value={String(playbackSpeed)}
+              onValueChange={handleSpeedChange}
+            >
               <SelectTrigger className="h-7 w-16 border-gray-600 bg-gray-700/50 text-xs">
                 <SelectValue />
               </SelectTrigger>

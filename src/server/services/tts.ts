@@ -47,10 +47,24 @@ export function stripHtmlToPlainText(html: string): string {
   const document = dom.window.document;
 
   // Remove script and style elements
-  document.querySelectorAll("script, style, noscript").forEach((el) => el.remove());
+  document
+    .querySelectorAll("script, style, noscript")
+    .forEach((el) => el.remove());
 
   // Add natural pauses for block elements
-  const blockElements = ["p", "div", "br", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote"];
+  const blockElements = [
+    "p",
+    "div",
+    "br",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "li",
+    "blockquote",
+  ];
   blockElements.forEach((tag) => {
     document.querySelectorAll(tag).forEach((el) => {
       el.textContent = el.textContent + ". ";
@@ -74,7 +88,10 @@ export function stripHtmlToPlainText(html: string): string {
  * Split text into chunks at sentence boundaries
  * Ensures each chunk is under the max character limit
  */
-export function chunkText(text: string, maxChars: number = MAX_CHUNK_CHARS): string[] {
+export function chunkText(
+  text: string,
+  maxChars: number = MAX_CHUNK_CHARS,
+): string[] {
   if (text.length <= maxChars) {
     return [text];
   }
@@ -136,7 +153,7 @@ async function synthesizeChunk(
   client: TextToSpeechClient,
   text: string,
   voiceName: string,
-  languageCode: string
+  languageCode: string,
 ): Promise<Buffer> {
   const [response] = await client.synthesizeSpeech({
     input: { text },
@@ -193,7 +210,7 @@ export interface GenerateAudioResult {
  */
 export async function generateAudioForArticle(
   articleId: string,
-  htmlContent: string
+  htmlContent: string,
 ): Promise<GenerateAudioResult> {
   // Check if Blob token is available
   if (!env.BLOB_READ_WRITE_TOKEN) {
@@ -217,7 +234,12 @@ export async function generateAudioForArticle(
   // Synthesize each chunk
   const audioBuffers: Buffer[] = [];
   for (const chunk of chunks) {
-    const buffer = await synthesizeChunk(client, chunk, voiceName, languageCode);
+    const buffer = await synthesizeChunk(
+      client,
+      chunk,
+      voiceName,
+      languageCode,
+    );
     audioBuffers.push(buffer);
   }
 
@@ -232,7 +254,10 @@ export async function generateAudioForArticle(
   });
 
   // Calculate total characters used
-  const totalCharactersUsed = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const totalCharactersUsed = chunks.reduce(
+    (sum, chunk) => sum + chunk.length,
+    0,
+  );
 
   return {
     audioUrl: blob.url,

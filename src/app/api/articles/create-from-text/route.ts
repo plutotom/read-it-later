@@ -17,17 +17,17 @@ export async function POST(_req: NextRequest) {
     });
 
     if (!session?.user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body: unknown = await _req.json();
 
     // Transform string dates to Date objects for REST API
     const bodyWithDate = body as { publishedAt?: string | Date };
-    if (bodyWithDate.publishedAt && typeof bodyWithDate.publishedAt === "string") {
+    if (
+      bodyWithDate.publishedAt &&
+      typeof bodyWithDate.publishedAt === "string"
+    ) {
       bodyWithDate.publishedAt = new Date(bodyWithDate.publishedAt);
     }
 

@@ -20,7 +20,7 @@ export function Layout({ children, pageTitle }: LayoutProps) {
   return (
     <GeneralProvider>
       <SidebarProvider defaultOpen={false}>
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="bg-background flex min-h-screen w-full flex-col border">
           {/* Header - Always visible */}
           <DesktopNav pageTitle={pageTitle} />
 

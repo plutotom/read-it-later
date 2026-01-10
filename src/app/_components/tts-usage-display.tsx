@@ -78,7 +78,7 @@ export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
             className="h-1.5 bg-gray-700"
           />
           <div
-            className={`absolute left-0 top-0 h-full rounded-full ${progressColor} transition-all`}
+            className={`absolute top-0 left-0 h-full rounded-full ${progressColor} transition-all`}
             style={{ width: `${Math.min(100, usage.percentageUsed)}%` }}
           />
         </div>
@@ -98,7 +98,8 @@ export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
           <span
             className={`inline-block h-2 w-2 rounded-full ${progressColor}`}
           />
-          You&apos;ve used {usage.percentageUsed.toFixed(0)}% of your usage limit
+          You&apos;ve used {usage.percentageUsed.toFixed(0)}% of your usage
+          limit
         </div>
       </div>
     );
@@ -106,7 +107,7 @@ export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
 
   // Full display (for settings page or other contexts)
   return (
-    <div className="rounded-lg border border-gray-700 bg-card p-4">
+    <div className="bg-card rounded-lg border border-gray-700 p-4">
       <h3 className="mb-3 text-lg font-semibold text-white">TTS Usage</h3>
 
       <div className="mb-2 text-sm text-gray-300">
@@ -118,7 +119,7 @@ export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
           <div className="text-gray-400">Voice Type</div>
-          <div className="font-medium capitalize text-white">
+          <div className="font-medium text-white capitalize">
             {usage.voiceType}
           </div>
         </div>

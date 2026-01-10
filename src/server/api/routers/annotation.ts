@@ -11,7 +11,7 @@ export const annotationRouter = createTRPCRouter({
       return ctx.db.query.highlights.findMany({
         where: and(
           eq(highlights.articleId, input.articleId),
-          eq(highlights.userId, ctx.session.user.id)
+          eq(highlights.userId, ctx.session.user.id),
         ),
         orderBy: (highlights, { asc }) => [asc(highlights.startOffset)],
       });
@@ -90,10 +90,12 @@ export const annotationRouter = createTRPCRouter({
           ...updateData,
           note: updateData.note ?? undefined,
         })
-        .where(and(
-          eq(highlights.id, id),
-          eq(highlights.userId, ctx.session.user.id)
-        ))
+        .where(
+          and(
+            eq(highlights.id, id),
+            eq(highlights.userId, ctx.session.user.id),
+          ),
+        )
         .returning();
 
       if (!updatedHighlight) {
@@ -108,10 +110,12 @@ export const annotationRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.db
         .delete(highlights)
-        .where(and(
-          eq(highlights.id, input.id),
-          eq(highlights.userId, ctx.session.user.id)
-        ))
+        .where(
+          and(
+            eq(highlights.id, input.id),
+            eq(highlights.userId, ctx.session.user.id),
+          ),
+        )
         .returning();
 
       return { success: result.length > 0 };
@@ -124,7 +128,7 @@ export const annotationRouter = createTRPCRouter({
       return ctx.db.query.notes.findMany({
         where: and(
           eq(notes.articleId, input.articleId),
-          eq(notes.userId, ctx.session.user.id)
+          eq(notes.userId, ctx.session.user.id),
         ),
         orderBy: (notes, { desc }) => [desc(notes.createdAt)],
       });
@@ -175,10 +179,7 @@ export const annotationRouter = createTRPCRouter({
           ...updateData,
           highlightId: updateData.highlightId ?? undefined,
         })
-        .where(and(
-          eq(notes.id, id),
-          eq(notes.userId, ctx.session.user.id)
-        ))
+        .where(and(eq(notes.id, id), eq(notes.userId, ctx.session.user.id)))
         .returning();
 
       if (!updatedNote) {
@@ -193,10 +194,9 @@ export const annotationRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.db
         .delete(notes)
-        .where(and(
-          eq(notes.id, input.id),
-          eq(notes.userId, ctx.session.user.id)
-        ))
+        .where(
+          and(eq(notes.id, input.id), eq(notes.userId, ctx.session.user.id)),
+        )
         .returning();
 
       return { success: result.length > 0 };

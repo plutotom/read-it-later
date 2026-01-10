@@ -43,7 +43,10 @@ export const articles = createTable(
   "article",
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
-    userId: d.text().notNull().references(() => user.id),
+    userId: d
+      .text()
+      .notNull()
+      .references(() => user.id),
     url: d.text().notNull(),
     title: d.text().notNull(),
     content: d.text().notNull(),
@@ -94,7 +97,10 @@ export const folders = createTable(
     parentId: d.uuid(),
     isDefault: d.boolean().notNull().default(false),
     articleCount: d.integer().notNull().default(0),
-    userId: d.text().notNull().references(() => user.id),
+    userId: d
+      .text()
+      .notNull()
+      .references(() => user.id),
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
@@ -118,7 +124,10 @@ export const highlights = createTable(
   "highlight",
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
-    userId: d.text().notNull().references(() => user.id),
+    userId: d
+      .text()
+      .notNull()
+      .references(() => user.id),
     // Foreign key to article - required
     articleId: d.uuid().notNull(),
     // The highlighted text content
@@ -158,7 +167,10 @@ export const notes = createTable(
   "note",
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
-    userId: d.text().notNull().references(() => user.id),
+    userId: d
+      .text()
+      .notNull()
+      .references(() => user.id),
     articleId: d.uuid().notNull(),
     highlightId: d.uuid(),
     content: d.text().notNull(),
@@ -185,7 +197,10 @@ export const articleAudio = createTable(
   "article_audio",
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
-    userId: d.text().notNull().references(() => user.id),
+    userId: d
+      .text()
+      .notNull()
+      .references(() => user.id),
     articleId: d.uuid().notNull().unique(), // One audio per article
     audioUrl: d.text().notNull(), // Vercel Blob URL
     voiceName: d.text().notNull(), // e.g., "en-US-Standard-A"

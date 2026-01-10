@@ -100,7 +100,7 @@ export function ShareDialog({
                 <Input
                   value={shareUrl}
                   readOnly
-                  className="flex-1 bg-card text-sm"
+                  className="bg-card flex-1 text-sm"
                 />
                 <Button
                   size="icon"
@@ -127,7 +127,8 @@ export function ShareDialog({
               </div>
             )}
             <p className="text-xs text-gray-500">
-              Anyone with this link can view the article (without your highlights)
+              Anyone with this link can view the article (without your
+              highlights)
             </p>
           </div>
 
@@ -140,7 +141,7 @@ export function ShareDialog({
               <Input
                 value={originalUrl}
                 readOnly
-                className="flex-1 bg-card text-sm"
+                className="bg-card flex-1 text-sm"
               />
               <Button
                 size="icon"

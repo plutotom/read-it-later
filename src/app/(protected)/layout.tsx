@@ -19,7 +19,7 @@ export default async function RootLayout({
 
   return (
     <TRPCReactProvider>
-      <div className="min-h-screen bg-background">{children}</div>
+      <div className="bg-background min-h-screen">{children}</div>
       <InstallPrompt />
     </TRPCReactProvider>
   );

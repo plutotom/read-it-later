@@ -17,7 +17,7 @@ export const folderRouter = createTRPCRouter({
       return ctx.db.query.folders.findFirst({
         where: and(
           eq(folders.id, input.id),
-          eq(folders.userId, ctx.session.user.id)
+          eq(folders.userId, ctx.session.user.id),
         ),
       });
     }),
@@ -45,10 +45,12 @@ export const folderRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.db
         .delete(folders)
-        .where(and(
-          eq(folders.id, input.id),
-          eq(folders.userId, ctx.session.user.id)
-        ))
+        .where(
+          and(
+            eq(folders.id, input.id),
+            eq(folders.userId, ctx.session.user.id),
+          ),
+        )
         .returning();
 
       return { success: result.length > 0 };

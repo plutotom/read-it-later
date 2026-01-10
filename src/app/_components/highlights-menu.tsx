@@ -73,9 +73,7 @@ function HighlightItem({
           }}
         />
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-gray-200 line-clamp-2">
-            {highlight.text}
-          </p>
+          <p className="line-clamp-2 text-sm text-gray-200">{highlight.text}</p>
           {isEditingNote ? (
             <div className="mt-2 space-y-2">
               <Textarea
@@ -83,7 +81,7 @@ function HighlightItem({
                 onChange={(e) => setNoteValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Add a note..."
-                className="min-h-[60px] resize-none border-gray-600 bg-background text-sm text-gray-200 placeholder:text-gray-500 focus:border-gray-500"
+                className="bg-background min-h-[60px] resize-none border-gray-600 text-sm text-gray-200 placeholder:text-gray-500 focus:border-gray-500"
                 autoFocus
               />
               <div className="flex gap-2">
@@ -91,7 +89,7 @@ function HighlightItem({
                   size="sm"
                   variant="ghost"
                   onClick={handleSaveNote}
-                  className="h-7 text-xs text-green-400 hover:text-green-300 hover:bg-green-500/10"
+                  className="h-7 text-xs text-green-400 hover:bg-green-500/10 hover:text-green-300"
                 >
                   <Check className="mr-1 h-3 w-3" />
                   Save
@@ -100,7 +98,7 @@ function HighlightItem({
                   size="sm"
                   variant="ghost"
                   onClick={handleCancelEdit}
-                  className="h-7 text-xs text-gray-400 hover:text-gray-300 hover:bg-muted"
+                  className="hover:bg-muted h-7 text-xs text-gray-400 hover:text-gray-300"
                 >
                   <X className="mr-1 h-3 w-3" />
                   Cancel
@@ -110,7 +108,7 @@ function HighlightItem({
           ) : (
             <div className="mt-2">
               {highlight.note ? (
-                <p className="text-xs text-gray-400 line-clamp-2">
+                <p className="line-clamp-2 text-xs text-gray-400">
                   {highlight.note}
                 </p>
               ) : (
@@ -124,7 +122,7 @@ function HighlightItem({
             <Button
               size="icon"
               variant="ghost"
-              className="h-6 w-6 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10"
+              className="h-6 w-6 text-gray-400 hover:bg-blue-500/10 hover:text-blue-400"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsEditingNote(true);
@@ -138,7 +136,7 @@ function HighlightItem({
             <Button
               size="icon"
               variant="ghost"
-              className="h-6 w-6 text-gray-400 hover:text-red-400 hover:bg-red-500/10"
+              className="h-6 w-6 text-gray-400 hover:bg-red-500/10 hover:text-red-400"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(highlight.id);
@@ -165,12 +163,12 @@ export function HighlightsMenu({
         <Button
           size="icon"
           variant="ghost"
-          className="relative text-gray-400 hover:text-gray-200 hover:bg-muted"
+          className="hover:bg-muted relative text-gray-400 hover:text-gray-200"
           aria-label="Highlights"
         >
           <Highlighter className="h-5 w-5" />
           {highlights.length > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
+            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
               {highlights.length}
             </span>
           )}
@@ -178,7 +176,7 @@ export function HighlightsMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="max-h-[400px] w-[300px] overflow-y-auto border-gray-700 bg-card"
+        className="bg-card max-h-[400px] w-[300px] overflow-y-auto border-gray-700"
       >
         {highlights.length === 0 ? (
           <div className="px-2 py-4 text-center text-sm text-gray-400">
@@ -198,4 +196,3 @@ export function HighlightsMenu({
     </DropdownMenu>
   );
 }
-

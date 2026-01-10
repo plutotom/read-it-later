@@ -21,17 +21,17 @@ export interface NavGroup {
  * Main navigation items available throughout the app
  */
 export const mainNavItems: NavItem[] = [
-  { 
-    title: "Inbox", 
-    url: "/", 
+  {
+    title: "Inbox",
+    url: "/",
     icon: Home,
-    description: "Articles to read"
+    description: "Articles to read",
   },
-  { 
-    title: "Archived", 
-    url: "/archived", 
+  {
+    title: "Archived",
+    url: "/archived",
     icon: FolderArchive,
-    description: "Saved articles"
+    description: "Saved articles",
   },
 ];
 
@@ -46,9 +46,9 @@ export const navGroups: NavGroup[] = [
  * Legacy format for backwards compatibility with existing components
  */
 export const navData = {
-  navMain: navGroups.map(group => ({
+  navMain: navGroups.map((group) => ({
     title: group.title,
-    items: group.items.map(item => ({
+    items: group.items.map((item) => ({
       title: item.title,
       url: item.url,
     })),

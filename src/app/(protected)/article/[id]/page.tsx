@@ -57,17 +57,21 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
       await utils.annotation.getHighlightsByArticleId.cancel({ articleId: id });
 
       // Snapshot the previous value
-      const previousHighlights = utils.annotation.getHighlightsByArticleId.getData({
-        articleId: id,
-      });
+      const previousHighlights =
+        utils.annotation.getHighlightsByArticleId.getData({
+          articleId: id,
+        });
 
       // Optimistically update the highlight's note
-      utils.annotation.getHighlightsByArticleId.setData({ articleId: id }, (old) => {
-        if (!old) return old;
-        return old.map((h) =>
-          h.id === highlightId ? { ...h, note: note ?? null } : h,
-        );
-      });
+      utils.annotation.getHighlightsByArticleId.setData(
+        { articleId: id },
+        (old) => {
+          if (!old) return old;
+          return old.map((h) =>
+            h.id === highlightId ? { ...h, note: note ?? null } : h,
+          );
+        },
+      );
 
       // Return a context object with the snapshotted value
       return { previousHighlights };
@@ -95,15 +99,19 @@ export default function ArticleDetailPage({ params }: ArticleDetailPageProps) {
       await utils.annotation.getHighlightsByArticleId.cancel({ articleId: id });
 
       // Snapshot the previous value
-      const previousHighlights = utils.annotation.getHighlightsByArticleId.getData({
-        articleId: id,
-      });
+      const previousHighlights =
+        utils.annotation.getHighlightsByArticleId.getData({
+          articleId: id,
+        });
 
       // Optimistically update to the new value (remove the highlight)
-      utils.annotation.getHighlightsByArticleId.setData({ articleId: id }, (old) => {
-        if (!old) return old;
-        return old.filter((h) => h.id !== highlightId);
-      });
+      utils.annotation.getHighlightsByArticleId.setData(
+        { articleId: id },
+        (old) => {
+          if (!old) return old;
+          return old.filter((h) => h.id !== highlightId);
+        },
+      );
 
       // Return a context object with the snapshotted value
       return { previousHighlights };

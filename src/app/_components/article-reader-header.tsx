@@ -54,14 +54,17 @@ export function ArticleReaderHeader({
   const { data: session } = useSession();
 
   const router = useRouter();
-  
+
   // Smart back navigation: use history if available, otherwise go to inbox
   const handleBackClick = () => {
-    const hasHistory = typeof window !== "undefined" && window.history.length > 2;
+    const hasHistory =
+      typeof window !== "undefined" && window.history.length > 2;
     const referrer = typeof document !== "undefined" ? document.referrer : "";
-    const isFromSameOrigin = referrer && typeof window !== "undefined" && 
+    const isFromSameOrigin =
+      referrer &&
+      typeof window !== "undefined" &&
       referrer.startsWith(window.location.origin);
-    
+
     if (hasHistory && isFromSameOrigin) {
       router.back();
     } else {
@@ -84,7 +87,7 @@ export function ArticleReaderHeader({
   };
 
   return (
-    <div className="sticky top-0 z-10 border-b border-white/5 bg-background/80 px-4 py-3 backdrop-blur-xl">
+    <div className="bg-background/80 sticky top-0 z-10 border-b border-white/5 px-4 py-3 backdrop-blur-xl">
       <div className="flex items-center justify-between">
         {/* Left side: Mobile sidebar trigger, Back button, and navigation */}
         <div className="flex items-center gap-2">
@@ -104,7 +107,10 @@ export function ArticleReaderHeader({
             <span className="hidden text-sm md:inline">Back</span>
           </Button>
 
-          <Separator orientation="vertical" className="mx-1 hidden h-5 bg-white/10 md:block" />
+          <Separator
+            orientation="vertical"
+            className="mx-1 hidden h-5 bg-white/10 md:block"
+          />
 
           {/* Desktop navigation links */}
           <nav className="hidden items-center gap-1 md:flex">
@@ -129,9 +135,9 @@ export function ArticleReaderHeader({
             size="icon"
             onClick={onToggleSettings}
             className={cn(
-              showSettings 
-                ? "bg-white/10 text-white" 
-                : "text-gray-400 hover:bg-white/5 hover:text-white"
+              showSettings
+                ? "bg-white/10 text-white"
+                : "text-gray-400 hover:bg-white/5 hover:text-white",
             )}
             aria-label="Reading settings"
           >
@@ -163,9 +169,9 @@ export function ArticleReaderHeader({
 
           {/* Archive/Unarchive button */}
           {article.isArchived ? (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onUnarchive}
               className="text-gray-400 hover:bg-white/5 hover:text-white"
             >
@@ -173,9 +179,9 @@ export function ArticleReaderHeader({
               <span className="hidden md:inline">Unarchive</span>
             </Button>
           ) : (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onArchive}
               className="text-gray-400 hover:bg-white/5 hover:text-white"
             >

@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+} from "~/server/api/trpc";
 import { articles } from "~/server/db/schema";
 import { ArticleExtractor } from "~/server/services/articleExtractor";
 import { articleCreateFromTextSchema } from "~/schemas/article";
@@ -12,7 +16,7 @@ export const articleRouter = createTRPCRouter({
     return ctx.db.query.articles.findMany({
       where: and(
         eq(articles.userId, ctx.session.user.id),
-        eq(articles.isArchived, false)
+        eq(articles.isArchived, false),
       ),
       orderBy: (articles, { desc }) => [desc(articles.createdAt)],
     });
@@ -22,7 +26,7 @@ export const articleRouter = createTRPCRouter({
     return ctx.db.query.articles.findMany({
       where: and(
         eq(articles.userId, ctx.session.user.id),
-        eq(articles.isArchived, true)
+        eq(articles.isArchived, true),
       ),
       orderBy: (articles, { desc }) => [desc(articles.createdAt)],
     });
@@ -34,7 +38,7 @@ export const articleRouter = createTRPCRouter({
       return ctx.db.query.articles.findFirst({
         where: and(
           eq(articles.id, input.id),
-          eq(articles.userId, ctx.session.user.id)
+          eq(articles.userId, ctx.session.user.id),
         ),
       });
     }),
@@ -141,10 +145,12 @@ export const articleRouter = createTRPCRouter({
       const [updatedArticle] = await ctx.db
         .update(articles)
         .set(updateData)
-        .where(and(
-          eq(articles.id, input.id),
-          eq(articles.userId, ctx.session.user.id)
-        ))
+        .where(
+          and(
+            eq(articles.id, input.id),
+            eq(articles.userId, ctx.session.user.id),
+          ),
+        )
         .returning();
 
       return {
@@ -159,10 +165,12 @@ export const articleRouter = createTRPCRouter({
       const result = await ctx.db
         .update(articles)
         .set({ isArchived: true })
-        .where(and(
-          eq(articles.id, input.id),
-          eq(articles.userId, ctx.session.user.id)
-        ))
+        .where(
+          and(
+            eq(articles.id, input.id),
+            eq(articles.userId, ctx.session.user.id),
+          ),
+        )
         .returning();
 
       return { success: result.length > 0 };
@@ -174,10 +182,12 @@ export const articleRouter = createTRPCRouter({
       const result = await ctx.db
         .update(articles)
         .set({ isArchived: false })
-        .where(and(
-          eq(articles.id, input.id),
-          eq(articles.userId, ctx.session.user.id)
-        ))
+        .where(
+          and(
+            eq(articles.id, input.id),
+            eq(articles.userId, ctx.session.user.id),
+          ),
+        )
         .returning();
 
       return { success: result.length > 0 };
@@ -188,10 +198,12 @@ export const articleRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.db
         .delete(articles)
-        .where(and(
-          eq(articles.id, input.id),
-          eq(articles.userId, ctx.session.user.id)
-        ))
+        .where(
+          and(
+            eq(articles.id, input.id),
+            eq(articles.userId, ctx.session.user.id),
+          ),
+        )
         .returning();
 
       return { success: result.length > 0 };
@@ -206,10 +218,12 @@ export const articleRouter = createTRPCRouter({
           isRead: true,
           readAt: new Date(),
         })
-        .where(and(
-          eq(articles.id, input.id),
-          eq(articles.userId, ctx.session.user.id)
-        ))
+        .where(
+          and(
+            eq(articles.id, input.id),
+            eq(articles.userId, ctx.session.user.id),
+          ),
+        )
         .returning();
 
       return { success: !!updatedArticle };
@@ -224,7 +238,7 @@ export const articleRouter = createTRPCRouter({
       const article = await ctx.db.query.articles.findFirst({
         where: and(
           eq(articles.id, input.id),
-          eq(articles.userId, ctx.session.user.id)
+          eq(articles.userId, ctx.session.user.id),
         ),
         columns: { id: true, shareToken: true },
       });
@@ -243,10 +257,12 @@ export const articleRouter = createTRPCRouter({
       await ctx.db
         .update(articles)
         .set({ shareToken: token })
-        .where(and(
-          eq(articles.id, input.id),
-          eq(articles.userId, ctx.session.user.id)
-        ));
+        .where(
+          and(
+            eq(articles.id, input.id),
+            eq(articles.userId, ctx.session.user.id),
+          ),
+        );
 
       return { shareToken: token };
     }),

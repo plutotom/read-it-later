@@ -126,7 +126,7 @@ export default function HomePage() {
 
         {/* Articles List */}
         <ArticleList
-          articles={articles || []}
+          articles={articles ?? []}
           isLoading={isLoading}
           onArticleClick={(article) => router.push(`/article/${article.id}`)}
           onArchive={handleArchive}
