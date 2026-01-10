@@ -5,7 +5,7 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
-import { articleAudio, articles, ttsUsage } from "~/server/db/schema";
+import { articleAudio, articles, ttsUsage, userPreferences } from "~/server/db/schema";
 import {
   generateAudioForArticle,
   deleteAudioFromBlob,
@@ -80,13 +80,30 @@ async function recordTTSUsage(
   }
 }
 
+/**
+ * Get user's preferred TTS voice name from their preferences
+ */
+async function getUserVoicePreference(
+  db: typeof import("~/server/db").db,
+  userId: string
+): Promise<string> {
+  const prefs = await db.query.userPreferences.findFirst({
+    where: eq(userPreferences.userId, userId),
+    columns: { ttsVoiceName: true },
+  });
+  return prefs?.ttsVoiceName ?? process.env.TTS_VOICE_NAME ?? "en-US-Standard-A";
+}
+
 export const ttsRouter = createTRPCRouter({
   /**
    * Get audio for an article
    * Generates audio if not cached, returns cached audio if available
    */
   getAudio: protectedProcedure
-    .input(z.object({ articleId: z.string().uuid() }))
+    .input(z.object({ 
+      articleId: z.string().uuid(),
+      voiceName: z.string().optional(), // Optional override for this generation
+    }))
     .query(async ({ ctx, input }) => {
       // Check for existing audio
       const existingAudio = await ctx.db.query.articleAudio.findFirst({
@@ -120,10 +137,14 @@ export const ttsRouter = createTRPCRouter({
         throw new Error("Article not found");
       }
 
+      // Get voice to use (override > user preference > env default)
+      const voiceName = input.voiceName ?? await getUserVoicePreference(ctx.db, ctx.session.user.id);
+
       // Generate audio
       const result = await generateAudioForArticle(
         input.articleId,
         article.content,
+        voiceName,
       );
 
       // Record TTS usage
@@ -191,7 +212,10 @@ export const ttsRouter = createTRPCRouter({
    * Force regenerate audio (e.g., after voice change)
    */
   regenerateAudio: protectedProcedure
-    .input(z.object({ articleId: z.string().uuid() }))
+    .input(z.object({ 
+      articleId: z.string().uuid(),
+      voiceName: z.string().optional(), // Optional override for this generation
+    }))
     .mutation(async ({ ctx, input }) => {
       // Check for existing audio and delete from blob storage
       const existingAudio = await ctx.db.query.articleAudio.findFirst({
@@ -232,10 +256,14 @@ export const ttsRouter = createTRPCRouter({
         throw new Error("Article not found");
       }
 
+      // Get voice to use (override > user preference > env default)
+      const voiceName = input.voiceName ?? await getUserVoicePreference(ctx.db, ctx.session.user.id);
+
       // Generate new audio
       const result = await generateAudioForArticle(
         input.articleId,
         article.content,
+        voiceName,
       );
 
       // Record TTS usage
@@ -338,11 +366,12 @@ export const ttsRouter = createTRPCRouter({
     }),
 
   /**
-   * Get current voice configuration
+   * Get current voice configuration for the authenticated user
    */
-  getVoiceConfig: publicProcedure.query(() => {
+  getVoiceConfig: protectedProcedure.query(async ({ ctx }) => {
+    const voiceName = await getUserVoicePreference(ctx.db, ctx.session.user.id);
     return {
-      voiceName: process.env.TTS_VOICE_NAME ?? "en-US-Standard-A",
+      voiceName,
       languageCode: process.env.TTS_VOICE_LANGUAGE ?? "en-US",
     };
   }),
@@ -352,7 +381,7 @@ export const ttsRouter = createTRPCRouter({
    */
   getUsage: protectedProcedure.query(async ({ ctx }) => {
     const billingPeriod = getCurrentBillingPeriod();
-    const voiceName = process.env.TTS_VOICE_NAME ?? "en-US-Standard-A";
+    const voiceName = await getUserVoicePreference(ctx.db, ctx.session.user.id);
     const voiceType = getVoiceType(voiceName);
     const freeLimit = FREE_TIER_LIMITS[voiceType];
 

@@ -211,6 +211,7 @@ export interface GenerateAudioResult {
 export async function generateAudioForArticle(
   articleId: string,
   htmlContent: string,
+  voiceNameOverride?: string
 ): Promise<GenerateAudioResult> {
   // Check if Blob token is available
   if (!env.BLOB_READ_WRITE_TOKEN) {
@@ -218,8 +219,9 @@ export async function generateAudioForArticle(
   }
 
   const client = getTTSClient();
-  const voiceName = process.env.TTS_VOICE_NAME ?? "en-US-Standard-A";
-  const languageCode = process.env.TTS_VOICE_LANGUAGE ?? "en-US";
+  const voiceName = voiceNameOverride ?? process.env.TTS_VOICE_NAME ?? "en-US-Standard-A";
+  // Derive language code from voice name (e.g., "en-US-Neural2-A" -> "en-US")
+  const languageCode = voiceName.split("-").slice(0, 2).join("-");
 
   // Convert HTML to plain text
   const plainText = stripHtmlToPlainText(htmlContent);

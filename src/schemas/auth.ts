@@ -89,6 +89,7 @@ export const userPreferences = createTable("user_preferences", (d) => ({
     .unique()
     .references(() => user.id, { onDelete: "cascade" }),
   theme: themeEnum("theme").default("light").notNull(),
+  ttsVoiceName: d.varchar({ length: 100 }).default("en-US-Standard-A"),
   settings: d.jsonb().default({}).$type<Record<string, unknown>>(),
   createdAt: d.timestamp().defaultNow().notNull(),
   updatedAt: d
@@ -97,6 +98,7 @@ export const userPreferences = createTable("user_preferences", (d) => ({
     .$onUpdate(() => new Date())
     .notNull(),
 }));
+
 
 // TTS usage tracking table - tracks monthly character consumption
 export const ttsUsage = createTable("tts_usage", (d) => ({

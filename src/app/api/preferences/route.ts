@@ -20,11 +20,16 @@ export async function GET() {
   });
 
   if (!prefs) {
-    return NextResponse.json({ theme: "light", settings: {} });
+    return NextResponse.json({
+      theme: "light",
+      ttsVoiceName: "en-US-Standard-A",
+      settings: {}
+    });
   }
 
   return NextResponse.json({
     theme: prefs.theme,
+    ttsVoiceName: prefs.ttsVoiceName ?? "en-US-Standard-A",
     settings: prefs.settings,
   });
 }
@@ -41,6 +46,7 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as {
     theme?: "light" | "dark";
+    ttsVoiceName?: string;
     settings?: Record<string, unknown>;
   };
 
@@ -54,6 +60,7 @@ export async function POST(request: Request) {
       .update(userPreferences)
       .set({
         ...(body.theme && { theme: body.theme }),
+        ...(body.ttsVoiceName && { ttsVoiceName: body.ttsVoiceName }),
         ...(body.settings && { settings: body.settings }),
       })
       .where(eq(userPreferences.userId, session.user.id));
@@ -63,6 +70,7 @@ export async function POST(request: Request) {
       id: crypto.randomUUID(),
       userId: session.user.id,
       theme: body.theme ?? "light",
+      ttsVoiceName: body.ttsVoiceName ?? "en-US-Standard-A",
       settings: body.settings ?? {},
     });
   }

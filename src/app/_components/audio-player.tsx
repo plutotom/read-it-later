@@ -27,6 +27,8 @@ import {
   Volume1,
   VolumeX,
 } from "lucide-react";
+import { DEFAULT_VOICE, getVoiceOption } from "~/lib/tts-voices";
+import { VoiceSelector } from "~/app/_components/voice-selector";
 
 interface AudioPlayerProps {
   articleId: string;
@@ -54,6 +56,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [volume, setVolume] = useState(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedVoice, setSelectedVoice] = useState<string | null>(null); // null = use default
 
   // Check if audio already exists
   const { data: audioStatus, isLoading: isCheckingStatus } =
@@ -74,8 +77,14 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
     },
   );
 
+  // Regenerate audio mutation (for voice override)
+  const regenerateAudio = api.tts.regenerateAudio.useMutation();
+
   // Update progress mutation
   const updateProgress = api.tts.updateProgress.useMutation();
+
+  // Get user's default voice preference
+  const { data: voiceConfig } = api.tts.getVoiceConfig.useQuery();
 
   // Load saved playback speed from localStorage
   useEffect(() => {
@@ -175,24 +184,42 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
     };
   }, [isPlaying, articleId, updateProgress]);
 
-  // Handle generate audio
-  const handleGenerateAudio = useCallback(async () => {
-    setPlayerState("generating");
-    setErrorMessage(null);
-    try {
-      const result = await generateAudio.refetch();
-      if (result.data) {
-        setPlayerState("loading");
-        setDuration(result.data.durationSeconds ?? 0);
-      } else if (result.error) {
+  // Handle generate audio (with optional voice override)
+  const handleGenerateAudio = useCallback(
+    async (voiceOverride?: string) => {
+      setPlayerState("generating");
+      setErrorMessage(null);
+      try {
+        if (voiceOverride) {
+          // Use regenerate mutation for specific voice
+          const result = await regenerateAudio.mutateAsync({
+            articleId,
+            voiceName: voiceOverride,
+          });
+          if (result) {
+            setPlayerState("loading");
+            setDuration(result.durationSeconds ?? 0);
+          }
+        } else {
+          // Use default query for user's preference
+          const result = await generateAudio.refetch();
+          if (result.data) {
+            setPlayerState("loading");
+            setDuration(result.data.durationSeconds ?? 0);
+          } else if (result.error) {
+            setPlayerState("error");
+            setErrorMessage(result.error.message);
+          }
+        }
+      } catch (err) {
         setPlayerState("error");
-        setErrorMessage(result.error.message);
+        setErrorMessage(
+          err instanceof Error ? err.message : "Failed to generate audio",
+        );
       }
-    } catch {
-      setPlayerState("error");
-      setErrorMessage("Failed to generate audio");
-    }
-  }, [generateAudio]);
+    },
+    [generateAudio, regenerateAudio, articleId],
+  );
 
   // Play/Pause toggle
   const togglePlayPause = useCallback(() => {
@@ -262,23 +289,44 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const audioUrl = audioStatus?.audio?.audioUrl ?? generateAudio.data?.audioUrl;
 
-  // Idle state - show generate button
+  // Idle state - show voice selector and generate button
   if (playerState === "idle" && !isCheckingStatus) {
+    const defaultVoice = voiceConfig?.voiceName ?? DEFAULT_VOICE;
+    const voiceToUse = selectedVoice ?? defaultVoice;
+    const voiceOption = getVoiceOption(voiceToUse);
+    const isCustomVoice =
+      selectedVoice !== null && selectedVoice !== defaultVoice;
+
     return (
-      <div className="bg-card/50 flex items-center gap-3 rounded-lg border border-gray-700 p-3">
-        <Headphones className="size-5 text-gray-400" />
-        <span className="flex-1 text-sm text-gray-300">
-          Listen to this article
-        </span>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleGenerateAudio}
-          className="gap-2"
-        >
-          <Volume2 className="size-4" />
-          Generate Audio
-        </Button>
+      <div className="bg-card/50 flex flex-col gap-3 rounded-lg border border-gray-700 p-3">
+        <div className="flex items-center gap-3">
+          <Headphones className="size-5 text-gray-400" />
+          <span className="flex-1 text-sm text-gray-300">
+            Listen to this article
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <VoiceSelector
+            value={voiceToUse}
+            onValueChange={setSelectedVoice}
+            triggerClassName="flex-1 border-gray-600 bg-gray-700/50"
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => handleGenerateAudio(selectedVoice ?? undefined)}
+            className="gap-2"
+          >
+            <Volume2 className="size-4" />
+            Generate
+          </Button>
+        </div>
+        {isCustomVoice && voiceOption && (
+          <div className="text-xs text-gray-400">
+            Using: {voiceOption.label} ({voiceOption.tier},{" "}
+            {voiceOption.priceMultiplier}x usage)
+          </div>
+        )}
       </div>
     );
   }
@@ -306,7 +354,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
         <Button
           variant="secondary"
           size="sm"
-          onClick={handleGenerateAudio}
+          onClick={() => handleGenerateAudio()}
           className="gap-2"
         >
           Retry

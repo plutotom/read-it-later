@@ -57,6 +57,13 @@
       "when": 1767458735873,
       "tag": "0007_low_ironclad",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1768070185717,
+      "tag": "0008_groovy_roulette",
+      "breakpoints": true
     }
   ]
 }

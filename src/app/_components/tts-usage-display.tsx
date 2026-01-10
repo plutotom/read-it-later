@@ -2,6 +2,7 @@
 
 import { Progress } from "~/components/ui/progress";
 import { api } from "~/trpc/react";
+import { getVoiceOption } from "~/lib/tts-voices";
 
 /**
  * Format a number with K/M suffixes for display
@@ -44,6 +45,7 @@ interface TTSUsageDisplayProps {
 
 export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
   const { data: usage, isLoading } = api.tts.getUsage.useQuery();
+  const { data: voiceConfig } = api.tts.getVoiceConfig.useQuery();
 
   if (isLoading) {
     return (
@@ -62,6 +64,14 @@ export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
   const formattedUsed = formatCharacterCount(usage.charactersUsed);
   const formattedLimit = formatCharacterCount(usage.freeLimit);
   const formattedRemaining = formatCharacterCount(usage.charactersRemaining);
+
+  // Get the selected voice label for display
+  const selectedVoice = voiceConfig?.voiceName
+    ? getVoiceOption(voiceConfig.voiceName)
+    : null;
+  const voiceLabel = selectedVoice
+    ? `${selectedVoice.label} (${selectedVoice.description})`
+    : (voiceConfig?.voiceName ?? usage.voiceType);
 
   if (compact) {
     return (
@@ -107,8 +117,10 @@ export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
 
   // Full display (for settings page or other contexts)
   return (
-    <div className="bg-card rounded-lg border border-gray-700 p-4">
-      <h3 className="mb-3 text-lg font-semibold text-white">TTS Usage</h3>
+    <div className="rounded-lg bg-gray-800/50 p-4">
+      <h4 className="mb-3 text-sm font-medium text-gray-300">
+        Usage This Month
+      </h4>
 
       <div className="mb-2 text-sm text-gray-300">
         {formattedUsed} / {formattedLimit} characters used
@@ -118,10 +130,8 @@ export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
 
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
-          <div className="text-gray-400">Voice Type</div>
-          <div className="font-medium text-white capitalize">
-            {usage.voiceType}
-          </div>
+          <div className="text-gray-400">Selected Voice</div>
+          <div className="font-medium text-white">{voiceLabel}</div>
         </div>
         <div>
           <div className="text-gray-400">Remaining</div>
