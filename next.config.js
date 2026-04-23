@@ -3,21 +3,6 @@
  * for Docker builds.
  */
 import "./src/env.js";
-import { spawnSync } from "node:child_process";
-import withSerwistInit from "@serwist/next";
-
-// Using git rev-parse HEAD for revision-based cache busting
-const revision =
-  spawnSync("git", ["rev-parse", "HEAD"], {
-    encoding: "utf-8",
-  }).stdout?.trim() ?? crypto.randomUUID();
-
-const withSerwist = withSerwistInit({
-  swSrc: "src/app/sw.ts",
-  swDest: "public/sw.js",
-  additionalPrecacheEntries: [{ url: "/~offline", revision }],
-  disable: process.env.NODE_ENV === "development",
-});
 
 /** @type {import("next").NextConfig} */
 const config = {
@@ -52,21 +37,8 @@ const config = {
           },
         ],
       },
-      {
-        source: "/sw.js",
-        headers: [
-          {
-            key: "Content-Type",
-            value: "application/javascript; charset=utf-8",
-          },
-          {
-            key: "Cache-Control",
-            value: "no-cache, no-store, must-revalidate",
-          },
-        ],
-      },
     ];
   },
 };
 
-export default withSerwist(config);
+export default config;
