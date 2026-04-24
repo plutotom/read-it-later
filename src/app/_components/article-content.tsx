@@ -23,8 +23,12 @@ export function ArticleContent({
   return (
     <div
       ref={contentRef}
-      className="article-content max-w-none leading-relaxed"
-      style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}
+      className="article-content max-w-none leading-relaxed text-foreground"
+      style={{
+        fontFamily: "var(--font-app-reading)",
+        fontSize: `${fontSize}px`,
+        lineHeight: 1.7,
+      }}
       onMouseUp={onTextSelection}
       onTouchEnd={onTextSelection}
     >

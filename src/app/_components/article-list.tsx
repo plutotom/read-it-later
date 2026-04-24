@@ -8,7 +8,7 @@
 import { type Article } from "~/types/article";
 import { ArticleCard } from "./article-card";
 import { SearchBar } from "./search-bar";
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 interface ArticleListProps {
   articles: Article[];
@@ -33,14 +33,14 @@ export function ArticleList({
   showSearch = true,
   showFilters = false,
 }: ArticleListProps) {
+  const PAGE_SIZE = 10;
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "title">("newest");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  // Filter and sort articles
   const filteredArticles = useMemo(() => {
-    let filtered = articles;
+    let filtered = [...articles];
 
-    // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -52,7 +52,6 @@ export function ArticleList({
       );
     }
 
-    // Sort articles
     filtered.sort((a, b) => {
       switch (sortBy) {
         case "newest":
@@ -73,15 +72,37 @@ export function ArticleList({
     return filtered;
   }, [articles, searchQuery, sortBy]);
 
+  const heroArticle =
+    searchQuery.trim().length === 0 && filteredArticles.length > 0
+      ? filteredArticles[0]
+      : null;
+  const listArticles = heroArticle ? filteredArticles.slice(1) : filteredArticles;
+  const visibleArticles = listArticles.slice(0, visibleCount);
+  const remainingCount = Math.max(0, listArticles.length - visibleArticles.length);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [searchQuery, sortBy, filteredArticles.length]);
+
+  const getDomainFromUrl = (url: string) => {
+    try {
+      return new URL(url).hostname.replace("www.", "");
+    } catch {
+      return url;
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="w-full space-y-4 p-4">
-        {/* Loading skeleton */}
+      <div className="w-full space-y-4">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="animate-pulse">
-            <div className="mb-2 h-4 w-3/4 rounded bg-gray-700"></div>
-            <div className="mb-1 h-3 w-full rounded bg-gray-700"></div>
-            <div className="h-3 w-2/3 rounded bg-gray-700"></div>
+          <div
+            key={i}
+            className="animate-pulse rounded-2xl border border-rule bg-surface px-5 py-5"
+          >
+            <div className="mb-3 h-5 w-3/4 rounded bg-background-deep"></div>
+            <div className="mb-2 h-3 w-full rounded bg-background-deep"></div>
+            <div className="h-3 w-2/3 rounded bg-background-deep"></div>
           </div>
         ))}
       </div>
@@ -89,23 +110,21 @@ export function ArticleList({
   }
 
   return (
-    <div className="flex h-full w-full flex-col">
-      {/* Search and filters */}
+    <div className="flex h-full w-full flex-col gap-4">
       {showSearch && (
-        <div className="bg-card sticky top-0 z-10 space-y-3 border-b border-gray-700 p-4">
+        <div className="sticky top-14 z-20 -mx-4 border-b border-rule bg-background/90 px-4 py-3 backdrop-blur-xl sm:top-14 sm:mx-0 sm:rounded-t-2xl">
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder="Search articles..."
+            placeholder="Search"
           />
 
           {showFilters && (
             <div className="flex flex-wrap gap-2 text-sm">
-              {/* Sort filter */}
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="rounded-lg border border-gray-600 bg-gray-700 px-3 py-1 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="rounded-full border border-rule bg-surface px-3 py-1.5 text-sm text-foreground outline-none transition focus:ring-2 focus:ring-ring/30"
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -116,20 +135,12 @@ export function ArticleList({
         </div>
       )}
 
-      {/* Article count */}
-      {/* <div className="border-b border-gray-700 px-4 py-2 text-sm text-gray-400">
-        {filteredArticles.length}{" "}
-        {filteredArticles.length === 1 ? "article" : "articles"}
-        {searchQuery && ` found for "${searchQuery}"`}
-      </div> */}
-
-      {/* Articles list */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-8">
         {filteredArticles.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-700">
+          <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-rule bg-surface p-8 text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-background-deep">
               <svg
-                className="h-8 w-8 text-gray-400"
+                className="h-8 w-8 text-muted-foreground"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -142,30 +153,98 @@ export function ArticleList({
                 />
               </svg>
             </div>
-            <h3 className="mb-2 text-lg font-medium text-white">
+            <h3
+              className="mb-2 text-2xl font-medium tracking-tight text-foreground"
+              style={{ fontFamily: "var(--font-app-display)" }}
+            >
               {searchQuery ? "No articles found" : "No articles yet"}
             </h3>
-            <p className="max-w-sm text-gray-400">
+            <p className="max-w-sm text-sm leading-relaxed text-foreground-soft">
               {searchQuery
                 ? "Try adjusting your search terms or filters"
                 : "Start by adding your first article to read later"}
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-700">
-            {filteredArticles.map((article) => (
-              <ArticleCard
-                key={article.id}
-                article={article}
-                onClick={() => onArticleClick?.(article)}
-                onArchive={() => onArchive?.(article.id)}
-                onUnarchive={() => onUnarchive?.(article.id)}
-                onDelete={() => onDelete?.(article.id)}
-                onMoveToFolder={(folderId) =>
-                  onMoveToFolder?.(article.id, folderId)
-                }
-              />
-            ))}
+          <div className="space-y-4">
+            {heroArticle && (
+              <button
+                type="button"
+                onClick={() => onArticleClick?.(heroArticle)}
+                className="group grid w-full overflow-hidden rounded-2xl border border-rule bg-surface text-left transition hover:-translate-y-0.5 hover:shadow-soft"
+              >
+                <div className="grid min-h-[240px] grid-cols-1 sm:grid-cols-[1.2fr_0.8fr]">
+                  <div className="p-5 sm:p-7">
+                    <div className="text-xs tracking-[0.18em] text-muted-foreground uppercase">
+                      Continue reading
+                    </div>
+                    <h2
+                      className="mt-3 text-3xl leading-[1.05] font-medium tracking-tight text-foreground sm:text-4xl"
+                      style={{ fontFamily: "var(--font-app-display)" }}
+                    >
+                      {heroArticle.title}
+                    </h2>
+                    {heroArticle.excerpt && (
+                      <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-foreground-soft">
+                        {heroArticle.excerpt}
+                      </p>
+                    )}
+                    <div className="mt-5 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{getDomainFromUrl(heroArticle.url)}</span>
+                      {heroArticle.readingTime && (
+                        <>
+                          <span>·</span>
+                          <span>{heroArticle.readingTime} min</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="mt-6 h-[3px] overflow-hidden rounded-full bg-background-deep">
+                      <div
+                        className="m-progress-fill h-full rounded-full bg-accent"
+                        style={{ "--p": "46%" } as CSSProperties}
+                      />
+                    </div>
+                  </div>
+                  <div className="relative min-h-[180px] bg-[radial-gradient(120%_120%_at_20%_10%,var(--highlight-peach)_0%,var(--accent)_58%,color-mix(in_oklch,var(--foreground)_82%,var(--accent))_100%)]">
+                    <div className="absolute inset-5 rounded-[1.25rem] border border-white/20 bg-white/10 backdrop-blur-md dark:border-white/10 dark:bg-black/10" />
+                  </div>
+                </div>
+              </button>
+            )}
+
+            <div className="overflow-hidden rounded-2xl border border-rule bg-surface">
+              <div className="divide-y divide-rule">
+                {visibleArticles.map((article) => (
+                  <ArticleCard
+                    key={article.id}
+                    article={article}
+                    onClick={() => onArticleClick?.(article)}
+                    onArchive={() => onArchive?.(article.id)}
+                    onUnarchive={() => onUnarchive?.(article.id)}
+                    onDelete={() => onDelete?.(article.id)}
+                    onMoveToFolder={(folderId) =>
+                      onMoveToFolder?.(article.id, folderId)
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+
+            {remainingCount > 0 && (
+              <div className="flex justify-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+                  className="rounded-full border border-rule bg-surface px-4 py-2 text-sm font-medium text-foreground-soft shadow-soft transition hover:-translate-y-0.5 hover:bg-background-deep hover:text-foreground"
+                  style={{ fontFamily: "var(--font-app-sans)" }}
+                >
+                  Load 10 more
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {remainingCount} left
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

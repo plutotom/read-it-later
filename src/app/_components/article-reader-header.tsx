@@ -1,26 +1,18 @@
 /**
  * Article Reader Header Component
- * Header with navigation, settings, and share buttons
+ * Matter-inspired header with compact reading controls
  */
 
 "use client";
 
-import { useState } from "react";
 import { type Article } from "~/types/article";
 import { type Highlight } from "~/types/annotation";
 import { ReadingSettings } from "./reading-settings";
-import { ShareDialog } from "./share-dialog";
 import { Button } from "~/components/ui/button";
-import { Archive, Settings, ArrowLeft } from "lucide-react";
+import { Settings, ArrowLeft, Star } from "lucide-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
 import { HighlightsMenu } from "./highlights-menu";
-import { Separator } from "~/components/ui/separator";
-import { SidebarTrigger } from "~/components/ui/sidebar";
-import { useSession } from "~/lib/auth-client";
-import { UserMenu } from "./user-menu";
-import { NavLink } from "./navigation/NavLink";
-import { mainNavItems } from "~/config/nav-config";
 import { cn } from "~/lib/utils";
 
 interface ArticleReaderHeaderProps {
@@ -48,11 +40,21 @@ export function ArticleReaderHeader({
   onHighlightDelete,
   onHighlightNoteUpdate,
 }: ArticleReaderHeaderProps) {
-  const [showShareDialog, setShowShareDialog] = useState(false);
-  const { mutate: archive } = api.article.archive.useMutation();
-  const { mutate: unarchive } = api.article.unarchive.useMutation();
-  const { data: session } = useSession();
-
+  const utils = api.useUtils();
+  const { mutate: archive } = api.article.archive.useMutation({
+    onSuccess: () => {
+      void utils.article.get.invalidate({ id: article.id });
+      void utils.article.getAll.invalidate();
+      void utils.article.getArchived.invalidate();
+    },
+  });
+  const { mutate: unarchive } = api.article.unarchive.useMutation({
+    onSuccess: () => {
+      void utils.article.get.invalidate({ id: article.id });
+      void utils.article.getAll.invalidate();
+      void utils.article.getArchived.invalidate();
+    },
+  });
   const router = useRouter();
 
   // Smart back navigation: use history if available, otherwise go to inbox
@@ -72,151 +74,105 @@ export function ArticleReaderHeader({
     }
   };
 
-  const handleShare = () => {
-    setShowShareDialog(true);
+  const handleToggleSaved = () => {
+    if (article.isArchived) {
+      unarchive({ id: article.id });
+    } else {
+      archive({ id: article.id });
+    }
   };
 
-  const onArchive = () => {
-    archive({ id: article.id });
-    router.push(`/`);
-  };
+  const domain = (() => {
+    try {
+      return new URL(article.url).hostname.replace("www.", "");
+    } catch {
+      return article.url;
+    }
+  })();
 
-  const onUnarchive = () => {
-    unarchive({ id: article.id });
-    router.push(`/`);
-  };
+  const readingTime = article.readingTime ? `${article.readingTime} min` : "Saved";
 
   return (
-    <div className="bg-background/80 sticky top-0 z-10 border-b border-white/5 px-4 py-3 backdrop-blur-xl">
-      <div className="flex items-center justify-between">
-        {/* Left side: Mobile sidebar trigger, Back button, and navigation */}
-        <div className="flex items-center gap-2">
-          {/* Mobile: Sidebar trigger (same as main layout) */}
-          <div className="md:hidden">
-            <SidebarTrigger className="h-8 w-8 text-gray-400 hover:text-white" />
+    <div className="bg-background/90 sticky top-0 z-20 border-b border-rule backdrop-blur-xl">
+      <div className="flex items-center justify-between px-4 py-3 sm:px-8">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleBackClick}
+          className="rounded-full px-2.5 text-sm text-foreground-soft hover:bg-foreground/10 hover:text-foreground"
+        >
+          <ArrowLeft className="mr-1.5 h-4 w-4" />
+          Close
+        </Button>
+
+        <div className="min-w-0 px-3 text-center text-xs text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 truncate">
+            <span
+              className="inline-flex h-4 w-4 items-center justify-center rounded-[4px] bg-accent text-[9px] font-bold text-accent-foreground"
+              aria-hidden
+            >
+              {domain.charAt(0).toUpperCase()}
+            </span>
+            <span className="truncate">{domain}</span>
+            <span>·</span>
+            <span>{readingTime}</span>
           </div>
-
-          {/* Back button with smart navigation */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBackClick}
-            className="flex items-center gap-1 text-gray-400 hover:bg-white/5 hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="hidden text-sm md:inline">Back</span>
-          </Button>
-
-          <Separator
-            orientation="vertical"
-            className="mx-1 hidden h-5 bg-white/10 md:block"
-          />
-
-          {/* Desktop navigation links */}
-          <nav className="hidden items-center gap-1 md:flex">
-            {mainNavItems.map((item) => (
-              <NavLink key={item.title} item={item} variant="desktop" />
-            ))}
-          </nav>
         </div>
 
-        {/* Right side: Article actions */}
         <div className="flex items-center gap-1">
-          {/* Highlights menu */}
-          <HighlightsMenu
-            highlights={highlights}
-            onHighlightDelete={onHighlightDelete}
-            onHighlightNoteUpdate={onHighlightNoteUpdate}
-          />
-
-          {/* Reading settings */}
           <Button
             variant="ghost"
             size="icon"
             onClick={onToggleSettings}
             className={cn(
+              "h-8 w-8 rounded-full",
               showSettings
-                ? "bg-white/10 text-white"
-                : "text-gray-400 hover:bg-white/5 hover:text-white",
+                ? "bg-background-deep text-foreground"
+                : "text-foreground-soft hover:bg-foreground/10 hover:text-foreground",
             )}
             aria-label="Reading settings"
           >
             <Settings className="h-4 w-4" />
           </Button>
 
-          {/* Share button */}
           <Button
-            size="icon"
             variant="ghost"
-            onClick={handleShare}
-            aria-label="Share article"
-            className="text-gray-400 hover:bg-white/5 hover:text-white"
+            size="icon"
+            onClick={handleToggleSaved}
+            className="h-8 w-8 rounded-full text-foreground-soft hover:bg-foreground/10 hover:text-foreground"
+            aria-label={article.isArchived ? "Remove from saved" : "Save article"}
           >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
-              />
-            </svg>
+            <Star
+              className={cn(
+                "h-4 w-4",
+                article.isArchived && "fill-current text-accent",
+              )}
+            />
           </Button>
-
-          {/* Archive/Unarchive button */}
-          {article.isArchived ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onUnarchive}
-              className="text-gray-400 hover:bg-white/5 hover:text-white"
-            >
-              <Archive className="h-4 w-4 md:mr-1.5" />
-              <span className="hidden md:inline">Unarchive</span>
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onArchive}
-              className="text-gray-400 hover:bg-white/5 hover:text-white"
-            >
-              <Archive className="h-4 w-4 md:mr-1.5" />
-              <span className="hidden md:inline">Archive</span>
-            </Button>
-          )}
-
-          {/* User menu (desktop only - mobile uses sidebar) */}
-          {session?.user && (
-            <div className="hidden md:block">
-              <UserMenu showName={false} />
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Settings panel */}
       {showSettings && (
-        <ReadingSettings
-          fontSize={fontSize}
-          onFontSizeChange={onFontSizeChange}
-          autoHighlight={autoHighlight}
-          onAutoHighlightChange={onAutoHighlightChange}
-        />
+        <div className="border-t border-rule px-4 py-3 sm:px-8">
+          <div className="flex flex-col gap-3 rounded-2xl border border-rule bg-surface p-3 shadow-[var(--shadow-soft)]">
+            <ReadingSettings
+              fontSize={fontSize}
+              onFontSizeChange={onFontSizeChange}
+              autoHighlight={autoHighlight}
+              onAutoHighlightChange={onAutoHighlightChange}
+            />
+
+            <div className="border-t border-rule pt-3">
+              <HighlightsMenu
+                highlights={highlights}
+                onHighlightDelete={onHighlightDelete}
+                onHighlightNoteUpdate={onHighlightNoteUpdate}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* Share dialog */}
-      <ShareDialog
-        articleId={article.id}
-        articleTitle={article.title}
-        originalUrl={article.url}
-        open={showShareDialog}
-        onOpenChange={setShowShareDialog}
-      />
     </div>
   );
 }

@@ -9,26 +9,13 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { api } from "~/trpc/react";
 import { Button } from "~/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
-import {
   Play,
   Pause,
-  RotateCcw,
-  RotateCw,
   Headphones,
   Loader2,
   AlertCircle,
-  Volume2,
-  Volume1,
-  VolumeX,
 } from "lucide-react";
-import { DEFAULT_VOICE, getVoiceOption } from "~/lib/tts-voices";
-import { VoiceSelector } from "~/app/_components/voice-selector";
+import { DEFAULT_VOICE } from "~/lib/tts-voices";
 
 interface AudioPlayerProps {
   articleId: string;
@@ -54,9 +41,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [volume, setVolume] = useState(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [selectedVoice, setSelectedVoice] = useState<string | null>(null); // null = use default
 
   // Check if audio already exists
   const { data: audioStatus, isLoading: isCheckingStatus } =
@@ -83,7 +68,6 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   // Update progress mutation
   const updateProgress = api.tts.updateProgress.useMutation();
 
-  // Get user's default voice preference
   const { data: voiceConfig } = api.tts.getVoiceConfig.useQuery();
 
   // Load saved playback speed from localStorage
@@ -184,7 +168,6 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
     };
   }, [isPlaying, articleId, updateProgress]);
 
-  // Handle generate audio (with optional voice override)
   const handleGenerateAudio = useCallback(
     async (voiceOverride?: string) => {
       setPlayerState("generating");
@@ -221,7 +204,6 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
     [generateAudio, regenerateAudio, articleId],
   );
 
-  // Play/Pause toggle
   const togglePlayPause = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -240,39 +222,18 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
     }
   }, [articleId, updateProgress]);
 
-  // Skip forward/backward
-  const skip = useCallback((seconds: number) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.currentTime = Math.max(
-      0,
-      Math.min(audio.duration, audio.currentTime + seconds),
+  const handleSpeedCycle = useCallback(() => {
+    const index = PLAYBACK_SPEEDS.indexOf(
+      playbackSpeed as (typeof PLAYBACK_SPEEDS)[number],
     );
-  }, []);
-
-  // Handle speed change
-  const handleSpeedChange = useCallback((value: string) => {
-    const speed = parseFloat(value);
-    setPlaybackSpeed(speed);
-    localStorage.setItem("tts-playback-speed", value);
+    const next = PLAYBACK_SPEEDS[(index + 1) % PLAYBACK_SPEEDS.length] ?? 1;
+    setPlaybackSpeed(next);
+    localStorage.setItem("tts-playback-speed", String(next));
     if (audioRef.current) {
-      audioRef.current.playbackRate = speed;
+      audioRef.current.playbackRate = next;
     }
-  }, []);
+  }, [playbackSpeed]);
 
-  // Handle volume change
-  const handleVolumeChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newVolume = parseFloat(e.target.value);
-      setVolume(newVolume);
-      if (audioRef.current) {
-        audioRef.current.volume = newVolume;
-      }
-    },
-    [],
-  );
-
-  // Handle seeking via progress bar
   const handleSeek = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const audio = audioRef.current;
@@ -289,186 +250,164 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const audioUrl = audioStatus?.audio?.audioUrl ?? generateAudio.data?.audioUrl;
 
-  // Idle state - show voice selector and generate button
   if (playerState === "idle" && !isCheckingStatus) {
-    const defaultVoice = voiceConfig?.voiceName ?? DEFAULT_VOICE;
-    const voiceToUse = selectedVoice ?? defaultVoice;
-    const voiceOption = getVoiceOption(voiceToUse);
-    const isCustomVoice =
-      selectedVoice !== null && selectedVoice !== defaultVoice;
-
     return (
-      <div className="bg-card/50 flex flex-col gap-3 rounded-lg border border-gray-700 p-3">
+      <div className="rounded-2xl border border-rule bg-surface px-4 py-3 shadow-[var(--shadow-strong)]">
         <div className="flex items-center gap-3">
-          <Headphones className="size-5 text-gray-400" />
-          <span className="flex-1 text-sm text-gray-300">
-            Listen to this article
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleGenerateAudio(voiceConfig?.voiceName ?? DEFAULT_VOICE)}
+            className="h-10 w-10 rounded-full bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground"
+          >
+            <Headphones className="size-4" />
+          </Button>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-medium tracking-tight text-foreground">
+              Generate narration
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Listen in Matter mode
+            </div>
+          </div>
+          <span className="rounded-full border border-rule px-3 py-1 text-xs text-foreground-soft">
+            {playbackSpeed}x
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <VoiceSelector
-            value={voiceToUse}
-            onValueChange={setSelectedVoice}
-            triggerClassName="flex-1 border-gray-600 bg-gray-700/50"
-          />
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => handleGenerateAudio(selectedVoice ?? undefined)}
-            className="gap-2"
-          >
-            <Volume2 className="size-4" />
-            Generate
-          </Button>
-        </div>
-        {isCustomVoice && voiceOption && (
-          <div className="text-xs text-gray-400">
-            Using: {voiceOption.label} ({voiceOption.tier},{" "}
-            {voiceOption.priceMultiplier}x usage)
-          </div>
-        )}
       </div>
     );
   }
 
-  // Generating state
   if (playerState === "generating") {
     return (
-      <div className="bg-card/50 flex items-center gap-3 rounded-lg border border-gray-700 p-3">
-        <Loader2 className="size-5 animate-spin text-blue-400" />
-        <span className="text-sm text-gray-300">
-          Generating audio... This may take a moment
-        </span>
+      <div className="rounded-2xl border border-rule bg-surface px-4 py-3 shadow-[var(--shadow-strong)]">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
+            <Loader2 className="size-4 animate-spin" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-medium tracking-tight text-foreground">
+              Generating audio
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              This may take a moment
+            </div>
+          </div>
+          <span className="rounded-full border border-rule px-3 py-1 text-xs text-foreground-soft">
+            {playbackSpeed}x
+          </span>
+        </div>
       </div>
     );
   }
 
-  // Error state
   if (playerState === "error") {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-red-900/50 bg-red-950/30 p-3">
-        <AlertCircle className="size-5 text-red-400" />
-        <span className="flex-1 text-sm text-red-300">
-          {errorMessage ?? "Something went wrong"}
-        </span>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => handleGenerateAudio()}
-          className="gap-2"
-        >
-          Retry
-        </Button>
+      <div className="rounded-2xl border border-rule bg-surface px-4 py-3 shadow-[var(--shadow-strong)]">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-background-deep text-muted-foreground">
+            <AlertCircle className="size-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-medium tracking-tight text-foreground">
+              Audio unavailable
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {errorMessage ?? "Something went wrong"}
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleGenerateAudio(voiceConfig?.voiceName ?? DEFAULT_VOICE)}
+            className="rounded-full border border-rule px-3 text-xs text-foreground-soft hover:bg-background-deep hover:text-foreground"
+          >
+            Retry
+          </Button>
+        </div>
       </div>
     );
   }
 
-  // Loading or checking state
   if (isCheckingStatus || (playerState === "loading" && !audioUrl)) {
     return (
-      <div className="bg-card/50 flex items-center gap-3 rounded-lg border border-gray-700 p-3">
-        <Loader2 className="size-5 animate-spin text-gray-400" />
-        <span className="text-sm text-gray-300">Loading audio...</span>
+      <div className="rounded-2xl border border-rule bg-surface px-4 py-3 shadow-[var(--shadow-strong)]">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-background-deep text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-medium tracking-tight text-foreground">
+              Loading audio
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Preparing your narration
+            </div>
+          </div>
+          <span className="rounded-full border border-rule px-3 py-1 text-xs text-foreground-soft">
+            {playbackSpeed}x
+          </span>
+        </div>
       </div>
     );
   }
 
-  // Ready state - full player
   return (
-    <div className="bg-card/50 rounded-lg border border-gray-700 p-3">
+    <div className="rounded-2xl border border-rule bg-surface px-4 py-3 shadow-[var(--shadow-strong)]">
       {audioUrl && <audio ref={audioRef} src={audioUrl} preload="metadata" />}
 
-      {/* Progress bar */}
       <div
-        className="group mb-3 h-2 cursor-pointer rounded-full bg-gray-700"
+        className="mb-3 h-1.5 cursor-pointer rounded-full bg-background-deep"
         onClick={handleSeek}
       >
         <div
-          className="h-full rounded-full bg-linear-to-r from-blue-500 to-blue-400 transition-all"
+          className="h-full rounded-full bg-accent transition-[width] duration-150 ease-out"
           style={{ width: `${progress}%` }}
         />
       </div>
 
-      {/* Controls */}
-      <div className="flex items-center gap-2">
-        {/* Skip back */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => skip(-10)}
-          className="size-8 text-gray-400 hover:text-white"
-          title="Back 10 seconds"
-        >
-          <RotateCcw className="size-4" />
-        </Button>
-
-        {/* Play/Pause */}
+      <div className="flex items-center gap-3">
         <Button
           variant="ghost"
           size="icon"
           onClick={togglePlayPause}
-          className="size-10 text-white"
+          className={`h-10 w-10 rounded-full bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground ${isPlaying ? "m-pulse" : ""}`}
           disabled={playerState !== "ready"}
         >
-          {isPlaying ? (
-            <Pause className="size-5" />
-          ) : (
-            <Play className="ml-0.5 size-5" />
-          )}
+          {isPlaying ? <Pause className="size-4" /> : <Play className="ml-0.5 size-4" />}
         </Button>
 
-        {/* Skip forward */}
+        {isPlaying ? (
+          <div className="flex items-end gap-0.5" aria-hidden>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <span
+                key={i}
+                className="m-bar w-0.5 rounded-sm bg-accent"
+                style={{ height: 18, animationDelay: `${i * 120}ms` }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="h-4 w-2 shrink-0" />
+        )}
+
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[13px] font-medium tracking-tight text-foreground">
+            Article narration
+          </div>
+          <div className="text-[11px] text-muted-foreground">
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </div>
+        </div>
+
         <Button
           variant="ghost"
-          size="icon"
-          onClick={() => skip(30)}
-          className="size-8 text-gray-400 hover:text-white"
-          title="Forward 30 seconds"
+          size="sm"
+          onClick={handleSpeedCycle}
+          className="rounded-full border border-rule px-3 text-xs text-foreground-soft hover:bg-background-deep hover:text-foreground"
         >
-          <RotateCw className="size-4" />
+          {playbackSpeed}x
         </Button>
-
-        {/* Time display */}
-        <div className="ml-2 flex-1 text-xs text-gray-400">
-          <span className="font-mono">{formatTime(currentTime)}</span>
-          <span className="mx-1">/</span>
-          <span className="font-mono">{formatTime(duration)}</span>
-        </div>
-
-        {/* Volume control */}
-        <div className="flex items-center gap-1">
-          {volume === 0 ? (
-            <VolumeX className="size-4 text-gray-400" />
-          ) : volume < 0.5 ? (
-            <Volume1 className="size-4 text-gray-400" />
-          ) : (
-            <Volume2 className="size-4 text-gray-400" />
-          )}
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={volume}
-            onChange={handleVolumeChange}
-            className="h-1 w-16 cursor-pointer appearance-none rounded-full bg-gray-600 accent-blue-500"
-            title={`Volume: ${Math.round(volume * 100)}%`}
-          />
-        </div>
-
-        {/* Speed selector */}
-        <Select value={String(playbackSpeed)} onValueChange={handleSpeedChange}>
-          <SelectTrigger className="h-7 w-16 border-gray-600 bg-gray-700/50 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PLAYBACK_SPEEDS.map((speed) => (
-              <SelectItem key={speed} value={String(speed)}>
-                {speed}x
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
     </div>
   );

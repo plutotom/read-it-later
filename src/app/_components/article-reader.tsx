@@ -14,8 +14,6 @@ import { ArticleContent } from "./article-content";
 import { StandaloneNotes } from "./standalone-notes";
 import { applyHighlights, type HighlightData } from "~/lib/highlihgter-util";
 import { AudioPlayer } from "./audio-player";
-import { SidebarProvider } from "~/components/ui/sidebar";
-import { AppSidebar } from "./AppSidebar";
 
 interface ArticleReaderProps {
   article: Article;
@@ -45,11 +43,13 @@ export function ArticleReader({
   onHighlightNoteUpdate,
   onAttachNoteToHighlight,
 }: ArticleReaderProps) {
-  const [fontSize, setFontSize] = useState(16);
+  const [fontSize, setFontSize] = useState(19);
   const [showSettings, setShowSettings] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const markedAsReadRef = useRef<string | null>(null);
   const onMarkAsReadRef = useRef(onMarkAsRead);
+  const [progress, setProgress] = useState(0);
 
   // Convert Highlight[] to HighlightData[] for internal use
   const convertHighlightsToHighlightData = useCallback(
@@ -87,17 +87,6 @@ export function ArticleReader({
     return true;
   });
 
-  const [selectedText, setSelectedText] = useState<{
-    text: string;
-    startOffset: number;
-    endOffset: number;
-    range: Range;
-  } | null>(null);
-  const [popoverPosition, setPopoverPosition] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-
   // Keep ref updated with latest callback
   useEffect(() => {
     onMarkAsReadRef.current = onMarkAsRead;
@@ -122,7 +111,7 @@ export function ArticleReader({
   // This effect runs whenever content, highlights, or fontSize changes
   useEffect(() => {
     const contentElement =
-      contentRef.current?.querySelector("div") || contentRef.current;
+      contentRef.current?.querySelector("div") ?? contentRef.current;
 
     if (!contentElement || !(contentElement instanceof HTMLElement)) {
       return;
@@ -140,12 +129,10 @@ export function ArticleReader({
     };
   }, [article.content, highlights, fontSize]);
 
-  const handleTextSelection = useCallback(async () => {
+  const handleTextSelection = useCallback(() => {
     if (!autoHighlight) return;
     const selection = window.getSelection();
-    console.log("selection", selection);
     if (!selection || selection.isCollapsed || !contentRef.current) {
-      setSelectedText(null);
       return;
     }
 
@@ -154,12 +141,11 @@ export function ArticleReader({
     const selectedText = selectionString.trim();
 
     if (selectedText.length < 3) {
-      setSelectedText(null);
       return;
     }
 
     const contentElement =
-      contentRef.current.querySelector("div") || contentRef.current;
+      contentRef.current.querySelector("div") ?? contentRef.current;
 
     if (!contentElement.contains(range.commonAncestorContainer)) {
       return;
@@ -183,11 +169,6 @@ export function ArticleReader({
       .slice(endOffset, Math.min(fullText.length, endOffset + 30))
       .trim();
 
-    // Get selection position for popover (before clearing)
-    const rect = range.getBoundingClientRect();
-    const popoverX = rect.left + rect.width / 2;
-    const popoverY = rect.top;
-
     // Create highlight object and add to state
     // Use functional update to get the current length without needing it in dependencies
     setHighlights((prev) => {
@@ -209,8 +190,8 @@ export function ArticleReader({
         startOffset,
         endOffset,
         color: "yellow",
-        contextPrefix: contextPrefix || undefined,
-        contextSuffix: contextSuffix || undefined,
+        contextPrefix: contextPrefix === "" ? undefined : contextPrefix,
+        contextSuffix: contextSuffix === "" ? undefined : contextSuffix,
       });
     }
 
@@ -218,18 +199,10 @@ export function ArticleReader({
     if (selection.removeAllRanges) {
       selection.removeAllRanges();
     }
-
-    setSelectedText({
-      text: selectedText,
-      startOffset,
-      endOffset,
-      range: range.cloneRange(),
-    });
-    setPopoverPosition({ x: popoverX, y: popoverY });
-  }, [autoHighlight]);
+  }, [autoHighlight, onHighlightCreate]);
 
   const onTextSelection = useCallback(() => {
-    handleTextSelection();
+    void handleTextSelection();
   }, [handleTextSelection]);
 
   // Reset and reload highlights when article changes
@@ -244,9 +217,23 @@ export function ArticleReader({
     }
   }, [autoHighlight]);
 
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+
+    const onScroll = () => {
+      const max = el.scrollHeight - el.clientHeight;
+      setProgress(max > 0 ? (el.scrollTop / max) * 100 : 0);
+    };
+
+    onScroll();
+    el.addEventListener("scroll", onScroll);
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [article.id]);
+
   return (
-    <SidebarProvider defaultOpen={false}>
-      <div className="bg-background flex h-full min-h-screen w-full flex-col">
+    <div className="bg-foreground/30 min-h-screen backdrop-blur-[4px]">
+      <div className="ml-auto flex min-h-screen w-full max-w-[880px] flex-col bg-background shadow-[var(--shadow-strong)] m-slide-in">
         <ArticleReaderHeader
           article={article}
           showSettings={showSettings}
@@ -260,25 +247,30 @@ export function ArticleReader({
           onHighlightNoteUpdate={onHighlightNoteUpdate}
         />
 
-        {/* Mobile sidebar - same as main layout */}
-        <div className="md:hidden">
-          <AppSidebar />
+        <div className="h-[2px] bg-background-deep">
+          <div
+            className="h-full bg-accent transition-[width] duration-150 ease-out"
+            style={{ width: `${progress}%` }}
+          />
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          <article className="max-w-none px-4 py-6">
+        <div
+          ref={scrollerRef}
+          className="relative flex-1 overflow-y-auto px-5 pt-8 pb-36 sm:px-8 sm:pt-12"
+        >
+          <article className="mx-auto max-w-[640px]">
             <ArticleMetadata article={article} />
 
-            {/* Audio Player */}
-            <div className="mb-6">
-              <AudioPlayer articleId={article.id} />
-            </div>
+            {initialNotes.length > 0 && (
+              <div className="mb-8 rounded-2xl border border-rule bg-surface p-4 shadow-[var(--shadow-soft)]">
+                <StandaloneNotes
+                  notes={initialNotes}
+                  highlights={initialHighlights}
+                  onAttachToHighlight={onAttachNoteToHighlight}
+                />
+              </div>
+            )}
 
-            <StandaloneNotes
-              notes={initialNotes}
-              highlights={initialHighlights}
-              onAttachToHighlight={onAttachNoteToHighlight}
-            />
             <ArticleContent
               content={article.content}
               fontSize={fontSize}
@@ -286,10 +278,14 @@ export function ArticleReader({
               onTextSelection={onTextSelection}
             />
           </article>
-        </div>
 
-        {/* <HighlightStyles /> */}
+          <div className="pointer-events-none absolute right-5 bottom-5 left-5 sm:right-6 sm:bottom-6 sm:left-6">
+            <div className="pointer-events-auto">
+              <AudioPlayer articleId={article.id} />
+            </div>
+          </div>
+        </div>
       </div>
-    </SidebarProvider>
+    </div>
   );
 }

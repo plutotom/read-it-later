@@ -64,7 +64,7 @@ function HighlightItem({
   };
 
   return (
-    <div className="group border-b border-gray-700 p-2 last:border-b-0 hover:bg-gray-700/50">
+    <div className="group border-b border-rule p-2 last:border-b-0 hover:bg-background-deep">
       <div className="flex items-start gap-2">
         <div
           className="mt-1 h-4 w-4 flex-shrink-0 rounded"
@@ -73,7 +73,7 @@ function HighlightItem({
           }}
         />
         <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-sm text-gray-200">{highlight.text}</p>
+          <p className="line-clamp-2 text-sm text-foreground">{highlight.text}</p>
           {isEditingNote ? (
             <div className="mt-2 space-y-2">
               <Textarea
@@ -81,7 +81,7 @@ function HighlightItem({
                 onChange={(e) => setNoteValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Add a note..."
-                className="bg-background min-h-[60px] resize-none border-gray-600 text-sm text-gray-200 placeholder:text-gray-500 focus:border-gray-500"
+                className="min-h-[60px] resize-none border-rule bg-background text-sm text-foreground placeholder:text-muted-foreground"
                 autoFocus
               />
               <div className="flex gap-2">
@@ -89,7 +89,7 @@ function HighlightItem({
                   size="sm"
                   variant="ghost"
                   onClick={handleSaveNote}
-                  className="h-7 text-xs text-green-400 hover:bg-green-500/10 hover:text-green-300"
+                  className="h-7 text-xs text-accent hover:bg-background-deep hover:text-accent"
                 >
                   <Check className="mr-1 h-3 w-3" />
                   Save
@@ -98,7 +98,7 @@ function HighlightItem({
                   size="sm"
                   variant="ghost"
                   onClick={handleCancelEdit}
-                  className="hover:bg-muted h-7 text-xs text-gray-400 hover:text-gray-300"
+                  className="h-7 text-xs text-foreground-soft hover:bg-background-deep hover:text-foreground"
                 >
                   <X className="mr-1 h-3 w-3" />
                   Cancel
@@ -108,11 +108,11 @@ function HighlightItem({
           ) : (
             <div className="mt-2">
               {highlight.note ? (
-                <p className="line-clamp-2 text-xs text-gray-400">
+                <p className="line-clamp-2 text-xs text-foreground-soft">
                   {highlight.note}
                 </p>
               ) : (
-                <p className="text-xs text-gray-500 italic">No note</p>
+                <p className="text-xs italic text-muted-foreground">No note</p>
               )}
             </div>
           )}
@@ -122,7 +122,7 @@ function HighlightItem({
             <Button
               size="icon"
               variant="ghost"
-              className="h-6 w-6 text-gray-400 hover:bg-blue-500/10 hover:text-blue-400"
+              className="h-6 w-6 text-foreground-soft hover:bg-background-deep hover:text-foreground"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsEditingNote(true);
@@ -136,7 +136,7 @@ function HighlightItem({
             <Button
               size="icon"
               variant="ghost"
-              className="h-6 w-6 text-gray-400 hover:bg-red-500/10 hover:text-red-400"
+              className="h-6 w-6 text-foreground-soft hover:bg-background-deep hover:text-foreground"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(highlight.id);
@@ -161,25 +161,26 @@ export function HighlightsMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          size="icon"
           variant="ghost"
-          className="hover:bg-muted relative text-gray-400 hover:text-gray-200"
+          size="sm"
+          className="h-8 rounded-full px-3 text-foreground-soft hover:bg-background-deep hover:text-foreground"
           aria-label="Highlights"
         >
-          <Highlighter className="h-5 w-5" />
+          <Highlighter className="mr-2 h-4 w-4" />
+          Highlights
           {highlights.length > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
+            <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-semibold text-accent-foreground">
               {highlights.length}
             </span>
           )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        align="end"
-        className="bg-card max-h-[400px] w-[300px] overflow-y-auto border-gray-700"
+        align="start"
+        className="max-h-[400px] w-[320px] overflow-y-auto rounded-2xl border border-rule bg-surface shadow-[var(--shadow-soft)]"
       >
         {highlights.length === 0 ? (
-          <div className="px-2 py-4 text-center text-sm text-gray-400">
+          <div className="px-2 py-4 text-center text-sm text-muted-foreground">
             No highlights yet
           </div>
         ) : (

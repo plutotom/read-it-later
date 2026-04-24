@@ -17,7 +17,7 @@ const FREE_TIER_LIMITS = {
   standard: 4_000_000, // 4 million for Standard voices
   wavenet: 1_000_000, // 1 million for WaveNet voices
   neural2: 1_000_000, // 1 million for Neural2 voices
-  studio: 1_000_000, // 1 million for Studio voices
+  studio: 250_000, // 250k for Studio voices
 };
 
 /**

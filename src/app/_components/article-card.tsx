@@ -49,25 +49,9 @@ export function ArticleCard({
 }: ArticleCardProps) {
   const { setMetadataEditArticle } = useContext(GeneralContext);
 
-  const formatDate = (date: Date) => {
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-
-    if (diffInHours < 1) {
-      return "Just now";
-    } else if (diffInHours < 24) {
-      return `${Math.floor(diffInHours)}h ago`;
-    } else if (diffInHours < 168) {
-      // 7 days
-      return `${Math.floor(diffInHours / 24)}d ago`;
-    } else {
-      return date.toLocaleDateString();
-    }
-  };
-
   const formatReadingTime = (minutes: number) => {
-    if (minutes < 1) return "< 1 min read";
-    return `${minutes} min read`;
+    if (minutes < 1) return "< 1 min";
+    return `${minutes} min`;
   };
 
   const getDomainFromUrl = (url: string) => {
@@ -78,88 +62,74 @@ export function ArticleCard({
     }
   };
 
+  const domain = getDomainFromUrl(article.url);
+  const initial = domain.charAt(0).toUpperCase();
+  const faviconPalette = [
+    "var(--accent)",
+    "oklch(0.68 0.12 150)",
+    "oklch(0.7 0.09 240)",
+    "oklch(0.79 0.11 80)",
+    "oklch(0.63 0.1 330)",
+  ];
+  const faviconHue = faviconPalette[domain.length % faviconPalette.length];
+
   return (
-    <div className="bg-card hover:bg-muted relative transition-colors">
-      {/* Main content area - clickable */}
-      <div className="cursor-pointer p-4" onClick={onClick}>
-        {/* Header with metadata */}
-        <div className="mb-2 flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-xs text-gray-400">
-            <span>{getDomainFromUrl(article.url)}</span>
-            <span>•</span>
-            <span>{formatDate(article.createdAt)}</span>
+    <div className="group relative">
+      <div
+        className="flex cursor-pointer items-start gap-4 px-4 py-4 transition-colors duration-200 hover:bg-foreground/10 sm:px-6 sm:py-5"
+        onClick={onClick}
+      >
+        <div className="mt-0.5 flex items-center gap-3">
+          <span
+            className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] text-[9px] font-bold text-white"
+            style={{ background: faviconHue }}
+          >
+            {initial}
+          </span>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div
+            className="line-clamp-2 text-[17px] leading-snug tracking-tight text-foreground"
+            style={{
+              fontFamily: "var(--font-app-display)",
+              fontWeight: 500,
+            }}
+          >
+            {article.title}
+          </div>
+
+          {article.excerpt && (
+            <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-foreground-soft">
+              {article.excerpt}
+            </p>
+          )}
+
+          <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span>{domain}</span>
             {article.readingTime && (
               <>
-                <span>•</span>
+                <span>·</span>
                 <span>{formatReadingTime(article.readingTime)}</span>
               </>
             )}
-          </div>
-
-          {/* Status indicators */}
-          <div className="flex items-center space-x-1">
             {listenProgress !== undefined && (
-              <ListenProgress progress={listenProgress} size={20} />
-            )}
-            {article.isArchived && (
-              <div
-                className="h-2 w-2 rounded-full bg-gray-400"
-                title="Archived"
-              />
+              <>
+                <span>·</span>
+                <ListenProgress progress={listenProgress} size={16} />
+              </>
             )}
           </div>
         </div>
 
-        {/* Title */}
-        <h3 className="mb-2 line-clamp-2 text-base leading-tight font-medium text-white">
-          {article.title}
-        </h3>
-
-        {/* Excerpt */}
-        {article.excerpt && (
-          <p className="mb-3 line-clamp-2 text-sm leading-relaxed text-gray-300">
-            {article.excerpt}
-          </p>
-        )}
-
-        {/* Footer with tags and author */}
-        <div className="flex items-center justify-between">
-          <div className="flex min-w-0 flex-1 items-center space-x-2">
-            {/* Author */}
-            {article.author && (
-              <span className="truncate text-xs text-gray-400">
-                by {article.author}
-              </span>
-            )}
-
-            {/* Tags */}
-            {article.tags && article.tags.length > 0 && (
-              <div className="flex items-center space-x-1">
-                {article.tags.slice(0, 2).map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center rounded bg-blue-700 px-2 py-0.5 text-xs font-medium text-blue-200"
-                  >
-                    {tag}
-                  </span>
-                ))}
-                {article.tags.length > 2 && (
-                  <span className="text-xs text-gray-500">
-                    +{article.tags.length - 2}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Actions menu */}
+        <div className="flex shrink-0 items-start">
           {showActions && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="ml-2 h-7 w-7 text-gray-400 hover:bg-gray-700 hover:text-white"
+                  className="h-8 w-8 rounded-full text-muted-foreground opacity-0 transition hover:bg-foreground/10 hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100"
                   onClick={(e) => e.stopPropagation()}
                   aria-label="Article actions"
                 >

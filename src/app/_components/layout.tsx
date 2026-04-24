@@ -20,16 +20,14 @@ export function Layout({ children, pageTitle }: LayoutProps) {
   return (
     <GeneralProvider>
       <SidebarProvider defaultOpen={false}>
-        <div className="bg-background flex min-h-screen w-full flex-col border">
-          {/* Header - Always visible */}
+        <div className="bg-background flex min-h-screen w-full flex-col">
           <DesktopNav pageTitle={pageTitle} />
 
-          {/* Sidebar - Only visible on mobile */}
           <div className="md:hidden">
             <AppSidebar />
           </div>
 
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 bg-background">{children}</main>
           <AddArticleButton />
         </div>
         <AddArticleFormCard />

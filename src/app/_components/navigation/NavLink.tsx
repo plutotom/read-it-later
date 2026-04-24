@@ -34,24 +34,20 @@ export function NavLink({ item, variant = "desktop", onClick }: NavLinkProps) {
       <button
         onClick={handleClick}
         className={cn(
-          "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-          "text-gray-400 hover:bg-white/5 hover:text-white",
-          isActive &&
-            "bg-gradient-to-r from-blue-500/20 to-purple-500/10 text-white",
+          "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
+          "text-foreground-soft hover:bg-foreground/10 hover:text-foreground",
+          isActive && "bg-foreground/10 font-semibold text-foreground",
         )}
       >
         {Icon && (
           <Icon
             className={cn(
               "h-4 w-4 transition-colors",
-              isActive ? "text-blue-400" : "text-gray-500",
+              isActive ? "text-accent" : "text-muted-foreground",
             )}
           />
         )}
         <span>{item.title}</span>
-        {isActive && (
-          <div className="ml-auto h-1.5 w-1.5 rounded-full bg-blue-400" />
-        )}
       </button>
     );
   }
@@ -63,12 +59,19 @@ export function NavLink({ item, variant = "desktop", onClick }: NavLinkProps) {
       size="sm"
       onClick={handleClick}
       className={cn(
-        "text-gray-300 transition-all duration-200",
-        "hover:bg-white/10 hover:text-white",
-        isActive && "bg-white/5 text-white",
+        "text-foreground-soft transition-all duration-200",
+        "hover:bg-foreground/10 hover:text-foreground",
+        isActive && "bg-foreground/10 text-foreground",
       )}
     >
-      {Icon && <Icon className="mr-1.5 h-4 w-4" />}
+      {Icon && (
+        <Icon
+          className={cn(
+            "mr-1.5 h-4 w-4",
+            isActive ? "text-accent" : "text-muted-foreground",
+          )}
+        />
+      )}
       {item.title}
     </Button>
   );

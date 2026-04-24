@@ -24,38 +24,36 @@ export function ReadingSettings({
   onAutoHighlightChange,
 }: ReadingSettingsProps) {
   return (
-    <div className="bg-card mt-3 space-y-3 rounded-lg p-3">
-      {/* Font Size */}
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-200">Font Size</span>
+        <span className="text-sm font-medium text-foreground">Font Size</span>
         <div className="flex items-center space-x-2">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => onFontSizeChange(Math.max(12, fontSize - 2))}
-            className="h-7 w-7 text-gray-400 hover:bg-gray-700 hover:text-gray-200"
+            className="h-7 w-7 rounded-full text-foreground-soft hover:bg-background-deep hover:text-foreground"
           >
             <Minus className="h-4 w-4" />
           </Button>
-          <span className="w-8 text-center text-sm text-gray-300">
+          <span className="w-8 text-center text-sm text-foreground-soft">
             {fontSize}
           </span>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => onFontSizeChange(Math.min(24, fontSize + 2))}
-            className="h-7 w-7 text-gray-400 hover:bg-gray-700 hover:text-gray-200"
+            className="h-7 w-7 rounded-full text-foreground-soft hover:bg-background-deep hover:text-foreground"
           >
             <Plus className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Auto Highlight */}
       <div className="flex items-center justify-between">
         <Label
           htmlFor="auto-highlight"
-          className="text-sm font-medium text-gray-200"
+          className="text-sm font-medium text-foreground"
         >
           Auto Highlight
         </Label>

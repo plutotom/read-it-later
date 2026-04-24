@@ -20,8 +20,8 @@ function formatDate(date: Date) {
 }
 
 function formatReadingTime(minutes: number) {
-  if (minutes < 1) return "< 1 min read";
-  return `${minutes} min read`;
+  if (minutes < 1) return "< 1 min";
+  return `${minutes} min`;
 }
 
 function getDomainFromUrl(url: string) {
@@ -33,44 +33,34 @@ function getDomainFromUrl(url: string) {
 }
 
 export function ArticleMetadata({ article }: ArticleMetadataProps) {
-  return (
-    <div className="mb-6">
-      <div className="mb-2 flex items-center text-sm text-gray-400">
-        <span>{getDomainFromUrl(article.url)}</span>
-        {article.publishedAt && (
-          <>
-            <span className="mx-2">•</span>
-            <span>{formatDate(article.publishedAt)}</span>
-          </>
-        )}
-        {article.readingTime && (
-          <>
-            <span className="mx-2">•</span>
-            <span>{formatReadingTime(article.readingTime)}</span>
-          </>
-        )}
-      </div>
+  const domain = getDomainFromUrl(article.url);
 
-      <h1 className="mb-4 text-2xl leading-tight font-bold text-gray-100">
+  return (
+    <div className="mb-10">
+      <h1
+        className="text-[2.6rem] leading-[1.05] font-medium tracking-tight text-foreground sm:text-[3.4rem]"
+        style={{ fontFamily: "var(--font-app-display)" }}
+      >
         {article.title}
       </h1>
 
-      {article.author && (
-        <p className="mb-4 text-gray-300">By {article.author}</p>
-      )}
-
-      {article.tags && article.tags.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {article.tags.map((tag) => (
-            <span
-              key={tag}
-              className="inline-flex items-center rounded-full bg-blue-900/50 px-2 py-1 text-xs font-medium text-blue-300"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
+      <div className="mt-5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        {article.author && <span>{article.author}</span>}
+        {article.author && <span>·</span>}
+        <span>{domain}</span>
+        {article.readingTime && (
+          <>
+            <span>·</span>
+            <span>{formatReadingTime(article.readingTime)}</span>
+          </>
+        )}
+        {article.publishedAt && (
+          <>
+            <span>·</span>
+            <span>{formatDate(article.publishedAt)}</span>
+          </>
+        )}
+      </div>
     </div>
   );
 }

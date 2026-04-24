@@ -20,6 +20,7 @@ import {
 } from "~/components/ui/select";
 import { RichTextInput } from "./rich-text-input";
 import { FileText, Link } from "lucide-react";
+import { cn } from "~/lib/utils";
 
 type AddArticleFormVariant = "add" | "metadata";
 
@@ -285,13 +286,17 @@ export function AddArticleForm({
       ? !title.trim() || !url.trim()
       : (!isTextMode && !url.trim()) ||
         (isTextMode && (!content.trim() || !title.trim())));
+  const inputClassName =
+    "border-rule bg-background-deep text-foreground placeholder:text-muted-foreground focus-visible:ring-ring/30";
 
   if (isMetadataMode) {
     return (
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="metadata-title">Title *</Label>
+            <Label htmlFor="metadata-title" className="text-foreground-soft">
+              Title *
+            </Label>
             <Input
               id="metadata-title"
               type="text"
@@ -302,7 +307,7 @@ export function AddArticleForm({
               }}
               placeholder="Enter article title"
               disabled={isLoading || isPasting}
-              className={errors.title ? "border-red-500" : ""}
+              className={cn(inputClassName, errors.title && "border-red-500")}
             />
             {errors.title && (
               <p className="text-sm text-red-600">{errors.title}</p>
@@ -310,7 +315,9 @@ export function AddArticleForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="metadata-url">URL *</Label>
+            <Label htmlFor="metadata-url" className="text-foreground-soft">
+              URL *
+            </Label>
             <Input
               id="metadata-url"
               type="url"
@@ -322,7 +329,7 @@ export function AddArticleForm({
               onPaste={handleUrlPaste}
               placeholder="https://example.com/article"
               disabled={isLoading || isPasting}
-              className={errors.url ? "border-red-500" : ""}
+              className={cn(inputClassName, errors.url && "border-red-500")}
             />
             {errors.url && <p className="text-sm text-red-600">{errors.url}</p>}
           </div>
@@ -334,12 +341,12 @@ export function AddArticleForm({
           </Alert>
         )}
 
-        <div className="space-y-3 pt-4">
+        <div className="space-y-3 border-t border-rule pt-4">
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button
               type="submit"
               disabled={isSubmitDisabled}
-              className="w-full sm:w-auto"
+              className="h-11 w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90 sm:w-auto"
             >
               {isLoading ? (
                 <>
@@ -386,25 +393,93 @@ export function AddArticleForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Mode Toggle */}
-      <div className="flex gap-2">
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="rounded-2xl border border-rule bg-background-deep p-3">
         <Button
           type="button"
-          variant={!isTextMode ? "default" : "outline"}
+          onClick={handlePasteAndSave}
+          disabled={isLoading || isPasting}
+          variant={pasteError ? "destructive" : "default"}
+          className={cn(
+            "h-12 w-full rounded-xl text-sm font-medium",
+            !pasteError &&
+              "bg-accent text-accent-foreground hover:bg-accent/90",
+          )}
+        >
+          {isPasting ? (
+            <>
+              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Pasting from clipboard...
+            </>
+          ) : pasteError ? (
+            <>
+              <svg
+                className="mr-2 h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              Problem getting clipboard
+            </>
+          ) : (
+            <>
+              <svg
+                className="mr-2 h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
+              </svg>
+              Paste link and save
+            </>
+          )}
+        </Button>
+
+        <p className="mt-2 text-center text-xs leading-relaxed text-muted-foreground">
+          Fastest on mobile: grab the current clipboard link and save in one tap.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 rounded-full border border-rule bg-background-deep p-1">
+        <Button
+          type="button"
+          variant="ghost"
           onClick={() => setIsTextMode(false)}
           disabled={isLoading || isPasting}
-          className="flex-1"
+          className={cn(
+            "h-10 rounded-full text-sm",
+            !isTextMode
+              ? "bg-surface text-foreground shadow-soft hover:bg-surface"
+              : "text-foreground-soft hover:bg-transparent hover:text-foreground",
+          )}
         >
           <Link className="mr-2 h-4 w-4" />
           Add from URL
         </Button>
         <Button
           type="button"
-          variant={isTextMode ? "default" : "outline"}
+          variant="ghost"
           onClick={() => setIsTextMode(true)}
           disabled={isLoading || isPasting}
-          className="flex-1"
+          className={cn(
+            "h-10 rounded-full text-sm",
+            isTextMode
+              ? "bg-surface text-foreground shadow-soft hover:bg-surface"
+              : "text-foreground-soft hover:bg-transparent hover:text-foreground",
+          )}
         >
           <FileText className="mr-2 h-4 w-4" />
           Add from Text
@@ -412,8 +487,10 @@ export function AddArticleForm({
       </div>
 
       {!isTextMode ? (
-        /* URL Mode */
         <div className="space-y-2">
+          <Label htmlFor="url" className="text-foreground-soft">
+            Article URL
+          </Label>
           <Input
             id="url"
             type="url"
@@ -425,16 +502,14 @@ export function AddArticleForm({
             onPaste={handleUrlPaste}
             placeholder="https://example.com/article"
             disabled={isLoading || isPasting}
-            className={errors.url ? "border-red-500" : ""}
+            className={cn(inputClassName, errors.url && "border-red-500")}
           />
           {errors.url && <p className="text-sm text-red-600">{errors.url}</p>}
         </div>
       ) : (
-        /* Text Mode */
         <div className="space-y-4">
-          {/* Rich Text Editor */}
           <div className="space-y-2">
-            <Label>Article Content *</Label>
+            <Label className="text-foreground-soft">Article Content *</Label>
             <RichTextInput
               content={content}
               onContentChange={setContent}
@@ -446,28 +521,28 @@ export function AddArticleForm({
             )}
           </div>
 
-          {/* Detected Metadata Preview */}
           {(detectedMetadata.title || detectedMetadata.author) && (
-            <div className="rounded-lg bg-blue-900/30 p-3">
-              <p className="mb-2 text-sm font-medium text-blue-300">
+            <div className="rounded-2xl border border-rule bg-background-deep p-3">
+              <p className="mb-2 text-sm font-medium text-foreground">
                 Detected metadata:
               </p>
               {detectedMetadata.title && (
-                <p className="text-sm text-blue-200">
+                <p className="text-sm text-foreground-soft">
                   <strong>Title:</strong> {detectedMetadata.title}
                 </p>
               )}
               {detectedMetadata.author && (
-                <p className="text-sm text-blue-200">
+                <p className="text-sm text-foreground-soft">
                   <strong>Author:</strong> {detectedMetadata.author}
                 </p>
               )}
             </div>
           )}
 
-          {/* Manual Title Input */}
           <div className="space-y-2">
-            <Label htmlFor="title">Title *</Label>
+            <Label htmlFor="title" className="text-foreground-soft">
+              Title *
+            </Label>
             <Input
               id="title"
               type="text"
@@ -478,16 +553,17 @@ export function AddArticleForm({
               }}
               placeholder="Enter article title"
               disabled={isLoading || isPasting}
-              className={errors.title ? "border-red-500" : ""}
+              className={cn(inputClassName, errors.title && "border-red-500")}
             />
             {errors.title && (
               <p className="text-sm text-red-600">{errors.title}</p>
             )}
           </div>
 
-          {/* Manual Author Input */}
           <div className="space-y-2">
-            <Label htmlFor="author">Author (optional)</Label>
+            <Label htmlFor="author" className="text-foreground-soft">
+              Author (optional)
+            </Label>
             <Input
               id="author"
               type="text"
@@ -495,12 +571,14 @@ export function AddArticleForm({
               onChange={(e) => setAuthor(e.target.value)}
               placeholder="Enter author name"
               disabled={isLoading || isPasting}
+              className={inputClassName}
             />
           </div>
 
-          {/* Manual URL Input (optional) */}
           <div className="space-y-2">
-            <Label htmlFor="text-url">Source URL (optional)</Label>
+            <Label htmlFor="text-url" className="text-foreground-soft">
+              Source URL (optional)
+            </Label>
             <Input
               id="text-url"
               type="url"
@@ -512,26 +590,27 @@ export function AddArticleForm({
               onPaste={handleUrlPaste}
               placeholder="https://example.com/source-article"
               disabled={isLoading || isPasting}
-              className={errors.url ? "border-red-500" : ""}
+              className={cn(inputClassName, errors.url && "border-red-500")}
             />
             {errors.url && <p className="text-sm text-red-600">{errors.url}</p>}
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted-foreground">
               Optional: include a source URL for this rich text article.
             </p>
           </div>
         </div>
       )}
 
-      {/* Folder selection */}
       {folders && folders.length > 0 && (
         <div className="space-y-2">
-          <Label htmlFor="folder">Folder (optional)</Label>
+          <Label htmlFor="folder" className="text-foreground-soft">
+            Folder (optional)
+          </Label>
           <Select
             value={folderId}
             onValueChange={setFolderId}
             disabled={isLoading || isPasting}
           >
-            <SelectTrigger id="folder">
+            <SelectTrigger id="folder" className={inputClassName}>
               <SelectValue placeholder="No folder" />
             </SelectTrigger>
             <SelectContent>
@@ -552,14 +631,12 @@ export function AddArticleForm({
         </Alert>
       )}
 
-      {/* Action buttons */}
-      <div className="space-y-3 pt-4">
-        {/* Primary action buttons - side by side on desktop, stacked on mobile */}
+      <div className="space-y-3 border-t border-rule pt-4">
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button
             type="submit"
             disabled={isSubmitDisabled}
-            className="w-full sm:w-auto"
+            className="h-11 w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90 sm:w-auto"
           >
             {isLoading ? (
               <>
@@ -586,59 +663,8 @@ export function AddArticleForm({
             )}
           </Button>
 
-          <Button
-            type="button"
-            onClick={handlePasteAndSave}
-            disabled={isLoading || isPasting}
-            variant={pasteError ? "destructive" : "default"}
-            className={`w-full sm:w-auto ${
-              !pasteError ? "bg-green-600 hover:bg-green-700" : ""
-            }`}
-          >
-            {isPasting ? (
-              <>
-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Pasting...
-              </>
-            ) : pasteError ? (
-              <>
-                <svg
-                  className="mr-2 h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                Problem getting clipboard
-              </>
-            ) : (
-              <>
-                <svg
-                  className="mr-2 h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                  />
-                </svg>
-                Paste link and save
-              </>
-            )}
-          </Button>
         </div>
 
-        {/* Cancel button */}
         {onCancel && (
           <div className="flex justify-center sm:justify-start">
             <Button
@@ -646,7 +672,7 @@ export function AddArticleForm({
               variant="outline"
               onClick={onCancel}
               disabled={isLoading || isPasting}
-              className="w-full sm:w-auto"
+              className="h-11 w-full rounded-full border-rule bg-surface text-foreground-soft hover:bg-background-deep hover:text-foreground sm:w-auto"
             >
               Cancel
             </Button>

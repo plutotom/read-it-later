@@ -20,23 +20,28 @@ export function AddArticleButton() {
   }, []); // Remove isAddFormOpen dependency to prevent re-adding listeners
 
   return (
-    <div className="fixed right-4 bottom-4 z-50">
+    <div className="fixed right-4 bottom-4 left-4 z-50 sm:right-6 sm:bottom-6 sm:left-auto">
       <Button
-        variant="outline"
-        size="icon"
+        type="button"
         onClick={() => {
           setIsAddFormOpen(!isAddFormOpen);
           setMetadataEditArticle(null);
         }}
-        className="transition-transform duration-200 ease-in-out hover:scale-110 active:scale-95"
+        className="h-12 w-full rounded-full border border-rule bg-surface px-5 text-sm font-medium text-foreground shadow-soft transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:bg-background-deep hover:text-foreground active:translate-y-0 sm:h-12 sm:w-auto sm:min-w-[11rem]"
         aria-label={
           isAddFormOpen ? "Close add article form" : "Open add article form"
         }
       >
         {isAddFormOpen ? (
-          <X className="h-4 w-4 transition-all duration-200 ease-in-out" />
+          <>
+            <X className="mr-2 h-4 w-4 transition-all duration-200 ease-in-out" />
+            Close composer
+          </>
         ) : (
-          <Plus className="h-4 w-4 transition-all duration-200 ease-in-out" />
+          <>
+            <Plus className="mr-2 h-4 w-4 transition-all duration-200 ease-in-out" />
+            Add article
+          </>
         )}
       </Button>
     </div>

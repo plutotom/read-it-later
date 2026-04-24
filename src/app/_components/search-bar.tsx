@@ -6,7 +6,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Search, X, Loader2 } from "lucide-react";
 
@@ -32,8 +31,10 @@ export function SearchBar({
   isLoading = false,
 }: SearchBarProps) {
   const [isFocused, setIsFocused] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const expanded = isHovered || isFocused || value.length > 0;
 
   useEffect(() => {
     if (autoFocus && inputRef.current) {
@@ -44,6 +45,18 @@ export function SearchBar({
   useEffect(() => {
     setShowSuggestions(isFocused && suggestions.length > 0 && value.length > 0);
   }, [isFocused, suggestions.length, value.length]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,56 +79,82 @@ export function SearchBar({
   return (
     <div className="relative w-full">
       <form onSubmit={handleSubmit} className="relative">
-        {/* Search input */}
-        <div className="relative">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+        <div
+          className="relative"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          <div
+            className="flex h-9 cursor-text items-center gap-2 overflow-hidden rounded-lg px-2.5 text-sm transition-[width,background-color,border-color] duration-[320ms]"
+            style={{
+              width: expanded ? "min(100%, 280px)" : "36px",
+              backgroundColor: expanded ? "var(--background-deep)" : "transparent",
+              border: `1px solid ${expanded ? "var(--rule)" : "transparent"}`,
+              transitionTimingFunction: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+            }}
+            onClick={() => inputRef.current?.focus()}
+          >
             {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
             ) : (
-              <Search className="h-4 w-4 text-gray-400" />
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+            )}
+
+            <input
+              ref={inputRef}
+              type="text"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => {
+                setTimeout(() => setIsFocused(false), 150);
+              }}
+              placeholder={placeholder}
+              className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              style={{
+                opacity: expanded ? 1 : 0,
+                pointerEvents: expanded ? "auto" : "none",
+                transition: "opacity 220ms ease 80ms",
+              }}
+            />
+
+            {value.length === 0 && (
+              <span
+                className="shrink-0 rounded border border-rule px-1 py-0.5 text-[10px] tracking-widest text-muted-foreground"
+                style={{
+                  opacity: expanded ? 1 : 0,
+                  transition: "opacity 180ms ease",
+                }}
+              >
+                ⌘K
+              </span>
+            )}
+
+            {value && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={handleClear}
+                className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             )}
           </div>
-
-          <Input
-            ref={inputRef}
-            type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => {
-              // Delay hiding suggestions to allow clicks
-              setTimeout(() => setIsFocused(false), 150);
-            }}
-            placeholder={placeholder}
-            className="border-gray-600 bg-gray-700 py-3 pr-10 pl-10 text-white placeholder:text-gray-400"
-          />
-
-          {/* Clear button */}
-          {value && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={handleClear}
-              className="absolute inset-y-0 right-0 h-full w-10 text-gray-400 hover:bg-transparent hover:text-gray-300"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
         </div>
       </form>
 
-      {/* Search suggestions */}
       {showSuggestions && (
-        <div className="bg-card absolute top-full right-0 left-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-700 shadow-lg">
+        <div className="absolute top-full right-0 left-0 z-50 mt-2 max-h-60 overflow-y-auto rounded-2xl border border-rule bg-surface shadow-[var(--shadow-soft)]">
           {suggestions.map((suggestion, index) => (
             <Button
               key={index}
               variant="ghost"
               onClick={() => handleSuggestionClick(suggestion)}
-              className="w-full justify-start border-b border-gray-700 px-4 py-3 text-left text-sm text-gray-300 first:rounded-t-lg last:rounded-b-lg last:border-b-0 hover:bg-gray-700"
+              className="w-full justify-start border-b border-rule px-4 py-3 text-left text-sm text-foreground-soft first:rounded-t-2xl last:rounded-b-2xl last:border-b-0 hover:bg-background-deep hover:text-foreground"
             >
-              <Search className="mr-3 h-4 w-4 text-gray-400" />
+              <Search className="mr-3 h-4 w-4 text-muted-foreground" />
               <span>{suggestion}</span>
             </Button>
           ))}

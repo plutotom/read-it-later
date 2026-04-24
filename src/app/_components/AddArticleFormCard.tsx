@@ -1,15 +1,10 @@
 import { GeneralContext } from "../(protected)/contexts/general-context";
 import { useContext, useRef, useEffect, useMemo } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
 import { cn } from "~/lib/utils";
 import { AddArticleForm } from "./add-article-form";
 import { api } from "~/trpc/react";
+import { X } from "lucide-react";
+import { Button } from "~/components/ui/button";
 
 export function AddArticleFormCard() {
   const {
@@ -19,32 +14,19 @@ export function AddArticleFormCard() {
     setMetadataEditArticle,
   } = useContext(GeneralContext);
   const backdropRef = useRef<HTMLDivElement>(null);
-  const justOpenedRef = useRef(false);
   const utils = api.useUtils();
   const isMetadataMode = !!metadataEditArticle;
   const isOpen = isAddFormOpen || isMetadataMode;
 
-  // Prevent click away from firing immediately when form opens
   useEffect(() => {
-    if (isOpen) {
-      justOpenedRef.current = true;
-      const timer = setTimeout(() => {
-        justOpenedRef.current = false;
-      }, 100);
-      return () => clearTimeout(timer);
-    }
+    document.body.style.overflow = isOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [isOpen]);
 
-  // Close form when clicking on backdrop
   const handleBackdropClick = (e: React.MouseEvent) => {
-    console.log("handleBackdropClick");
-    // Only close if clicking on backdrop area (not on the card)
-    const clickedElement = e.target as HTMLElement;
-    const cardElement =
-      clickedElement.closest("[data-radix-card]") ||
-      clickedElement.closest(".relative.z-10");
-
-    if (!cardElement && !justOpenedRef.current) {
+    if (e.target === backdropRef.current) {
       setIsAddFormOpen(false);
       setMetadataEditArticle(null);
     }
@@ -55,11 +37,12 @@ export function AddArticleFormCard() {
     setMetadataEditArticle(null);
   };
 
-  // const { data: articles, isLoading, error } = api.article.getAll.useQuery();
-  // const { data: folders } = api.folder.getAll.useQuery();
+  const { data: folders } = api.folder.getAll.useQuery(undefined, {
+    staleTime: 60_000,
+  });
+
   const createArticle = api.article.create.useMutation({
     onSuccess: () => {
-      // Invalidate and refetch the articles list
       void utils.article.getAll.invalidate();
       handleClose();
     },
@@ -67,7 +50,6 @@ export function AddArticleFormCard() {
 
   const createArticleFromText = api.article.createFromText.useMutation({
     onSuccess: () => {
-      // Invalidate and refetch the articles list
       void utils.article.getAll.invalidate();
       handleClose();
     },
@@ -141,16 +123,47 @@ export function AddArticleFormCard() {
       )}
       onClick={handleBackdropClick}
     >
-      <div className="flex h-full items-center justify-center p-4">
-        <Card className="relative z-10 flex max-h-[90vh] w-full max-w-md flex-col">
-          <CardHeader className="shrink-0">
-            <CardTitle>{headerTitle}</CardTitle>
-            <CardDescription>{headerDescription}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto">
+      <div className="flex h-full items-end justify-center p-0 sm:items-center sm:p-4">
+        <div
+          className="relative z-10 flex max-h-[92svh] w-full flex-col overflow-hidden rounded-t-[1.75rem] border border-rule bg-surface shadow-strong m-fade-up sm:max-h-[90vh] sm:max-w-md sm:rounded-[1.75rem]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="shrink-0 border-b border-rule bg-surface/95 px-4 pt-3 pb-4 backdrop-blur-xl sm:px-5 sm:pt-4">
+            <div className="mb-3 flex justify-center sm:hidden">
+              <div className="h-1.5 w-12 rounded-full bg-rule" />
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2
+                  className="text-[1.65rem] leading-[1.05] font-medium tracking-tight text-foreground"
+                  style={{ fontFamily: "var(--font-app-display)" }}
+                >
+                  {headerTitle}
+                </h2>
+                <p className="mt-1 text-sm leading-relaxed text-foreground-soft">
+                  {headerDescription}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={handleClose}
+                className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-background-deep hover:text-foreground"
+                aria-label="Close add article composer"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div
+            className="flex-1 overflow-y-auto px-4 py-4 sm:px-5"
+            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          >
             <AddArticleForm
               onSubmit={handleArticleSubmit}
-              // folders={folders}
+              folders={folders}
               isLoading={
                 createArticle.isPending ||
                 createArticleFromText.isPending ||
@@ -161,8 +174,8 @@ export function AddArticleFormCard() {
               submitLabel={isMetadataMode ? "Save changes" : undefined}
               onCancel={handleClose}
             />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

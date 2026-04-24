@@ -17,30 +17,41 @@ interface DesktopNavProps {
  */
 export function DesktopNav({ pageTitle }: DesktopNavProps) {
   const { data: session } = useSession();
+  const userInitial = (session?.user.name ?? session?.user.email ?? "U")
+    .charAt(0)
+    .toUpperCase();
 
   return (
-    <header className="bg-background/80 sticky top-0 z-40 border-b border-white/5 backdrop-blur-xl">
-      <div className="flex h-14 items-center justify-between px-4">
-        {/* Left side: Mobile trigger + Title */}
+    <header className="bg-background/90 sticky top-0 z-40 border-b border-rule backdrop-blur-xl">
+      <div className="flex h-14 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-3">
-          {/* Mobile: Show sidebar trigger */}
           <div className="md:hidden">
-            <SidebarTrigger className="h-8 w-8 text-gray-400 hover:text-white" />
+            <SidebarTrigger className="h-8 w-8 rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground" />
           </div>
 
-          {/* Logo/Brand */}
           <div className="flex items-center gap-2">
-            <div className="hidden h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 md:flex">
-              <span className="text-xs font-bold text-white">R</span>
+            <div className="hidden h-7 w-7 items-center justify-center rounded-[8px] bg-accent text-white shadow-[var(--shadow-soft)] md:flex">
+              <span
+                className="text-[15px] font-bold leading-none"
+                style={{
+                  fontFamily: "var(--font-app-display)",
+                  letterSpacing: "-0.03em",
+                }}
+              >
+                M
+              </span>
             </div>
-            <h1 className="text-lg font-semibold text-white">
-              <span className="hidden md:inline">Read It Later: </span>
+            <h1
+              className="text-lg font-medium tracking-tight text-foreground"
+              style={{ fontFamily: "var(--font-app-display)" }}
+            >
+              <span className="hidden md:inline">Read It Later</span>
+              <span className="hidden text-foreground-soft md:inline"> / </span>
               {pageTitle}
             </h1>
           </div>
         </div>
 
-        {/* Desktop: Show navigation links and user info */}
         <nav className="hidden items-center gap-1 md:flex">
           {mainNavItems.map((item) => (
             <NavLink key={item.title} item={item} variant="desktop" />
@@ -50,21 +61,18 @@ export function DesktopNav({ pageTitle }: DesktopNavProps) {
             <>
               <Separator
                 orientation="vertical"
-                className="mx-2 h-5 bg-white/10"
+                className="mx-2 h-5 bg-rule"
               />
               <UserMenu showName />
             </>
           )}
         </nav>
 
-        {/* Mobile: User avatar indicator (menu is in sidebar) */}
         <div className="flex items-center md:hidden">
           {session?.user && (
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
-              <span className="text-xs font-medium text-white">
-                {(session.user.name ?? session.user.email ?? "U")
-                  .charAt(0)
-                  .toUpperCase()}
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent">
+              <span className="text-xs font-medium text-accent-foreground">
+                {userInitial}
               </span>
             </div>
           )}
