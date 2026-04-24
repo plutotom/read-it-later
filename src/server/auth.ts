@@ -7,6 +7,11 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
+  session: {
+    // Keep users signed in longer and extend active sessions automatically.
+    expiresIn: 60 * 60 * 24 * 30, // 30 days
+    updateAge: 60 * 60 * 24, // refresh every 24h of activity
+  },
   emailAndPassword: {
     enabled: false,
   },
