@@ -5,6 +5,10 @@
 
 import { Readability } from "@mozilla/readability";
 import { JSDOM } from "jsdom";
+import {
+  countArticleWords,
+  readingTimeFromWordCount,
+} from "~/server/lib/articleWordCount";
 import type { ArticleExtractionResult } from "~/types/article";
 
 export class ArticleExtractor {
@@ -116,13 +120,9 @@ export class ArticleExtractor {
     const processedContent = this.processPictureElements(article.content || "");
     const finalContent = this.processLinks(processedContent, urlObj);
 
-    // Calculate word count and reading time from text content
-    const wordCount =
-      article.length ||
-      article.textContent?.split(/\s+/).filter((word) => word.length > 0)
-        .length ||
-      0;
-    const readingTime = Math.max(1, Math.ceil(wordCount / 200)); // Average reading speed
+    // Word count from text only — Readability's `length` is *characters*, not words.
+    const wordCount = countArticleWords(article.textContent ?? "");
+    const readingTime = readingTimeFromWordCount(wordCount, { minMinutes: 1 });
 
     // Extract additional metadata from original HTML
     const metadata = this.extractMetadata(html, urlObj);
@@ -179,11 +179,10 @@ export class ArticleExtractor {
       content = `<p>Content extraction failed for ${url}. The article is available at the original URL.</p>`;
     }
 
-    const wordCount = content
-      .replace(/<[^>]*>/g, "")
-      .split(/\s+/)
-      .filter((word) => word.length > 0).length;
-    const readingTime = Math.max(1, Math.ceil(wordCount / 200));
+    const wordCount = countArticleWords(
+      content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " "),
+    );
+    const readingTime = readingTimeFromWordCount(wordCount, { minMinutes: 1 });
 
     return {
       title: this.cleanText(title),

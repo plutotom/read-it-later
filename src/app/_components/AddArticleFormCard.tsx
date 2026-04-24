@@ -1,5 +1,5 @@
 import { GeneralContext } from "../(protected)/contexts/general-context";
-import { useContext, useRef, useEffect, useMemo } from "react";
+import { useContext, useEffect, useMemo } from "react";
 import { cn } from "~/lib/utils";
 import { AddArticleForm } from "./add-article-form";
 import { api } from "~/trpc/react";
@@ -13,7 +13,6 @@ export function AddArticleFormCard() {
     metadataEditArticle,
     setMetadataEditArticle,
   } = useContext(GeneralContext);
-  const backdropRef = useRef<HTMLDivElement>(null);
   const utils = api.useUtils();
   const isMetadataMode = !!metadataEditArticle;
   const isOpen = isAddFormOpen || isMetadataMode;
@@ -25,8 +24,8 @@ export function AddArticleFormCard() {
     };
   }, [isOpen]);
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === backdropRef.current) {
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
       setIsAddFormOpen(false);
       setMetadataEditArticle(null);
     }
@@ -116,14 +115,15 @@ export function AddArticleFormCard() {
 
   return (
     <div
-      ref={backdropRef}
       className={cn(
         "fixed inset-0 z-50 bg-black/50 backdrop-blur-sm",
         isOpen ? "block" : "hidden",
       )}
-      onClick={handleBackdropClick}
     >
-      <div className="flex h-full items-end justify-center p-0 sm:items-center sm:p-4">
+      <div
+        className="flex h-full items-end justify-center p-0 sm:items-center sm:p-4"
+        onClick={handleOverlayClick}
+      >
         <div
           className="relative z-10 flex max-h-[92svh] w-full flex-col overflow-hidden rounded-t-[1.75rem] border border-rule bg-surface shadow-strong m-fade-up sm:max-h-[90vh] sm:max-w-md sm:rounded-[1.75rem]"
           onClick={(e) => e.stopPropagation()}

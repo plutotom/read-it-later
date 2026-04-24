@@ -10,6 +10,10 @@ import { ArticleExtractor } from "~/server/services/articleExtractor";
 import { articleCreateFromTextSchema } from "~/schemas/article";
 import { JSDOM } from "jsdom";
 import { nanoid } from "nanoid";
+import {
+  countArticleWords,
+  readingTimeFromWordCount,
+} from "~/server/lib/articleWordCount";
 
 export const articleRouter = createTRPCRouter({
   getAll: protectedProcedure.query(async ({ ctx }) => {
@@ -87,10 +91,8 @@ export const articleRouter = createTRPCRouter({
       const dom = new JSDOM(input.content);
       const document = dom.window.document;
       const plainText = document.textContent ?? "";
-      const wordCount = plainText
-        .split(/\s+/)
-        .filter((word) => word.length > 0).length;
-      const readingTime = Math.ceil(wordCount / 200); // 200 words per minute
+      const wordCount = countArticleWords(plainText);
+      const readingTime = readingTimeFromWordCount(wordCount);
 
       // Extract excerpt from first paragraph
       const firstParagraph = document.querySelector("p");

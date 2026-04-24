@@ -7,6 +7,10 @@ import { articleCreateFromTextSchema } from "~/schemas/article";
 import { auth } from "~/server/auth";
 import { JSDOM } from "jsdom";
 import { ZodError } from "zod";
+import {
+  countArticleWords,
+  readingTimeFromWordCount,
+} from "~/server/lib/articleWordCount";
 
 export async function POST(_req: NextRequest) {
   try {
@@ -41,10 +45,8 @@ export async function POST(_req: NextRequest) {
     const dom = new JSDOM(validated.content);
     const document = dom.window.document;
     const plainText = document.textContent ?? "";
-    const wordCount = plainText
-      .split(/\s+/)
-      .filter((word) => word.length > 0).length;
-    const readingTime = Math.ceil(wordCount / 200); // 200 words per minute
+    const wordCount = countArticleWords(plainText);
+    const readingTime = readingTimeFromWordCount(wordCount);
 
     // Extract excerpt from first paragraph
     const firstParagraph = document.querySelector("p");
