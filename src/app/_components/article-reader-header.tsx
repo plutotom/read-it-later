@@ -12,6 +12,7 @@ import { Button } from "~/components/ui/button";
 import { Settings, ArrowLeft, Star } from "lucide-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
+import { withViewTransition } from "~/lib/with-view-transition";
 import { HighlightsMenu } from "./highlights-menu";
 import { cn } from "~/lib/utils";
 
@@ -67,11 +68,13 @@ export function ArticleReaderHeader({
       typeof window !== "undefined" &&
       referrer.startsWith(window.location.origin);
 
-    if (hasHistory && isFromSameOrigin) {
-      router.back();
-    } else {
-      router.push("/");
-    }
+    withViewTransition(() => {
+      if (hasHistory && isFromSameOrigin) {
+        router.back();
+      } else {
+        router.push("/");
+      }
+    });
   };
 
   const handleToggleSaved = () => {

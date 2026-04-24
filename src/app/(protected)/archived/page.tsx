@@ -2,6 +2,7 @@
 
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
+import { withViewTransition } from "~/lib/with-view-transition";
 import { ArticleList } from "../../_components/article-list";
 import { Layout } from "../../_components/layout";
 
@@ -53,7 +54,9 @@ export default function ArchivedPage() {
           <ArticleList
             articles={articles ?? []}
             isLoading={isLoading}
-            onArticleClick={(article) => router.push(`/article/${article.id}`)}
+            onArticleClick={(article) =>
+              withViewTransition(() => router.push(`/article/${article.id}`))
+            }
             onUnarchive={handleUnarchive}
             onDelete={handleDelete}
             showSearch

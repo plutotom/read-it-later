@@ -3,6 +3,7 @@
 import React, { use } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
+import { withViewTransition } from "~/lib/with-view-transition";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
@@ -147,7 +148,11 @@ export default function FolderViewPage({ params }: FolderViewPageProps) {
               <Card
                 key={article.id}
                 className="hover:bg-accent cursor-pointer transition-colors"
-                onClick={() => router.push(`/article/${article.id}`)}
+                onClick={() =>
+                  withViewTransition(() =>
+                    router.push(`/article/${article.id}`),
+                  )
+                }
               >
                 <CardHeader>
                   <div className="flex items-start justify-between">
