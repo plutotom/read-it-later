@@ -9,7 +9,14 @@ import { type Article } from "~/types/article";
 import { type Highlight } from "~/types/annotation";
 import { ReadingSettings } from "./reading-settings";
 import { Button } from "~/components/ui/button";
-import { Settings, ArrowLeft, Star } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
+import { Settings, ArrowLeft, Archive, MoreVertical, Trash2 } from "lucide-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
 import { withViewTransition } from "~/lib/with-view-transition";
@@ -42,6 +49,7 @@ export function ArticleReaderHeader({
   onHighlightNoteUpdate,
 }: ArticleReaderHeaderProps) {
   const utils = api.useUtils();
+  const router = useRouter();
   const { mutate: archive } = api.article.archive.useMutation({
     onSuccess: () => {
       void utils.article.get.invalidate({ id: article.id });
@@ -56,7 +64,15 @@ export function ArticleReaderHeader({
       void utils.article.getArchived.invalidate();
     },
   });
-  const router = useRouter();
+  const { mutate: deleteArticle } = api.article.delete.useMutation({
+    onSuccess: () => {
+      void utils.article.getAll.invalidate();
+      void utils.article.getArchived.invalidate();
+      withViewTransition(() => {
+        router.push("/");
+      });
+    },
+  });
 
   // Smart back navigation: use history if available, otherwise go to inbox
   const handleBackClick = () => {
@@ -77,11 +93,17 @@ export function ArticleReaderHeader({
     });
   };
 
-  const handleToggleSaved = () => {
-    if (article.isArchived) {
-      unarchive({ id: article.id });
-    } else {
-      archive({ id: article.id });
+  const handleArchive = () => {
+    archive({ id: article.id });
+  };
+
+  const handleUnarchive = () => {
+    unarchive({ id: article.id });
+  };
+
+  const handleDelete = () => {
+    if (confirm("Are you sure you want to delete this article?")) {
+      deleteArticle({ id: article.id });
     }
   };
 
@@ -138,20 +160,39 @@ export function ArticleReaderHeader({
             <Settings className="h-4 w-4" />
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleToggleSaved}
-            className="h-8 w-8 rounded-full text-foreground-soft hover:bg-foreground/10 hover:text-foreground"
-            aria-label={article.isArchived ? "Remove from saved" : "Save article"}
-          >
-            <Star
-              className={cn(
-                "h-4 w-4",
-                article.isArchived && "fill-current text-accent",
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full text-foreground-soft hover:bg-foreground/10 hover:text-foreground"
+                aria-label="Article actions"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {article.isArchived ? (
+                <DropdownMenuItem onClick={handleUnarchive}>
+                  <Archive className="mr-2 h-4 w-4" />
+                  Unarchive
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={handleArchive}>
+                  <Archive className="mr-2 h-4 w-4" />
+                  Archive
+                </DropdownMenuItem>
               )}
-            />
-          </Button>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleDelete}
+                className="text-red-400 focus:bg-red-900/30 focus:text-red-400"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
