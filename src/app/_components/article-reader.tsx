@@ -13,6 +13,7 @@ import { ArticleMetadata } from "./article-metadata";
 import { ArticleContent } from "./article-content";
 import { StandaloneNotes } from "./standalone-notes";
 import { applyHighlights, type HighlightData } from "~/lib/highlihgter-util";
+import { cn } from "~/lib/utils";
 import { AudioPlayer } from "./audio-player";
 
 interface ArticleReaderProps {
@@ -49,7 +50,10 @@ export function ArticleReader({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const markedAsReadRef = useRef<string | null>(null);
   const onMarkAsReadRef = useRef(onMarkAsRead);
+  const lastScrollTopRef = useRef(0);
+  const hideScrollAccumulatorRef = useRef(0);
   const [progress, setProgress] = useState(0);
+  const [isPlayerVisible, setIsPlayerVisible] = useState(true);
 
   // Convert Highlight[] to HighlightData[] for internal use
   const convertHighlightsToHighlightData = useCallback(
@@ -218,22 +222,43 @@ export function ArticleReader({
   }, [autoHighlight]);
 
   useEffect(() => {
+    lastScrollTopRef.current = 0;
+    hideScrollAccumulatorRef.current = 0;
+    setIsPlayerVisible(true);
+  }, [article.id]);
+
+  useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
 
     const onScroll = () => {
+      const scrollTop = el.scrollTop;
       const max = el.scrollHeight - el.clientHeight;
-      setProgress(max > 0 ? (el.scrollTop / max) * 100 : 0);
+      setProgress(max > 0 ? (scrollTop / max) * 100 : 0);
+
+      const delta = scrollTop - lastScrollTopRef.current;
+      if (scrollTop <= 12) {
+        hideScrollAccumulatorRef.current = 0;
+        setIsPlayerVisible(true);
+      } else if (delta > 0) {
+        hideScrollAccumulatorRef.current += delta;
+        if (hideScrollAccumulatorRef.current >= 48) {
+          setIsPlayerVisible(false);
+        }
+      } else if (delta < 0) {
+        hideScrollAccumulatorRef.current = 0;
+        setIsPlayerVisible(true);
+      }
+      lastScrollTopRef.current = scrollTop;
     };
 
     onScroll();
-    el.addEventListener("scroll", onScroll);
+    el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
   }, [article.id]);
 
   return (
-    <div className="bg-foreground/30 min-h-screen backdrop-blur-[4px]">
-      <div className="ml-auto flex min-h-screen w-full max-w-[880px] flex-col bg-background shadow-[var(--shadow-strong)] m-slide-in">
+    <div className="relative flex h-dvh w-full flex-col bg-background m-slide-in">
         <ArticleReaderHeader
           article={article}
           showSettings={showSettings}
@@ -256,7 +281,7 @@ export function ArticleReader({
 
         <div
           ref={scrollerRef}
-          className="relative flex-1 overflow-y-auto px-5 pt-8 pb-36 sm:px-8 sm:pt-12"
+          className="flex-1 min-h-0 overflow-y-auto px-5 pt-8 pb-28 sm:px-8 sm:pt-12 sm:pb-32"
         >
           <article className="mx-auto max-w-[640px]">
             <ArticleMetadata article={article} />
@@ -278,14 +303,27 @@ export function ArticleReader({
               onTextSelection={onTextSelection}
             />
           </article>
+        </div>
 
-          <div className="pointer-events-none absolute right-5 bottom-5 left-5 sm:right-6 sm:bottom-6 sm:left-6">
-            <div className="pointer-events-auto">
-              <AudioPlayer articleId={article.id} />
-            </div>
+        <div
+          className={cn(
+            "reader-audio-dock pointer-events-none absolute inset-x-0 z-20 px-5 sm:px-8",
+            "bottom-[max(1.25rem,env(safe-area-inset-bottom))]",
+            isPlayerVisible
+              ? "reader-audio-dock--visible"
+              : "reader-audio-dock--hidden",
+          )}
+        >
+          <div
+            key={article.id}
+            className={cn(
+              "reader-audio-dock__inner reader-audio-dock__inner--enter mx-auto max-w-[640px]",
+              isPlayerVisible ? "pointer-events-auto" : "pointer-events-none",
+            )}
+          >
+            <AudioPlayer articleId={article.id} />
           </div>
         </div>
-      </div>
     </div>
   );
 }
