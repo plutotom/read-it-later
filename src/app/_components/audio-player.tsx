@@ -15,16 +15,29 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
-import { DEFAULT_VOICE } from "~/lib/tts-voices";
+import { DEFAULT_VOICE, getVoiceOption } from "~/lib/tts-voices";
+import { isPlaybackSpeed } from "~/lib/playback-speed";
+import { cn } from "~/lib/utils";
+import { AudioPlayerExpanded } from "./audio-player-expanded";
+import { AudioPlayerSheet } from "./audio-player-sheet";
+import { PlaybackSpeedPicker } from "./playback-speed-picker";
 
 interface AudioPlayerProps {
   articleId: string;
+  articleTitle: string;
+  articleUrl: string;
+  articleAuthor?: string | null;
+  articleImageUrl?: string | null;
+  /** Scroll article to approximate listen position (0–1). */
+  onJumpToReadingPosition?: (progressRatio: number) => void;
 }
 
 type PlayerState = "idle" | "generating" | "loading" | "ready" | "error";
 
-const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
-const PROGRESS_SAVE_INTERVAL = 5000; // Save progress every 5 seconds
+const PROGRESS_SAVE_INTERVAL = 5000;
+
+const DOCK_CLASS =
+  "rounded-2xl border border-rule bg-surface px-4 py-3 shadow-[var(--shadow-strong)]";
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -32,7 +45,14 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-export function AudioPlayer({ articleId }: AudioPlayerProps) {
+export function AudioPlayer({
+  articleId,
+  articleTitle,
+  articleUrl,
+  articleAuthor,
+  articleImageUrl,
+  onJumpToReadingPosition,
+}: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressSaveRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -42,46 +62,39 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
   const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
-  // Check if audio already exists
   const { data: audioStatus, isLoading: isCheckingStatus } =
     api.tts.getStatus.useQuery(
       { articleId },
-      {
-        refetchOnWindowFocus: false,
-        staleTime: Infinity,
-      },
+      { refetchOnWindowFocus: false, staleTime: Infinity },
     );
 
-  // Generate audio mutation
   const generateAudio = api.tts.getAudio.useQuery(
     { articleId },
-    {
-      enabled: false, // Only fetch when explicitly called
-      refetchOnWindowFocus: false,
-    },
+    { enabled: false, refetchOnWindowFocus: false },
   );
 
-  // Regenerate audio mutation (for voice override)
   const regenerateAudio = api.tts.regenerateAudio.useMutation();
-
-  // Update progress mutation
   const updateProgress = api.tts.updateProgress.useMutation();
-
   const { data: voiceConfig } = api.tts.getVoiceConfig.useQuery();
 
-  // Load saved playback speed from localStorage
+  const voiceName = voiceConfig?.voiceName ?? DEFAULT_VOICE;
+  const voiceLabel = (() => {
+    const v = getVoiceOption(voiceName);
+    return v ? `Voice · ${v.label}` : null;
+  })();
+
   useEffect(() => {
     const savedSpeed = localStorage.getItem("tts-playback-speed");
     if (savedSpeed) {
       const speed = parseFloat(savedSpeed);
-      if (PLAYBACK_SPEEDS.includes(speed as (typeof PLAYBACK_SPEEDS)[number])) {
+      if (isPlaybackSpeed(speed)) {
         setPlaybackSpeed(speed);
       }
     }
   }, []);
 
-  // Set initial state based on audio status
   useEffect(() => {
     if (!isCheckingStatus && audioStatus) {
       if (audioStatus.hasAudio && audioStatus.audio) {
@@ -96,7 +109,6 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
     }
   }, [audioStatus, isCheckingStatus]);
 
-  // Handle audio loading
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -104,7 +116,6 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
     const handleLoadedMetadata = () => {
       setDuration(audio.duration);
       audio.playbackRate = playbackSpeed;
-      // Restore saved position
       if (audioStatus?.audio?.currentTimeSeconds) {
         audio.currentTime = audioStatus.audio.currentTimeSeconds;
       }
@@ -117,7 +128,6 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
 
     const handleEnded = () => {
       setIsPlaying(false);
-      // Save final position
       void updateProgress.mutateAsync({
         articleId,
         currentTimeSeconds: audio.duration,
@@ -147,7 +157,6 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
     updateProgress,
   ]);
 
-  // Periodic progress saving
   useEffect(() => {
     if (isPlaying) {
       progressSaveRef.current = setInterval(() => {
@@ -160,11 +169,8 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
         }
       }, PROGRESS_SAVE_INTERVAL);
     }
-
     return () => {
-      if (progressSaveRef.current) {
-        clearInterval(progressSaveRef.current);
-      }
+      if (progressSaveRef.current) clearInterval(progressSaveRef.current);
     };
   }, [isPlaying, articleId, updateProgress]);
 
@@ -174,7 +180,6 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
       setErrorMessage(null);
       try {
         if (voiceOverride) {
-          // Use regenerate mutation for specific voice
           const result = await regenerateAudio.mutateAsync({
             articleId,
             voiceName: voiceOverride,
@@ -184,7 +189,6 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
             setDuration(result.durationSeconds ?? 0);
           }
         } else {
-          // Use default query for user's preference
           const result = await generateAudio.refetch();
           if (result.data) {
             setPlayerState("loading");
@@ -214,7 +218,6 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
     } else {
       audio.pause();
       setIsPlaying(false);
-      // Save progress on pause
       void updateProgress.mutateAsync({
         articleId,
         currentTimeSeconds: audio.currentTime,
@@ -222,42 +225,67 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
     }
   }, [articleId, updateProgress]);
 
-  const handleSpeedCycle = useCallback(() => {
-    const index = PLAYBACK_SPEEDS.indexOf(
-      playbackSpeed as (typeof PLAYBACK_SPEEDS)[number],
-    );
-    const next = PLAYBACK_SPEEDS[(index + 1) % PLAYBACK_SPEEDS.length] ?? 1;
-    setPlaybackSpeed(next);
-    localStorage.setItem("tts-playback-speed", String(next));
-    if (audioRef.current) {
-      audioRef.current.playbackRate = next;
-    }
-  }, [playbackSpeed]);
+  const handleSpeedSelect = useCallback((speed: number) => {
+    setPlaybackSpeed(speed);
+    localStorage.setItem("tts-playback-speed", String(speed));
+    if (audioRef.current) audioRef.current.playbackRate = speed;
+  }, []);
 
-  const handleSeek = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+  const seekToTime = useCallback(
+    (time: number) => {
       const audio = audioRef.current;
       if (!audio || !duration) return;
-
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const percentage = x / rect.width;
-      audio.currentTime = percentage * duration;
+      const clamped = Math.max(0, Math.min(duration, time));
+      audio.currentTime = clamped;
+      setCurrentTime(clamped);
     },
     [duration],
   );
 
+  const handleMiniSeek = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      const audio = audioRef.current;
+      if (!audio || !duration) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percentage = x / rect.width;
+      seekToTime(percentage * duration);
+    },
+    [duration, seekToTime],
+  );
+
+  const skip = useCallback(
+    (deltaSeconds: number) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      seekToTime(audio.currentTime + deltaSeconds);
+    },
+    [seekToTime],
+  );
+
+  const openExpanded = useCallback(() => {
+    if (playerState === "ready") setExpanded(true);
+  }, [playerState]);
+
+  const handleJumpToReadingPosition = useCallback(() => {
+    if (!onJumpToReadingPosition || duration <= 0) return;
+    onJumpToReadingPosition(currentTime / duration);
+    setExpanded(false);
+  }, [onJumpToReadingPosition, currentTime, duration]);
+
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const audioUrl = audioStatus?.audio?.audioUrl ?? generateAudio.data?.audioUrl;
+  const canExpand = playerState === "ready";
 
   if (playerState === "idle" && !isCheckingStatus) {
     return (
-      <div className="rounded-2xl border border-rule bg-surface px-4 py-3 shadow-[var(--shadow-strong)]">
+      <div className={DOCK_CLASS}>
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => handleGenerateAudio(voiceConfig?.voiceName ?? DEFAULT_VOICE)}
+            onClick={() => handleGenerateAudio(voiceName)}
             className="h-10 w-10 rounded-full bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground"
           >
             <Headphones className="size-4" />
@@ -270,9 +298,11 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
               Listen in Matter mode
             </div>
           </div>
-          <span className="rounded-full border border-rule px-3 py-1 text-xs text-foreground-soft">
-            {playbackSpeed}x
-          </span>
+          <PlaybackSpeedPicker
+            value={playbackSpeed}
+            onChange={handleSpeedSelect}
+            variant="mini"
+          />
         </div>
       </div>
     );
@@ -280,7 +310,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
 
   if (playerState === "generating") {
     return (
-      <div className="rounded-2xl border border-rule bg-surface px-4 py-3 shadow-[var(--shadow-strong)]">
+      <div className={DOCK_CLASS}>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
             <Loader2 className="size-4 animate-spin" />
@@ -293,9 +323,12 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
               This may take a moment
             </div>
           </div>
-          <span className="rounded-full border border-rule px-3 py-1 text-xs text-foreground-soft">
-            {playbackSpeed}x
-          </span>
+          <PlaybackSpeedPicker
+            value={playbackSpeed}
+            onChange={handleSpeedSelect}
+            variant="mini"
+            disabled
+          />
         </div>
       </div>
     );
@@ -303,7 +336,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
 
   if (playerState === "error") {
     return (
-      <div className="rounded-2xl border border-rule bg-surface px-4 py-3 shadow-[var(--shadow-strong)]">
+      <div className={DOCK_CLASS}>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-background-deep text-muted-foreground">
             <AlertCircle className="size-4" />
@@ -319,7 +352,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleGenerateAudio(voiceConfig?.voiceName ?? DEFAULT_VOICE)}
+            onClick={() => handleGenerateAudio(voiceName)}
             className="rounded-full border border-rule px-3 text-xs text-foreground-soft hover:bg-background-deep hover:text-foreground"
           >
             Retry
@@ -331,7 +364,7 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
 
   if (isCheckingStatus || (playerState === "loading" && !audioUrl)) {
     return (
-      <div className="rounded-2xl border border-rule bg-surface px-4 py-3 shadow-[var(--shadow-strong)]">
+      <div className={DOCK_CLASS}>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-background-deep text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
@@ -344,71 +377,120 @@ export function AudioPlayer({ articleId }: AudioPlayerProps) {
               Preparing your narration
             </div>
           </div>
-          <span className="rounded-full border border-rule px-3 py-1 text-xs text-foreground-soft">
-            {playbackSpeed}x
-          </span>
+          <PlaybackSpeedPicker
+            value={playbackSpeed}
+            onChange={handleSpeedSelect}
+            variant="mini"
+            disabled
+          />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-rule bg-surface px-4 py-3 shadow-[var(--shadow-strong)]">
-      {audioUrl && <audio ref={audioRef} src={audioUrl} preload="metadata" />}
+    <>
+      <div className={DOCK_CLASS}>
+        {audioUrl && <audio ref={audioRef} src={audioUrl} preload="metadata" />}
 
-      <div
-        className="mb-3 h-1.5 cursor-pointer rounded-full bg-background-deep"
-        onClick={handleSeek}
-      >
         <div
-          className="h-full rounded-full bg-accent transition-[width] duration-150 ease-out"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={togglePlayPause}
-          className={`h-10 w-10 rounded-full bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground ${isPlaying ? "m-pulse" : ""}`}
-          disabled={playerState !== "ready"}
+          className={cn(
+            "mb-3 h-1.5 rounded-full bg-background-deep",
+            canExpand ? "cursor-pointer" : "",
+          )}
+          onClick={handleMiniSeek}
+          role="presentation"
         >
-          {isPlaying ? <Pause className="size-4" /> : <Play className="ml-0.5 size-4" />}
-        </Button>
-
-        {isPlaying ? (
-          <div className="flex items-end gap-0.5" aria-hidden>
-            {[0, 1, 2, 3, 4].map((i) => (
-              <span
-                key={i}
-                className="m-bar w-0.5 rounded-sm bg-accent"
-                style={{ height: 18, animationDelay: `${i * 120}ms` }}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="h-4 w-2 shrink-0" />
-        )}
-
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] font-medium tracking-tight text-foreground">
-            Article narration
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </div>
+          <div
+            className="h-full rounded-full bg-accent transition-[width] duration-150 ease-out"
+            style={{ width: `${progress}%` }}
+          />
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleSpeedCycle}
-          className="rounded-full border border-rule px-3 text-xs text-foreground-soft hover:bg-background-deep hover:text-foreground"
-        >
-          {playbackSpeed}x
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePlayPause();
+            }}
+            className={cn(
+              "h-10 w-10 shrink-0 rounded-full bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground",
+              isPlaying && "m-pulse",
+            )}
+            disabled={playerState !== "ready"}
+          >
+            {isPlaying ? (
+              <Pause className="size-4" />
+            ) : (
+              <Play className="ml-0.5 size-4" />
+            )}
+          </Button>
+
+          {isPlaying ? (
+            <div className="flex items-end gap-0.5" aria-hidden>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <span
+                  key={i}
+                  className="m-bar w-0.5 rounded-sm bg-accent"
+                  style={{ height: 18, animationDelay: `${i * 120}ms` }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="h-4 w-2 shrink-0" />
+          )}
+
+          <button
+            type="button"
+            onClick={openExpanded}
+            disabled={!canExpand}
+            className="min-w-0 flex-1 text-left disabled:cursor-default"
+            aria-label="Open expanded player"
+          >
+            <div className="truncate text-[13px] font-medium tracking-tight text-foreground">
+              {articleTitle}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </div>
+          </button>
+
+          <PlaybackSpeedPicker
+            value={playbackSpeed}
+            onChange={handleSpeedSelect}
+            variant="mini"
+            disabled={playerState !== "ready"}
+          />
+        </div>
       </div>
-    </div>
+
+      <AudioPlayerSheet
+        open={expanded}
+        onClose={() => setExpanded(false)}
+        title={`Now playing: ${articleTitle}`}
+      >
+        <AudioPlayerExpanded
+          title={articleTitle}
+          url={articleUrl}
+          author={articleAuthor}
+          imageUrl={articleImageUrl}
+          voiceLabel={voiceLabel}
+          currentTime={currentTime}
+          duration={duration}
+          isPlaying={isPlaying}
+          playbackSpeed={playbackSpeed}
+          disabled={playerState !== "ready"}
+          onSeek={seekToTime}
+          onTogglePlay={togglePlayPause}
+          onSelectSpeed={handleSpeedSelect}
+          onSkip={skip}
+          onJumpToReadingPosition={
+            onJumpToReadingPosition ? handleJumpToReadingPosition : undefined
+          }
+        />
+      </AudioPlayerSheet>
+    </>
   );
 }

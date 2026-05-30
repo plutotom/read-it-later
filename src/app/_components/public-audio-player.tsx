@@ -26,13 +26,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { PLAYBACK_SPEEDS } from "~/lib/playback-speed";
 
 interface PublicAudioPlayerProps {
   shareToken: string;
   articleId: string;
 }
 
-const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 const PROGRESS_SAVE_INTERVAL = 5000; // Save progress every 5 seconds
 
 function formatTime(seconds: number): string {

@@ -5,7 +5,7 @@
 
 "use client";
 
-import { type Article } from "~/types/article";
+import { type Article, type ArticleMetadata as ArticleMeta } from "~/types/article";
 import { type Highlight, type Note } from "~/types/annotation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ArticleReaderHeader } from "./article-reader-header";
@@ -54,6 +54,25 @@ export function ArticleReader({
   const hideScrollAccumulatorRef = useRef(0);
   const [progress, setProgress] = useState(0);
   const [isPlayerVisible, setIsPlayerVisible] = useState(true);
+
+  const articleImageUrl = (() => {
+    const meta = article.metadata as ArticleMeta | null | undefined;
+    return meta?.imageUrl ?? null;
+  })();
+
+  const handleJumpToReadingPosition = useCallback(
+    (progressRatio: number) => {
+      const scroller = scrollerRef.current;
+      if (!scroller) return;
+      const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+      if (maxScroll <= 0) return;
+      scroller.scrollTo({
+        top: maxScroll * Math.min(1, Math.max(0, progressRatio)),
+        behavior: "smooth",
+      });
+    },
+    [],
+  );
 
   // Convert Highlight[] to HighlightData[] for internal use
   const convertHighlightsToHighlightData = useCallback(
@@ -321,7 +340,14 @@ export function ArticleReader({
               isPlayerVisible ? "pointer-events-auto" : "pointer-events-none",
             )}
           >
-            <AudioPlayer articleId={article.id} />
+            <AudioPlayer
+              articleId={article.id}
+              articleTitle={article.title}
+              articleUrl={article.url}
+              articleAuthor={article.author}
+              articleImageUrl={articleImageUrl}
+              onJumpToReadingPosition={handleJumpToReadingPosition}
+            />
           </div>
         </div>
     </div>
