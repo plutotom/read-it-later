@@ -94,10 +94,12 @@ export function AudioPlayerExpanded({
   const metaLine = [domain, author].filter(Boolean).join(" · ");
 
   return (
-    <div className="flex flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-      <ArticleArtwork title={title} imageUrl={imageUrl} />
+    <div className="flex flex-col px-5 pt-2 pb-5">
+      <div className="audio-player-sheet__section">
+        <ArticleArtwork title={title} imageUrl={imageUrl} />
+      </div>
 
-      <div className="mt-4 text-center">
+      <div className="audio-player-sheet__section mt-5 text-center">
         <h2 className="line-clamp-3 text-[22px] font-semibold leading-[1.2] tracking-[-0.02em] text-foreground">
           {title}
         </h2>
@@ -111,7 +113,7 @@ export function AudioPlayerExpanded({
         ) : null}
       </div>
 
-      <div className="mt-5">
+      <div className="audio-player-sheet__section mt-5" data-sheet-no-drag>
         <AudioPlayerSeekBar
           value={currentTime}
           max={duration}
@@ -125,7 +127,10 @@ export function AudioPlayerExpanded({
         />
       </div>
 
-      <div className="relative mt-6 flex items-center justify-between overflow-visible px-0.5 pb-1">
+      <div
+        className="audio-player-sheet__section relative mt-6 flex items-center justify-between overflow-visible px-0.5 pb-1"
+        data-sheet-no-drag
+      >
         <PlaybackSpeedPicker
           value={playbackSpeed}
           onChange={onSelectSpeed}

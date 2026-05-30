@@ -71,6 +71,8 @@ export default function RootLayout({
       lang="en"
       className={`dark ${geist.variable} ${inter.variable} ${newsreader.variable} ${sourceSerif4.variable}`}
       data-theme="ember"
+      // Bootstrap script applies localStorage theme before hydration.
+      suppressHydrationWarning
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />

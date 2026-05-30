@@ -54,6 +54,29 @@ html {
   padding-right: env(safe-area-inset-right);
 }
 
+/* Anchors for bottom UI — plain CSS so iOS Safari parses env() reliably */
+.reader-audio-dock-bottom {
+  bottom: 1.25rem;
+  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+}
+
+.fab-anchor {
+  position: fixed;
+  left: 1rem;
+  right: 1rem;
+  z-index: 50;
+  bottom: 1rem;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 640px) {
+  .fab-anchor {
+    left: auto;
+    right: 1.5rem;
+    bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* Reading experience optimizations */
 .prose {
   max-width: none;
@@ -1130,9 +1153,61 @@ html[data-theme="cobalt"] {
 }
 
 /* iOS-style bottom sheet for expanded audio player */
+@keyframes audio-sheet-slide-in {
+  from {
+    transform: translate3d(0, 100%, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes audio-sheet-slide-out {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+@keyframes audio-sheet-section-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes audio-sheet-grabber-in {
+  from {
+    opacity: 0;
+    transform: scaleX(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
 .audio-player-sheet-scrim {
   background: rgba(0, 0, 0, 0.32);
-  transition: opacity 380ms cubic-bezier(0.32, 0.72, 0, 1);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.audio-player-sheet-scrim[data-state="idle"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.audio-player-sheet-scrim[data-state="open"] {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .audio-player-sheet {
@@ -1143,7 +1218,85 @@ html[data-theme="cobalt"] {
   box-shadow:
     0 0 0 0.5px color-mix(in oklch, var(--foreground) 10%, transparent),
     0 -12px 48px rgba(0, 0, 0, 0.22);
-  transition: transform 380ms cubic-bezier(0.32, 0.72, 0, 1);
+  pointer-events: none;
+  transform: translate3d(0, 100%, 0);
+  will-change: transform;
+}
+
+.audio-player-sheet[data-state="idle"],
+.audio-player-sheet[data-state="closed"] {
+  pointer-events: none;
+}
+
+.audio-player-sheet[data-state="open"] {
+  pointer-events: auto;
+  animation: audio-sheet-slide-in 440ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.audio-player-sheet[data-state="closed"] {
+  animation: audio-sheet-slide-out 340ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.audio-player-sheet[data-dragging="true"],
+.audio-player-sheet[data-dismissing="true"] {
+  animation: none !important;
+}
+
+.audio-player-sheet[data-snap-back="true"],
+.audio-player-sheet[data-dismissing="true"] {
+  transition: transform 340ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.audio-player-sheet[data-dragging="true"] {
+  touch-action: none;
+  user-select: none;
+}
+
+.audio-player-sheet__chrome {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  padding-top: 0.625rem;
+  padding-bottom: 0.375rem;
+  animation: audio-sheet-grabber-in 360ms cubic-bezier(0.22, 1, 0.36, 1) 100ms both;
+}
+
+.audio-player-sheet[data-state="closed"] .audio-player-sheet__chrome {
+  animation: none;
+  opacity: 1;
+}
+
+.audio-player-sheet__body {
+  -webkit-overflow-scrolling: touch;
+}
+
+.audio-player-sheet__section {
+  opacity: 0;
+}
+
+.audio-player-sheet[data-state="open"] .audio-player-sheet__section {
+  animation: audio-sheet-section-in 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.audio-player-sheet[data-state="open"] .audio-player-sheet__section:nth-child(1) {
+  animation-delay: 120ms;
+}
+
+.audio-player-sheet[data-state="open"] .audio-player-sheet__section:nth-child(2) {
+  animation-delay: 180ms;
+}
+
+.audio-player-sheet[data-state="open"] .audio-player-sheet__section:nth-child(3) {
+  animation-delay: 230ms;
+}
+
+.audio-player-sheet[data-state="open"] .audio-player-sheet__section:nth-child(4) {
+  animation-delay: 280ms;
+}
+
+.audio-player-sheet[data-state="closed"] .audio-player-sheet__section {
+  animation: none;
+  opacity: 1;
 }
 
 /* Frosted lift on touch devices only — desktop blur + transparency reads broken */
@@ -1260,9 +1413,28 @@ html[data-theme="cobalt"] {
   .reader-audio-dock,
   .reader-audio-dock__inner--enter,
   .audio-player-sheet,
-  .audio-player-sheet-scrim {
+  .audio-player-sheet-scrim,
+  .audio-player-sheet__section,
+  .audio-player-sheet__chrome {
     animation: none !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .audio-player-sheet[data-state="open"] {
+    transform: translate3d(0, 0, 0);
+  }
+
+  .audio-player-sheet[data-state="idle"],
+  .audio-player-sheet[data-state="closed"] {
+    transform: translate3d(0, 100%, 0);
+  }
+
+  .audio-player-sheet-scrim[data-state="open"] {
+    opacity: 1;
+  }
+
+  .audio-player-sheet__section {
+    opacity: 1;
   }
 
   .reader-audio-dock--hidden {

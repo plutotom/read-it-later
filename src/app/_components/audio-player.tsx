@@ -8,13 +8,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { api } from "~/trpc/react";
 import { Button } from "~/components/ui/button";
-import {
-  Play,
-  Pause,
-  Headphones,
-  Loader2,
-  AlertCircle,
-} from "lucide-react";
+import { Play, Pause, Headphones, Loader2, AlertCircle } from "lucide-react";
 import { DEFAULT_VOICE, getVoiceOption } from "~/lib/tts-voices";
 import { isPlaybackSpeed } from "~/lib/playback-speed";
 import { cn } from "~/lib/utils";
@@ -286,15 +280,15 @@ export function AudioPlayer({
             variant="ghost"
             size="icon"
             onClick={() => handleGenerateAudio(voiceName)}
-            className="h-10 w-10 rounded-full bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground"
+            className="bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground h-10 w-10 rounded-full"
           >
             <Headphones className="size-4" />
           </Button>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-medium tracking-tight text-foreground">
+            <div className="text-foreground truncate text-[13px] font-medium tracking-tight">
               Generate narration
             </div>
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-muted-foreground text-[11px]">
               Listen in Matter mode
             </div>
           </div>
@@ -312,14 +306,14 @@ export function AudioPlayer({
     return (
       <div className={DOCK_CLASS}>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
+          <div className="bg-accent text-accent-foreground flex h-10 w-10 items-center justify-center rounded-full">
             <Loader2 className="size-4 animate-spin" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-medium tracking-tight text-foreground">
+            <div className="text-foreground truncate text-[13px] font-medium tracking-tight">
               Generating audio
             </div>
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-muted-foreground text-[11px]">
               This may take a moment
             </div>
           </div>
@@ -338,14 +332,14 @@ export function AudioPlayer({
     return (
       <div className={DOCK_CLASS}>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-background-deep text-muted-foreground">
+          <div className="bg-background-deep text-muted-foreground flex h-10 w-10 items-center justify-center rounded-full">
             <AlertCircle className="size-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-medium tracking-tight text-foreground">
+            <div className="text-foreground truncate text-[13px] font-medium tracking-tight">
               Audio unavailable
             </div>
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-muted-foreground text-[11px]">
               {errorMessage ?? "Something went wrong"}
             </div>
           </div>
@@ -353,7 +347,7 @@ export function AudioPlayer({
             variant="ghost"
             size="sm"
             onClick={() => handleGenerateAudio(voiceName)}
-            className="rounded-full border border-rule px-3 text-xs text-foreground-soft hover:bg-background-deep hover:text-foreground"
+            className="border-rule text-foreground-soft hover:bg-background-deep hover:text-foreground rounded-full border px-3 text-xs"
           >
             Retry
           </Button>
@@ -366,14 +360,14 @@ export function AudioPlayer({
     return (
       <div className={DOCK_CLASS}>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-background-deep text-muted-foreground">
+          <div className="bg-background-deep text-muted-foreground flex h-10 w-10 items-center justify-center rounded-full">
             <Loader2 className="size-4 animate-spin" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-medium tracking-tight text-foreground">
+            <div className="text-foreground truncate text-[13px] font-medium tracking-tight">
               Loading audio
             </div>
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-muted-foreground text-[11px]">
               Preparing your narration
             </div>
           </div>
@@ -395,14 +389,14 @@ export function AudioPlayer({
 
         <div
           className={cn(
-            "mb-3 h-1.5 rounded-full bg-background-deep",
+            "bg-background-deep mb-3 h-1.5 rounded-full",
             canExpand ? "cursor-pointer" : "",
           )}
           onClick={handleMiniSeek}
           role="presentation"
         >
           <div
-            className="h-full rounded-full bg-accent transition-[width] duration-150 ease-out"
+            className="bg-accent h-full rounded-full transition-[width] duration-150 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -416,7 +410,7 @@ export function AudioPlayer({
               togglePlayPause();
             }}
             className={cn(
-              "h-10 w-10 shrink-0 rounded-full bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground",
+              "bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground h-10 w-10 shrink-0 rounded-full",
               isPlaying && "m-pulse",
             )}
             disabled={playerState !== "ready"}
@@ -433,7 +427,7 @@ export function AudioPlayer({
               {[0, 1, 2, 3, 4].map((i) => (
                 <span
                   key={i}
-                  className="m-bar w-0.5 rounded-sm bg-accent"
+                  className="m-bar bg-accent w-0.5 rounded-sm"
                   style={{ height: 18, animationDelay: `${i * 120}ms` }}
                 />
               ))}
@@ -449,10 +443,10 @@ export function AudioPlayer({
             className="min-w-0 flex-1 text-left disabled:cursor-default"
             aria-label="Open expanded player"
           >
-            <div className="truncate text-[13px] font-medium tracking-tight text-foreground">
+            <div className="text-foreground truncate text-[13px] font-medium tracking-tight">
               {articleTitle}
             </div>
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-muted-foreground text-[11px]">
               {formatTime(currentTime)} / {formatTime(duration)}
             </div>
           </button>

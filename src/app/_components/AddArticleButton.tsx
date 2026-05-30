@@ -1,5 +1,6 @@
 import { Plus, X } from "lucide-react";
 import { useContext, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { GeneralContext } from "../(protected)/contexts/general-context";
@@ -69,10 +70,10 @@ export function AddArticleButton() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []); // Remove isAddFormOpen dependency to prevent re-adding listeners
 
-  return (
+  const fab = (
     <div
       className={cn(
-        "fixed right-4 bottom-4 left-4 z-50 sm:right-6 sm:bottom-6 sm:left-auto",
+        "fab-anchor",
         "will-change-transform",
         "transition-[transform,opacity]",
         reduceMotion
@@ -111,4 +112,7 @@ export function AddArticleButton() {
       </Button>
     </div>
   );
+
+  if (typeof document === "undefined") return null;
+  return createPortal(fab, document.body);
 }

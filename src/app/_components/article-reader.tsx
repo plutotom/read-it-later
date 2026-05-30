@@ -277,57 +277,59 @@ export function ArticleReader({
   }, [article.id]);
 
   return (
-    <div className="relative flex h-dvh w-full flex-col bg-background m-slide-in">
-        <ArticleReaderHeader
-          article={article}
-          showSettings={showSettings}
-          onToggleSettings={() => setShowSettings(!showSettings)}
-          fontSize={fontSize}
-          onFontSizeChange={setFontSize}
-          autoHighlight={autoHighlight}
-          onAutoHighlightChange={setAutoHighlight}
-          highlights={initialHighlights}
-          onHighlightDelete={onHighlightDelete}
-          onHighlightNoteUpdate={onHighlightNoteUpdate}
-        />
-
-        <div className="h-[2px] bg-background-deep">
-          <div
-            className="h-full bg-accent transition-[width] duration-150 ease-out"
-            style={{ width: `${progress}%` }}
+    <div className="relative flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)]">
+        {/* m-slide-in uses transform; keep fixed/absolute docks outside it (iOS Safari) */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden m-slide-in">
+          <ArticleReaderHeader
+            article={article}
+            showSettings={showSettings}
+            onToggleSettings={() => setShowSettings(!showSettings)}
+            fontSize={fontSize}
+            onFontSizeChange={setFontSize}
+            autoHighlight={autoHighlight}
+            onAutoHighlightChange={setAutoHighlight}
+            highlights={initialHighlights}
+            onHighlightDelete={onHighlightDelete}
+            onHighlightNoteUpdate={onHighlightNoteUpdate}
           />
-        </div>
 
-        <div
-          ref={scrollerRef}
-          className="flex-1 min-h-0 overflow-y-auto px-5 pt-8 pb-28 sm:px-8 sm:pt-12 sm:pb-32"
-        >
-          <article className="mx-auto max-w-[640px]">
-            <ArticleMetadata article={article} />
-
-            {initialNotes.length > 0 && (
-              <div className="mb-8 rounded-2xl border border-rule bg-surface p-4 shadow-[var(--shadow-soft)]">
-                <StandaloneNotes
-                  notes={initialNotes}
-                  highlights={initialHighlights}
-                  onAttachToHighlight={onAttachNoteToHighlight}
-                />
-              </div>
-            )}
-
-            <ArticleContent
-              content={article.content}
-              fontSize={fontSize}
-              contentRef={contentRef}
-              onTextSelection={onTextSelection}
+          <div className="h-[2px] bg-background-deep">
+            <div
+              className="h-full bg-accent transition-[width] duration-150 ease-out"
+              style={{ width: `${progress}%` }}
             />
-          </article>
+          </div>
+
+          <div
+            ref={scrollerRef}
+            className="flex-1 min-h-0 overflow-y-auto px-5 pt-8 pb-36 sm:px-8 sm:pt-12 sm:pb-40"
+          >
+            <article className="mx-auto max-w-[640px]">
+              <ArticleMetadata article={article} />
+
+              {initialNotes.length > 0 && (
+                <div className="mb-8 rounded-2xl border border-rule bg-surface p-4 shadow-[var(--shadow-soft)]">
+                  <StandaloneNotes
+                    notes={initialNotes}
+                    highlights={initialHighlights}
+                    onAttachToHighlight={onAttachNoteToHighlight}
+                  />
+                </div>
+              )}
+
+              <ArticleContent
+                content={article.content}
+                fontSize={fontSize}
+                contentRef={contentRef}
+                onTextSelection={onTextSelection}
+              />
+            </article>
+          </div>
         </div>
 
         <div
           className={cn(
-            "reader-audio-dock pointer-events-none absolute inset-x-0 z-20 px-5 sm:px-8",
-            "bottom-[max(1.25rem,env(safe-area-inset-bottom))]",
+            "reader-audio-dock reader-audio-dock-bottom pointer-events-none absolute inset-x-0 z-30 px-5 sm:px-8",
             isPlayerVisible
               ? "reader-audio-dock--visible"
               : "reader-audio-dock--hidden",
