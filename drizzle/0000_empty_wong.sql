@@ -1,0 +1,1 @@
+-- Initial Drizzle migration placeholder (schema was bootstrapped before numbered migrations)

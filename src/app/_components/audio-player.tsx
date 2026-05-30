@@ -261,6 +261,7 @@ export function AudioPlayer({
         setDuration(info.durationSeconds);
         setPlayerState("loading");
         void utils.tts.getStatus.invalidate({ articleId });
+        void utils.tts.getUsage.invalidate();
       } catch (err) {
         setPlayerState("error");
         setErrorMessage(

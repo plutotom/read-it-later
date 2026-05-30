@@ -71,7 +71,7 @@ export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
     : null;
   const voiceLabel = selectedVoice
     ? `${selectedVoice.label} (${selectedVoice.description})`
-    : (voiceConfig?.voiceName ?? usage.voiceType);
+    : (voiceConfig?.voiceName ?? "Standard");
 
   if (compact) {
     return (

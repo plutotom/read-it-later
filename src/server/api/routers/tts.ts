@@ -15,15 +15,11 @@ import {
   generateAudioForArticle,
   deleteAudioFromBlob,
 } from "~/server/services/tts";
+import {
+  TTS_FREE_TIER_LIMIT,
+  toWeightedCharacters,
+} from "~/lib/tts-voices";
 import { nanoid } from "nanoid";
-
-// Free tier limits (characters per month)
-const FREE_TIER_LIMITS = {
-  standard: 4_000_000, // 4 million for Standard voices
-  wavenet: 1_000_000, // 1 million for WaveNet voices
-  neural2: 1_000_000, // 1 million for Neural2 voices
-  studio: 250_000, // 250k for Studio voices
-};
 
 /**
  * Get the current billing period in YYYY-MM format
@@ -35,54 +31,36 @@ function getCurrentBillingPeriod(): string {
   return `${year}-${month}`;
 }
 
-/**
- * Determine voice type from voice name
- */
-function getVoiceType(voiceName: string): keyof typeof FREE_TIER_LIMITS {
-  const lowerName = voiceName.toLowerCase();
-  if (lowerName.includes("wavenet")) return "wavenet";
-  if (lowerName.includes("neural2")) return "neural2";
-  if (lowerName.includes("studio")) return "studio";
-  return "standard";
-}
+type DbInsertClient = Pick<typeof import("~/server/db").db, "insert">;
 
 /**
- * Record TTS character usage in the database
+ * Record TTS character usage with atomic upsert (standard-equivalent weighted quota)
  */
 async function recordTTSUsage(
-  db: typeof import("~/server/db").db,
+  db: DbInsertClient,
   userId: string,
-  charactersUsed: number,
+  rawCharactersUsed: number,
   voiceName: string,
 ): Promise<void> {
   const billingPeriod = getCurrentBillingPeriod();
-  const voiceType = getVoiceType(voiceName);
+  const weightedCharacters = toWeightedCharacters(rawCharactersUsed, voiceName);
 
-  // Try to update existing record, or insert new one
-  const existingUsage = await db.query.ttsUsage.findFirst({
-    where: and(
-      eq(ttsUsage.userId, userId),
-      eq(ttsUsage.billingPeriod, billingPeriod),
-      eq(ttsUsage.voiceType, voiceType),
-    ),
-  });
-
-  if (existingUsage) {
-    await db
-      .update(ttsUsage)
-      .set({
-        charactersUsed: sql`${ttsUsage.charactersUsed} + ${charactersUsed}`,
-      })
-      .where(eq(ttsUsage.id, existingUsage.id));
-  } else {
-    await db.insert(ttsUsage).values({
+  await db
+    .insert(ttsUsage)
+    .values({
       id: nanoid(),
       userId,
       billingPeriod,
-      voiceType,
-      charactersUsed,
+      charactersUsed: weightedCharacters,
+      rawCharactersUsed,
+    })
+    .onConflictDoUpdate({
+      target: [ttsUsage.userId, ttsUsage.billingPeriod],
+      set: {
+        charactersUsed: sql`${ttsUsage.charactersUsed} + ${weightedCharacters}`,
+        rawCharactersUsed: sql`${ttsUsage.rawCharactersUsed} + ${rawCharactersUsed}`,
+      },
     });
-  }
 }
 
 /**
@@ -99,6 +77,31 @@ async function getUserVoicePreference(
   return (
     prefs?.ttsVoiceName ?? process.env.TTS_VOICE_NAME ?? "en-US-Standard-A"
   );
+}
+
+type ArticleAudioPlaybackRow = Pick<
+  typeof articleAudio.$inferSelect,
+  | "audioUrl"
+  | "durationSeconds"
+  | "fileSizeBytes"
+  | "voiceName"
+  | "currentTimeSeconds"
+  | "lastPlayedAt"
+>;
+
+function toArticleAudioPlaybackResponse(
+  audio: ArticleAudioPlaybackRow,
+  cached: boolean,
+) {
+  return {
+    audioUrl: audio.audioUrl,
+    durationSeconds: audio.durationSeconds,
+    fileSizeBytes: audio.fileSizeBytes,
+    voiceName: audio.voiceName,
+    currentTimeSeconds: audio.currentTimeSeconds,
+    lastPlayedAt: audio.lastPlayedAt,
+    cached,
+  };
 }
 
 export const ttsRouter = createTRPCRouter({
@@ -123,15 +126,7 @@ export const ttsRouter = createTRPCRouter({
       });
 
       if (existingAudio) {
-        return {
-          audioUrl: existingAudio.audioUrl,
-          durationSeconds: existingAudio.durationSeconds,
-          fileSizeBytes: existingAudio.fileSizeBytes,
-          voiceName: existingAudio.voiceName,
-          currentTimeSeconds: existingAudio.currentTimeSeconds,
-          lastPlayedAt: existingAudio.lastPlayedAt,
-          cached: true,
-        };
+        return toArticleAudioPlaybackResponse(existingAudio, true);
       }
 
       // Fetch article content (ensure user owns it)
@@ -151,44 +146,39 @@ export const ttsRouter = createTRPCRouter({
         input.voiceName ??
         (await getUserVoicePreference(ctx.db, ctx.session.user.id));
 
-      // Generate audio
+      // Generate audio (external API — outside transaction)
       const result = await generateAudioForArticle(
         input.articleId,
         article.content,
         voiceName,
       );
 
-      // Record TTS usage
-      await recordTTSUsage(
-        ctx.db,
-        ctx.session.user.id,
-        result.charactersUsed,
-        result.voiceName,
-      );
+      // Persist usage + audio atomically
+      const newAudio = await ctx.db.transaction(async (tx) => {
+        await recordTTSUsage(
+          tx,
+          ctx.session.user.id,
+          result.rawCharactersUsed,
+          result.voiceName,
+        );
 
-      // Save to database
-      const [newAudio] = await ctx.db
-        .insert(articleAudio)
-        .values({
-          userId: ctx.session.user.id,
-          articleId: input.articleId,
-          audioUrl: result.audioUrl,
-          voiceName: result.voiceName,
-          durationSeconds: result.durationSeconds,
-          fileSizeBytes: result.fileSizeBytes,
-          generatedAt: new Date(),
-        })
-        .returning();
+        const [audio] = await tx
+          .insert(articleAudio)
+          .values({
+            userId: ctx.session.user.id,
+            articleId: input.articleId,
+            audioUrl: result.audioUrl,
+            voiceName: result.voiceName,
+            durationSeconds: result.durationSeconds,
+            fileSizeBytes: result.fileSizeBytes,
+            generatedAt: new Date(),
+          })
+          .returning();
 
-      return {
-        audioUrl: newAudio!.audioUrl,
-        durationSeconds: newAudio!.durationSeconds,
-        fileSizeBytes: newAudio!.fileSizeBytes,
-        voiceName: newAudio!.voiceName,
-        currentTimeSeconds: newAudio!.currentTimeSeconds,
-        lastPlayedAt: newAudio!.lastPlayedAt,
-        cached: false,
-      };
+        return audio!;
+      });
+
+      return toArticleAudioPlaybackResponse(newAudio, false);
     }),
 
   /**
@@ -274,41 +264,39 @@ export const ttsRouter = createTRPCRouter({
         input.voiceName ??
         (await getUserVoicePreference(ctx.db, ctx.session.user.id));
 
-      // Generate new audio
+      // Generate new audio (external API — outside transaction)
       const result = await generateAudioForArticle(
         input.articleId,
         article.content,
         voiceName,
       );
 
-      // Record TTS usage
-      await recordTTSUsage(
-        ctx.db,
-        ctx.session.user.id,
-        result.charactersUsed,
-        result.voiceName,
-      );
+      // Persist usage + audio atomically
+      const newAudio = await ctx.db.transaction(async (tx) => {
+        await recordTTSUsage(
+          tx,
+          ctx.session.user.id,
+          result.rawCharactersUsed,
+          result.voiceName,
+        );
 
-      // Save to database
-      const [newAudio] = await ctx.db
-        .insert(articleAudio)
-        .values({
-          userId: ctx.session.user.id,
-          articleId: input.articleId,
-          audioUrl: result.audioUrl,
-          voiceName: result.voiceName,
-          durationSeconds: result.durationSeconds,
-          fileSizeBytes: result.fileSizeBytes,
-          generatedAt: new Date(),
-        })
-        .returning();
+        const [audio] = await tx
+          .insert(articleAudio)
+          .values({
+            userId: ctx.session.user.id,
+            articleId: input.articleId,
+            audioUrl: result.audioUrl,
+            voiceName: result.voiceName,
+            durationSeconds: result.durationSeconds,
+            fileSizeBytes: result.fileSizeBytes,
+            generatedAt: new Date(),
+          })
+          .returning();
 
-      return {
-        audioUrl: newAudio!.audioUrl,
-        durationSeconds: newAudio!.durationSeconds,
-        fileSizeBytes: newAudio!.fileSizeBytes,
-        voiceName: newAudio!.voiceName,
-      };
+        return audio!;
+      });
+
+      return toArticleAudioPlaybackResponse(newAudio, false);
     }),
 
   /**
@@ -392,24 +380,21 @@ export const ttsRouter = createTRPCRouter({
   }),
 
   /**
-   * Get TTS usage statistics for the current billing period
+   * Get TTS usage statistics for the current billing period (standard-equivalent quota)
    */
   getUsage: protectedProcedure.query(async ({ ctx }) => {
     const billingPeriod = getCurrentBillingPeriod();
-    const voiceName = await getUserVoicePreference(ctx.db, ctx.session.user.id);
-    const voiceType = getVoiceType(voiceName);
-    const freeLimit = FREE_TIER_LIMITS[voiceType];
 
-    // Get usage for current billing period for this user
     const usage = await ctx.db.query.ttsUsage.findFirst({
       where: and(
         eq(ttsUsage.userId, ctx.session.user.id),
         eq(ttsUsage.billingPeriod, billingPeriod),
-        eq(ttsUsage.voiceType, voiceType),
       ),
     });
 
     const charactersUsed = usage?.charactersUsed ?? 0;
+    const rawCharactersUsed = usage?.rawCharactersUsed ?? 0;
+    const freeLimit = TTS_FREE_TIER_LIMIT;
     const charactersRemaining = Math.max(0, freeLimit - charactersUsed);
     const percentageUsed = Math.min(100, (charactersUsed / freeLimit) * 100);
 
@@ -419,8 +404,9 @@ export const ttsRouter = createTRPCRouter({
 
     return {
       billingPeriod,
-      voiceType,
+      quotaModel: "standard-equivalent" as const,
       charactersUsed,
+      rawCharactersUsed,
       charactersRemaining,
       freeLimit,
       percentageUsed,

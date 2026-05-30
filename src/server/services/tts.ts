@@ -86,7 +86,7 @@ export function stripHtmlToPlainText(html: string): string {
 
 /**
  * Split text into chunks at sentence boundaries
- * Ensures each chunk is under the max character limit
+ * Ensures each chunk is under the max character limit and preserves every character
  */
 export function chunkText(
   text: string,
@@ -97,64 +97,61 @@ export function chunkText(
   }
 
   const chunks: string[] = [];
-  let currentChunk = "";
+  let start = 0;
 
-  // Split by sentences (period, exclamation, question mark followed by space)
-  const sentences = text.split(/(?<=[.!?])\s+/);
+  while (start < text.length) {
+    let end = Math.min(start + maxChars, text.length);
 
-  for (const sentence of sentences) {
-    // If a single sentence is too long, split by comma or just force split
-    if (sentence.length > maxChars) {
-      // First, push any accumulated chunk
-      if (currentChunk) {
-        chunks.push(currentChunk.trim());
-        currentChunk = "";
-      }
-
-      // Split overly long sentences
-      const subParts = sentence.split(/(?<=,)\s*/);
-      for (const part of subParts) {
-        if (part.length > maxChars) {
-          // Force split at max chars (worst case)
-          for (let i = 0; i < part.length; i += maxChars) {
-            chunks.push(part.slice(i, i + maxChars).trim());
-          }
-        } else if (currentChunk.length + part.length > maxChars) {
-          chunks.push(currentChunk.trim());
-          currentChunk = part;
-        } else {
-          currentChunk += (currentChunk ? " " : "") + part;
+    if (end < text.length) {
+      const slice = text.slice(start, end);
+      const boundary = findLastSentenceBoundary(slice);
+      if (boundary > 0) {
+        end = start + boundary;
+      } else {
+        const fallback = findLastWordBoundary(slice);
+        if (fallback > 0) {
+          end = start + fallback;
         }
       }
-      continue;
     }
 
-    // Check if adding this sentence would exceed the limit
-    if (currentChunk.length + sentence.length + 1 > maxChars) {
-      chunks.push(currentChunk.trim());
-      currentChunk = sentence;
-    } else {
-      currentChunk += (currentChunk ? " " : "") + sentence;
+    if (end <= start) {
+      end = Math.min(start + maxChars, text.length);
     }
-  }
 
-  // Don't forget the last chunk
-  if (currentChunk.trim()) {
-    chunks.push(currentChunk.trim());
+    chunks.push(text.slice(start, end));
+    start = end;
   }
 
   return chunks;
 }
 
+function findLastSentenceBoundary(slice: string): number {
+  let best = -1;
+  for (const delimiter of [". ", "! ", "? "]) {
+    const idx = slice.lastIndexOf(delimiter);
+    if (idx >= 0) {
+      best = Math.max(best, idx + delimiter.length);
+    }
+  }
+  return best;
+}
+
+function findLastWordBoundary(slice: string): number {
+  const idx = slice.lastIndexOf(" ");
+  return idx > 0 ? idx + 1 : -1;
+}
+
 /**
  * Synthesize a single text chunk to audio
+ * Returns the audio buffer and character count billed for this chunk
  */
 async function synthesizeChunk(
   client: TextToSpeechClient,
   text: string,
   voiceName: string,
   languageCode: string,
-): Promise<Buffer> {
+): Promise<{ buffer: Buffer; charactersUsed: number }> {
   const [response] = await client.synthesizeSpeech({
     input: { text },
     voice: {
@@ -170,12 +167,17 @@ async function synthesizeChunk(
     throw new Error("No audio content received from TTS API");
   }
 
-  // audioContent can be string or Uint8Array
-  if (typeof response.audioContent === "string") {
-    return Buffer.from(response.audioContent, "base64");
-  }
+  // Billable characters match the exact text sent to the API.
+  // JS .length counts UTF-16 code units; rare emoji may differ slightly from Google's count.
+  const charactersUsed = text.length;
 
-  return Buffer.from(response.audioContent);
+  // audioContent can be string or Uint8Array
+  const buffer =
+    typeof response.audioContent === "string"
+      ? Buffer.from(response.audioContent, "base64")
+      : Buffer.from(response.audioContent);
+
+  return { buffer, charactersUsed };
 }
 
 /**
@@ -201,7 +203,7 @@ export interface GenerateAudioResult {
   durationSeconds: number;
   fileSizeBytes: number;
   voiceName: string;
-  charactersUsed: number; // Total characters sent to TTS API
+  rawCharactersUsed: number; // Raw characters sent to TTS API
 }
 
 /**
@@ -235,13 +237,15 @@ export async function generateAudioForArticle(
 
   // Synthesize each chunk
   const audioBuffers: Buffer[] = [];
+  let rawCharactersUsed = 0;
   for (const chunk of chunks) {
-    const buffer = await synthesizeChunk(
+    const { buffer, charactersUsed } = await synthesizeChunk(
       client,
       chunk,
       voiceName,
       languageCode,
     );
+    rawCharactersUsed += charactersUsed;
     audioBuffers.push(buffer);
   }
 
@@ -255,18 +259,12 @@ export async function generateAudioForArticle(
     contentType: AUDIO_CONTENT_TYPE,
   });
 
-  // Calculate total characters used
-  const totalCharactersUsed = chunks.reduce(
-    (sum, chunk) => sum + chunk.length,
-    0,
-  );
-
   return {
     audioUrl: blob.url,
     durationSeconds: estimateAudioDuration(finalAudio),
     fileSizeBytes: finalAudio.length,
     voiceName,
-    charactersUsed: totalCharactersUsed,
+    rawCharactersUsed,
   };
 }
 

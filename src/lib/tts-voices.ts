@@ -63,11 +63,54 @@ export const TTS_VOICE_OPTIONS: TTSVoiceOption[] = [
 
 export const DEFAULT_VOICE = "en-US-Standard-A";
 
+/** Monthly free tier expressed as standard-equivalent characters */
+export const TTS_FREE_TIER_LIMIT = 4_000_000;
+
+const TIER_MULTIPLIERS: Record<VoiceTier, number> = {
+  standard: 1,
+  wavenet: 4,
+  neural2: 4,
+  studio: 16,
+};
+
 /**
  * Get voice option by name
  */
 export function getVoiceOption(name: string): TTSVoiceOption | undefined {
   return TTS_VOICE_OPTIONS.find((v) => v.name === name);
+}
+
+/**
+ * Infer voice tier from a voice name (falls back to standard for unknown voices)
+ */
+export function getVoiceTier(voiceName: string): VoiceTier {
+  const voice = getVoiceOption(voiceName);
+  if (voice) return voice.tier;
+
+  const lowerName = voiceName.toLowerCase();
+  if (lowerName.includes("wavenet")) return "wavenet";
+  if (lowerName.includes("neural2")) return "neural2";
+  if (lowerName.includes("studio")) return "studio";
+  return "standard";
+}
+
+/**
+ * Price multiplier for standard-equivalent quota (Standard 1x, WaveNet/Neural2 4x, Studio 16x)
+ */
+export function getPriceMultiplier(voiceName: string): number {
+  const voice = getVoiceOption(voiceName);
+  if (voice) return voice.priceMultiplier;
+  return TIER_MULTIPLIERS[getVoiceTier(voiceName)];
+}
+
+/**
+ * Convert raw synthesized characters to standard-equivalent quota usage
+ */
+export function toWeightedCharacters(
+  rawCharacters: number,
+  voiceName: string,
+): number {
+  return rawCharacters * getPriceMultiplier(voiceName);
 }
 
 /**

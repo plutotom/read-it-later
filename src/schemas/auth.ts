@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTableCreator, pgEnum } from "drizzle-orm/pg-core";
+import { pgTableCreator, pgEnum, uniqueIndex } from "drizzle-orm/pg-core";
 // import { createTable } from "~/server/db/schema";
 /**
  * Multi-project schema feature of Drizzle ORM
@@ -100,26 +100,32 @@ export const userPreferences = createTable("user_preferences", (d) => ({
 }));
 
 
-// TTS usage tracking table - tracks monthly character consumption
-export const ttsUsage = createTable("tts_usage", (d) => ({
-  id: d.text().primaryKey(),
-  userId: d
-    .text()
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  // Year-month in format "YYYY-MM" for easy querying
-  billingPeriod: d.varchar({ length: 7 }).notNull(),
-  // Total characters used in this billing period
-  charactersUsed: d.integer().notNull().default(0),
-  // Voice type used (for different free tier limits)
-  voiceType: d.varchar({ length: 50 }).notNull().default("standard"),
-  createdAt: d.timestamp().defaultNow().notNull(),
-  updatedAt: d
-    .timestamp()
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-}));
+// TTS usage tracking table - one row per user per billing period
+export const ttsUsage = createTable(
+  "tts_usage",
+  (d) => ({
+    id: d.text().primaryKey(),
+    userId: d
+      .text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    // Year-month in format "YYYY-MM" for easy querying
+    billingPeriod: d.varchar({ length: 7 }).notNull(),
+    // Standard-equivalent weighted characters (raw * voice price multiplier)
+    charactersUsed: d.integer().notNull().default(0),
+    // Raw characters sent to the TTS API (for auditing)
+    rawCharactersUsed: d.integer().notNull().default(0),
+    createdAt: d.timestamp().defaultNow().notNull(),
+    updatedAt: d
+      .timestamp()
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  }),
+  (t) => [
+    uniqueIndex("tts_usage_user_period_idx").on(t.userId, t.billingPeriod),
+  ],
+);
 
 export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
