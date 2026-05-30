@@ -22,6 +22,7 @@ export interface Article {
   readingTime: number | null; // in minutes
   tags: string[] | null;
   metadata: unknown;
+  shareToken: string | null;
 }
 
 export interface ArticleMetadata {

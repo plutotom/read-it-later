@@ -27,6 +27,8 @@ interface AudioPlayerProps {
   articleUrl: string;
   articleAuthor?: string | null;
   articleImageUrl?: string | null;
+  /** When set, playback-only via public share token (no generation). */
+  shareToken?: string;
   /** Scroll article to approximate listen position (0–1). */
   onJumpToReadingPosition?: (progressRatio: number) => void;
 }
@@ -64,14 +66,24 @@ function toPlaybackInfo(data: {
   };
 }
 
+function getLocalPlaybackProgress(articleId: string): number {
+  if (typeof window === "undefined") return 0;
+  const saved = localStorage.getItem(`tts-progress-${articleId}`);
+  if (!saved) return 0;
+  const parsed = parseFloat(saved);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export function AudioPlayer({
   articleId,
   articleTitle,
   articleUrl,
   articleAuthor,
   articleImageUrl,
+  shareToken,
   onJumpToReadingPosition,
 }: AudioPlayerProps) {
+  const isPublicShare = Boolean(shareToken);
   const utils = api.useUtils();
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressSaveRef = useRef<NodeJS.Timeout | null>(null);
@@ -87,22 +99,43 @@ export function AudioPlayer({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
-  const { data: audioStatus, isLoading: isCheckingStatus } =
+  const { data: privateAudioStatus, isLoading: isCheckingPrivateStatus } =
     api.tts.getStatus.useQuery(
       { articleId },
-      { refetchOnWindowFocus: false },
+      { enabled: !isPublicShare, refetchOnWindowFocus: false },
     );
+
+  const { data: publicAudioStatus, isLoading: isCheckingPublicStatus } =
+    api.tts.getStatusByShareToken.useQuery(
+      { shareToken: shareToken ?? "" },
+      {
+        enabled: isPublicShare,
+        refetchOnWindowFocus: false,
+        staleTime: Infinity,
+      },
+    );
+
+  const audioStatus = isPublicShare ? publicAudioStatus : privateAudioStatus;
+  const isCheckingStatus = isPublicShare
+    ? isCheckingPublicStatus
+    : isCheckingPrivateStatus;
 
   const generateAudioQuery = api.tts.getAudio.useQuery(
     { articleId },
-    { enabled: false, retry: false, refetchOnWindowFocus: false },
+    {
+      enabled: false,
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
   );
 
   const regenerateAudio = api.tts.regenerateAudio.useMutation();
   const updateProgress = api.tts.updateProgress.useMutation();
   const updateProgressRef = useRef(updateProgress.mutateAsync);
   updateProgressRef.current = updateProgress.mutateAsync;
-  const { data: voiceConfig } = api.tts.getVoiceConfig.useQuery();
+  const { data: voiceConfig } = api.tts.getVoiceConfig.useQuery(undefined, {
+    enabled: !isPublicShare,
+  });
 
   const voiceName = voiceConfig?.voiceName ?? DEFAULT_VOICE;
   const voiceLabel = (() => {
@@ -135,9 +168,23 @@ export function AudioPlayer({
     clearTtsGenerationPending(articleId);
   }, [articleId]);
 
+  const savePlaybackProgress = useCallback(
+    (timeSeconds: number) => {
+      if (isPublicShare) {
+        localStorage.setItem(`tts-progress-${articleId}`, String(timeSeconds));
+        return;
+      }
+      void updateProgressRef.current({
+        articleId,
+        currentTimeSeconds: timeSeconds,
+      });
+    },
+    [articleId, isPublicShare],
+  );
+
   // After refresh: resume "generating" UI if we started before reload
   useEffect(() => {
-    if (isCheckingStatus) return;
+    if (isPublicShare || isCheckingStatus) return;
     if (audioStatus?.hasAudio) {
       clearTtsGenerationPending(articleId);
       return;
@@ -154,6 +201,7 @@ export function AudioPlayer({
 
   // Poll until background generation writes article_audio
   useEffect(() => {
+    if (isPublicShare) return;
     const awaitingServer =
       (playerState === "generating" || isTtsGenerationPending(articleId)) &&
       !audioStatus?.hasAudio;
@@ -164,24 +212,36 @@ export function AudioPlayer({
     }, GENERATION_STATUS_POLL_MS);
 
     return () => clearInterval(interval);
-  }, [articleId, audioStatus?.hasAudio, playerState, utils]);
+  }, [articleId, audioStatus?.hasAudio, isPublicShare, playerState, utils]);
 
   // Hydrate from server when status loads (skip while generating to avoid races)
   useEffect(() => {
     if (isCheckingStatus) return;
-    if (playerState === "generating" && !audioStatus?.hasAudio) return;
+    if (
+      !isPublicShare &&
+      playerState === "generating" &&
+      !audioStatus?.hasAudio
+    ) {
+      return;
+    }
 
     if (audioStatus?.hasAudio && audioStatus.audio) {
-      clearTtsGenerationPending(articleId);
+      if (!isPublicShare) {
+        clearTtsGenerationPending(articleId);
+      }
       const serverUrl = audioStatus.audio.audioUrl;
       if (playback?.audioUrl === serverUrl && playerState === "ready") {
         return;
       }
 
+      const resumeAt = isPublicShare
+        ? getLocalPlaybackProgress(articleId)
+        : (privateAudioStatus?.audio?.currentTimeSeconds ?? 0);
+
       const info = toPlaybackInfo({
         audioUrl: serverUrl,
         durationSeconds: audioStatus.audio.durationSeconds,
-        currentTimeSeconds: audioStatus.audio.currentTimeSeconds,
+        currentTimeSeconds: resumeAt,
       });
       setPlayback(info);
       setCurrentTime(info.currentTimeSeconds);
@@ -197,6 +257,7 @@ export function AudioPlayer({
     articleId,
     audioStatus,
     isCheckingStatus,
+    isPublicShare,
     playerState,
     playback?.audioUrl,
   ]);
@@ -230,10 +291,7 @@ export function AudioPlayer({
 
     const handleEnded = () => {
       setIsPlaying(false);
-      void updateProgressRef.current({
-        articleId,
-        currentTimeSeconds: audio.duration,
-      });
+      savePlaybackProgress(audio.duration);
     };
 
     const handleError = () => {
@@ -256,7 +314,7 @@ export function AudioPlayer({
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
     };
-  }, [articleId, audioUrl, playbackSpeed]);
+  }, [articleId, audioUrl, playbackSpeed, savePlaybackProgress]);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -268,17 +326,14 @@ export function AudioPlayer({
       progressSaveRef.current = setInterval(() => {
         const audio = audioRef.current;
         if (audio && !audio.paused) {
-          void updateProgressRef.current({
-            articleId,
-            currentTimeSeconds: audio.currentTime,
-          });
+          savePlaybackProgress(audio.currentTime);
         }
       }, PROGRESS_SAVE_INTERVAL);
     }
     return () => {
       if (progressSaveRef.current) clearInterval(progressSaveRef.current);
     };
-  }, [isPlaying, articleId]);
+  }, [isPlaying, savePlaybackProgress]);
 
   const handleGenerateAudio = useCallback(
     async (options?: { regenerate?: boolean }) => {
@@ -349,12 +404,9 @@ export function AudioPlayer({
     } else {
       audio.pause();
       setIsPlaying(false);
-      void updateProgressRef.current({
-        articleId,
-        currentTimeSeconds: audio.currentTime,
-      });
+      savePlaybackProgress(audio.currentTime);
     }
-  }, [articleId]);
+  }, [savePlaybackProgress]);
 
   const handleSpeedSelect = useCallback((speed: number) => {
     setPlaybackSpeed(speed);
@@ -409,7 +461,12 @@ export function AudioPlayer({
   const canExpand = playerState === "ready";
   const isInitialCheck = isCheckingStatus && !playback;
   const generationInFlight =
-    playerState === "generating" || isTtsGenerationPending(articleId);
+    !isPublicShare &&
+    (playerState === "generating" || isTtsGenerationPending(articleId));
+
+  if (isPublicShare && !isCheckingStatus && !audioStatus?.hasAudio) {
+    return null;
+  }
 
   const dock = (() => {
     if (isInitialCheck) {
@@ -430,7 +487,7 @@ export function AudioPlayer({
       );
     }
 
-    if (playerState === "idle" && !generationInFlight) {
+    if (!isPublicShare && playerState === "idle" && !generationInFlight) {
       return (
         <div className="flex items-center gap-3">
           <Button
@@ -458,7 +515,7 @@ export function AudioPlayer({
       );
     }
 
-    if (playerState === "generating" || generationInFlight) {
+    if (!isPublicShare && (playerState === "generating" || generationInFlight)) {
       return (
         <div className="flex items-center gap-3">
           <div className="bg-accent text-accent-foreground flex h-10 w-10 items-center justify-center rounded-full">
@@ -483,7 +540,7 @@ export function AudioPlayer({
       );
     }
 
-    if (playerState === "error") {
+    if (!isPublicShare && playerState === "error") {
       return (
         <div className="flex items-center gap-3">
           <div className="bg-background-deep text-muted-foreground flex h-10 w-10 items-center justify-center rounded-full">
@@ -507,6 +564,10 @@ export function AudioPlayer({
           </Button>
         </div>
       );
+    }
+
+    if (isPublicShare && playerState === "error") {
+      return null;
     }
 
     if (playerState === "loading" || !audioUrl) {

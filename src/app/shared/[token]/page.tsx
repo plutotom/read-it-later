@@ -22,10 +22,8 @@ export default function SharedArticlePage({ params }: SharedArticlePageProps) {
 
   if (isLoading) {
     return (
-      <div className="bg-background flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mb-4 text-lg text-gray-300">Loading article...</div>
-        </div>
+      <div className="flex h-dvh items-center justify-center bg-background">
+        <p className="text-muted-foreground">Loading article…</p>
       </div>
     );
   }
@@ -44,12 +42,12 @@ export default function SharedArticlePage({ params }: SharedArticlePageProps) {
 
   if (!article) {
     return (
-      <div className="bg-background flex min-h-screen items-center justify-center p-4">
-        <div className="text-center">
-          <h1 className="mb-4 text-2xl font-bold text-gray-100">
-            Article Not Found
+      <div className="flex h-dvh items-center justify-center bg-background p-4">
+        <div className="max-w-md text-center">
+          <h1 className="mb-3 text-2xl font-medium tracking-tight text-foreground">
+            Article not found
           </h1>
-          <p className="text-gray-400">
+          <p className="text-muted-foreground">
             This shared article may have been removed or the link is invalid.
           </p>
         </div>

@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "~/trpc/react";
 import { Button } from "~/components/ui/button";
 import {
@@ -22,6 +22,7 @@ interface ShareDialogProps {
   articleId: string;
   articleTitle: string;
   originalUrl: string;
+  existingShareToken?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -30,17 +31,34 @@ export function ShareDialog({
   articleId,
   articleTitle,
   originalUrl,
+  existingShareToken,
   open,
   onOpenChange,
 }: ShareDialogProps) {
+  const utils = api.useUtils();
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedOriginal, setCopiedOriginal] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setShareUrl(null);
+      setCopied(false);
+      setCopiedOriginal(false);
+      return;
+    }
+    if (existingShareToken) {
+      setShareUrl(
+        `${window.location.origin}/shared/${existingShareToken}`,
+      );
+    }
+  }, [open, existingShareToken]);
 
   const generateShareLink = api.article.generateShareLink.useMutation({
     onSuccess: (data) => {
       const url = `${window.location.origin}/shared/${data.shareToken}`;
       setShareUrl(url);
+      void utils.article.get.invalidate({ id: articleId });
     },
   });
 

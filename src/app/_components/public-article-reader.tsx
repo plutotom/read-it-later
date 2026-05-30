@@ -1,131 +1,148 @@
 /**
  * Public Article Reader Component
- * Simplified reader for publicly shared articles (no highlights, no auth)
+ * Matches the authenticated reader layout (theme, typography, docked audio).
  */
 
 "use client";
 
-import { type Article } from "~/types/article";
-import { PublicAudioPlayer } from "./public-audio-player";
+import {
+  type Article,
+  type ArticleMetadata as ArticleMeta,
+} from "~/types/article";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { PublicArticleReaderHeader } from "./public-article-reader-header";
+import { ArticleMetadata } from "./article-metadata";
+import { ArticleContent } from "./article-content";
+import { AudioPlayer } from "./audio-player";
+import { cn } from "~/lib/utils";
 
 interface PublicArticleReaderProps {
   article: Article;
   shareToken: string;
 }
 
-function formatDate(date: Date) {
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
-
-function formatReadingTime(minutes: number) {
-  if (minutes < 1) return "< 1 min read";
-  return `${minutes} min read`;
-}
-
-function getDomainFromUrl(url: string) {
-  try {
-    return new URL(url).hostname.replace("www.", "");
-  } catch {
-    return url;
-  }
-}
+const DEFAULT_FONT_SIZE = 19;
 
 export function PublicArticleReader({
   article,
   shareToken,
 }: PublicArticleReaderProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const lastScrollTopRef = useRef(0);
+  const hideScrollAccumulatorRef = useRef(0);
+  const [progress, setProgress] = useState(0);
+  const [isPlayerVisible, setIsPlayerVisible] = useState(true);
+
+  const articleImageUrl = (() => {
+    const meta = article.metadata as ArticleMeta | null | undefined;
+    return meta?.imageUrl ?? null;
+  })();
+
+  const handleJumpToReadingPosition = useCallback(
+    (progressRatio: number) => {
+      const scroller = scrollerRef.current;
+      if (!scroller) return;
+      const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+      if (maxScroll <= 0) return;
+      scroller.scrollTo({
+        top: maxScroll * Math.min(1, Math.max(0, progressRatio)),
+        behavior: "smooth",
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    lastScrollTopRef.current = 0;
+    hideScrollAccumulatorRef.current = 0;
+    setIsPlayerVisible(true);
+  }, [article.id]);
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+
+    const onScroll = () => {
+      const scrollTop = el.scrollTop;
+      const max = el.scrollHeight - el.clientHeight;
+      setProgress(max > 0 ? (scrollTop / max) * 100 : 0);
+
+      const delta = scrollTop - lastScrollTopRef.current;
+      if (scrollTop <= 12) {
+        hideScrollAccumulatorRef.current = 0;
+        setIsPlayerVisible(true);
+      } else if (delta > 0) {
+        hideScrollAccumulatorRef.current += delta;
+        if (hideScrollAccumulatorRef.current >= 48) {
+          setIsPlayerVisible(false);
+        }
+      } else if (delta < 0) {
+        hideScrollAccumulatorRef.current = 0;
+        setIsPlayerVisible(true);
+      }
+      lastScrollTopRef.current = scrollTop;
+    };
+
+    onScroll();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [article.id]);
+
   return (
-    <div className="bg-background flex min-h-screen flex-col">
-      {/* Simple header */}
-      <header className="bg-background sticky top-0 z-10 border-b border-gray-700 px-4 py-3">
-        <div className="mx-auto max-w-3xl">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-400">
-              Shared from Read It Later
-            </span>
-            <a
-              href={article.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-blue-400 hover:text-blue-300"
-            >
-              View Original →
-            </a>
-          </div>
-        </div>
-      </header>
+    <div className="relative flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden m-slide-in">
+        <PublicArticleReaderHeader article={article} />
 
-      {/* Article content */}
-      <main className="flex-1 overflow-y-auto">
-        <article className="mx-auto max-w-3xl px-4 py-6">
-          {/* Metadata */}
-          <div className="mb-6">
-            <div className="mb-2 flex items-center text-sm text-gray-400">
-              <span>{getDomainFromUrl(article.url)}</span>
-              {article.publishedAt && (
-                <>
-                  <span className="mx-2">•</span>
-                  <span>{formatDate(article.publishedAt)}</span>
-                </>
-              )}
-              {article.readingTime && (
-                <>
-                  <span className="mx-2">•</span>
-                  <span>{formatReadingTime(article.readingTime)}</span>
-                </>
-              )}
-            </div>
-
-            <h1 className="mb-4 text-2xl leading-tight font-bold text-gray-100">
-              {article.title}
-            </h1>
-
-            {article.author && (
-              <p className="mb-4 text-gray-300">By {article.author}</p>
-            )}
-
-            {article.tags && article.tags.length > 0 && (
-              <div className="mb-4 flex flex-wrap gap-2">
-                {article.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center rounded-full bg-blue-900/50 px-2 py-1 text-xs font-medium text-blue-300"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Audio Player (if available) */}
-          <div className="mb-6">
-            <PublicAudioPlayer shareToken={shareToken} articleId={article.id} />
-          </div>
-
-          {/* Article content */}
+        <div className="h-[2px] bg-background-deep">
           <div
-            className="article-content max-w-none leading-relaxed text-gray-200"
-            style={{ fontSize: "16px", lineHeight: 1.6 }}
-          >
-            <div dangerouslySetInnerHTML={{ __html: article.content }} />
-          </div>
-        </article>
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-background border-t border-gray-700 px-4 py-4">
-        <div className="mx-auto max-w-3xl text-center text-sm text-gray-500">
-          <p>
-            This article was shared via{" "}
-            <span className="text-gray-400">Read It Later</span>
-          </p>
+            className="h-full bg-accent transition-[width] duration-150 ease-out"
+            style={{ width: `${progress}%` }}
+          />
         </div>
-      </footer>
+
+        <div
+          ref={scrollerRef}
+          className="flex-1 min-h-0 overflow-y-auto px-5 pt-8 pb-36 sm:px-8 sm:pt-12 sm:pb-40"
+        >
+          <article className="mx-auto max-w-[640px]">
+            <ArticleMetadata article={article} />
+            <ArticleContent
+              content={article.content}
+              fontSize={DEFAULT_FONT_SIZE}
+              contentRef={contentRef}
+              onTextSelection={() => undefined}
+            />
+          </article>
+        </div>
+      </div>
+
+      <div
+        className={cn(
+          "reader-audio-dock reader-audio-dock-bottom pointer-events-none absolute inset-x-0 z-30 px-5 sm:px-8",
+          isPlayerVisible
+            ? "reader-audio-dock--visible"
+            : "reader-audio-dock--hidden",
+        )}
+      >
+        <div
+          key={article.id}
+          className={cn(
+            "reader-audio-dock__inner reader-audio-dock__inner--enter mx-auto max-w-[640px]",
+            isPlayerVisible ? "pointer-events-auto" : "pointer-events-none",
+          )}
+        >
+          <AudioPlayer
+            articleId={article.id}
+            articleTitle={article.title}
+            articleUrl={article.url}
+            articleAuthor={article.author}
+            articleImageUrl={articleImageUrl}
+            shareToken={shareToken}
+            onJumpToReadingPosition={handleJumpToReadingPosition}
+          />
+        </div>
+      </div>
     </div>
   );
 }

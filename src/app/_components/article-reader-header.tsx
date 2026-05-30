@@ -5,6 +5,7 @@
 
 "use client";
 
+import { useState } from "react";
 import { type Article } from "~/types/article";
 import { type Highlight } from "~/types/annotation";
 import { ReadingSettings } from "./reading-settings";
@@ -16,11 +17,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { Settings, ArrowLeft, Archive, MoreVertical, Trash2 } from "lucide-react";
+import {
+  Settings,
+  ArrowLeft,
+  Archive,
+  MoreVertical,
+  Share2,
+  Trash2,
+} from "lucide-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
 import { withViewTransition } from "~/lib/with-view-transition";
 import { HighlightsMenu } from "./highlights-menu";
+import { ShareDialog } from "./share-dialog";
 import { cn } from "~/lib/utils";
 
 interface ArticleReaderHeaderProps {
@@ -48,6 +57,7 @@ export function ArticleReaderHeader({
   onHighlightDelete,
   onHighlightNoteUpdate,
 }: ArticleReaderHeaderProps) {
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const utils = api.useUtils();
   const router = useRouter();
   const { mutate: archive } = api.article.archive.useMutation({
@@ -183,6 +193,10 @@ export function ArticleReaderHeader({
                   Archive
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem onSelect={() => setShareDialogOpen(true)}>
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleDelete}
@@ -217,6 +231,14 @@ export function ArticleReaderHeader({
         </div>
       )}
 
+      <ShareDialog
+        articleId={article.id}
+        articleTitle={article.title}
+        originalUrl={article.url}
+        existingShareToken={article.shareToken}
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+      />
     </div>
   );
 }
