@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { chunkText, stripHtmlToPlainText } from "~/server/services/tts";
 import {
+  DEFAULT_VOICE,
   getPriceMultiplier,
+  getVoiceTier,
+  isChirp3Voice,
   toWeightedCharacters,
   TTS_FREE_TIER_LIMIT,
 } from "~/lib/tts-voices";
@@ -58,6 +61,22 @@ describe("weighted TTS quota", () => {
   it("applies 16x multiplier for Studio voices", () => {
     expect(getPriceMultiplier("en-US-Studio-O")).toBe(16);
     expect(toWeightedCharacters(1000, "en-US-Studio-O")).toBe(16000);
+  });
+
+  it("applies 8x multiplier for Chirp 3 HD voices", () => {
+    expect(getPriceMultiplier("en-US-Chirp3-HD-Charon")).toBe(8);
+    expect(toWeightedCharacters(1000, "en-US-Chirp3-HD-Charon")).toBe(8000);
+  });
+
+  it("infers chirp3 tier from voice name when not in catalog", () => {
+    expect(getVoiceTier("en-US-Chirp3-HD-Kore")).toBe("chirp3");
+    expect(getVoiceTier("en-GB-Chirp3-HD-Leda")).toBe("chirp3");
+  });
+
+  it("detects Chirp 3 voices via isChirp3Voice", () => {
+    expect(isChirp3Voice("en-US-Chirp3-HD-Charon")).toBe(true);
+    expect(isChirp3Voice("en-US-Neural2-C")).toBe(false);
+    expect(isChirp3Voice(DEFAULT_VOICE)).toBe(true);
   });
 
   it("uses unified 4M standard-equivalent free tier limit", () => {

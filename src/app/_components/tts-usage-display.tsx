@@ -2,7 +2,7 @@
 
 import { Progress } from "~/components/ui/progress";
 import { api } from "~/trpc/react";
-import { getVoiceOption } from "~/lib/tts-voices";
+import { getPriceMultiplier, getVoiceOption } from "~/lib/tts-voices";
 
 /**
  * Format a number with K/M suffixes for display
@@ -73,6 +73,14 @@ export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
     ? `${selectedVoice.label} (${selectedVoice.description})`
     : (voiceConfig?.voiceName ?? "Standard");
 
+  const voiceMultiplier = voiceConfig?.voiceName
+    ? getPriceMultiplier(voiceConfig.voiceName)
+    : 1;
+  const quotaNote =
+    voiceMultiplier > 1
+      ? `This voice uses ${voiceMultiplier}× standard-equivalent quota per character synthesized.`
+      : null;
+
   if (compact) {
     return (
       <div className="px-2 py-2">
@@ -111,6 +119,9 @@ export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
           You&apos;ve used {usage.percentageUsed.toFixed(0)}% of your usage
           limit
         </div>
+        {quotaNote ? (
+          <div className="mt-1.5 text-xs text-gray-500">{quotaNote}</div>
+        ) : null}
       </div>
     );
   }
@@ -154,6 +165,9 @@ export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
           </div>
         </div>
       </div>
+      {quotaNote ? (
+        <p className="mt-3 text-xs text-gray-500">{quotaNote}</p>
+      ) : null}
     </div>
   );
 }

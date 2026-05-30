@@ -3,7 +3,12 @@
  * Available Google Cloud TTS voices for user selection
  */
 
-export type VoiceTier = "standard" | "wavenet" | "neural2" | "studio";
+export type VoiceTier =
+  | "standard"
+  | "wavenet"
+  | "neural2"
+  | "chirp3"
+  | "studio";
 
 export interface TTSVoiceOption {
   name: string;
@@ -21,14 +26,85 @@ export const VOICE_TIER_INFO: Record<VoiceTier, { label: string; description: st
   standard: { label: "Standard", description: "Basic quality, most affordable" },
   wavenet: { label: "WaveNet", description: "Neural network, natural sounding" },
   neural2: { label: "Neural2", description: "Latest AI, most natural" },
+  chirp3: {
+    label: "Chirp 3 HD",
+    description: "Natural narration with pause markup",
+  },
   studio: { label: "Studio", description: "Highest quality, professional narration" },
 };
 
 /**
  * All available voice options with pricing
- * Standard: 1x ($4/1M chars), WaveNet/Neural2: 4x ($16/1M chars), Studio: 16x ($160/1M chars)
+ * Standard: 1x ($4/1M chars), WaveNet/Neural2: 4x ($16/1M chars),
+ * Chirp 3 HD: 8x ($30/1M chars), Studio: 16x ($160/1M chars)
  */
 export const TTS_VOICE_OPTIONS: TTSVoiceOption[] = [
+  // Chirp 3 HD voices (8x price, natural narration + pause markup)
+  {
+    name: "en-US-Chirp3-HD-Charon",
+    label: "Charon",
+    description: "Male, US",
+    gender: "male",
+    tier: "chirp3",
+    priceMultiplier: 8,
+  },
+  {
+    name: "en-US-Chirp3-HD-Kore",
+    label: "Kore",
+    description: "Female, US",
+    gender: "female",
+    tier: "chirp3",
+    priceMultiplier: 8,
+  },
+  {
+    name: "en-US-Chirp3-HD-Leda",
+    label: "Leda",
+    description: "Female, US",
+    gender: "female",
+    tier: "chirp3",
+    priceMultiplier: 8,
+  },
+  {
+    name: "en-US-Chirp3-HD-Aoede",
+    label: "Aoede",
+    description: "Female, US",
+    gender: "female",
+    tier: "chirp3",
+    priceMultiplier: 8,
+  },
+  {
+    name: "en-US-Chirp3-HD-Puck",
+    label: "Puck",
+    description: "Male, US",
+    gender: "male",
+    tier: "chirp3",
+    priceMultiplier: 8,
+  },
+  {
+    name: "en-US-Chirp3-HD-Zephyr",
+    label: "Zephyr",
+    description: "Female, US",
+    gender: "female",
+    tier: "chirp3",
+    priceMultiplier: 8,
+  },
+  {
+    name: "en-US-Chirp3-HD-Fenrir",
+    label: "Fenrir",
+    description: "Male, US",
+    gender: "male",
+    tier: "chirp3",
+    priceMultiplier: 8,
+  },
+  {
+    name: "en-US-Chirp3-HD-Despina",
+    label: "Despina",
+    description: "Female, US",
+    gender: "female",
+    tier: "chirp3",
+    priceMultiplier: 8,
+  },
+
   // Standard voices (1x price)
   { name: "en-US-Standard-A", label: "Alex", description: "Male, US", gender: "male", tier: "standard", priceMultiplier: 1 },
   { name: "en-US-Standard-B", label: "Brian", description: "Male, US", gender: "male", tier: "standard", priceMultiplier: 1 },
@@ -61,7 +137,7 @@ export const TTS_VOICE_OPTIONS: TTSVoiceOption[] = [
   { name: "en-US-Studio-Q", label: "Quinn", description: "Male, US", gender: "male", tier: "studio", priceMultiplier: 16 },
 ];
 
-export const DEFAULT_VOICE = "en-US-Standard-A";
+export const DEFAULT_VOICE = "en-US-Chirp3-HD-Charon";
 
 /** Monthly free tier expressed as standard-equivalent characters */
 export const TTS_FREE_TIER_LIMIT = 4_000_000;
@@ -70,6 +146,7 @@ const TIER_MULTIPLIERS: Record<VoiceTier, number> = {
   standard: 1,
   wavenet: 4,
   neural2: 4,
+  chirp3: 8,
   studio: 16,
 };
 
@@ -88,14 +165,20 @@ export function getVoiceTier(voiceName: string): VoiceTier {
   if (voice) return voice.tier;
 
   const lowerName = voiceName.toLowerCase();
+  if (lowerName.includes("chirp3")) return "chirp3";
   if (lowerName.includes("wavenet")) return "wavenet";
   if (lowerName.includes("neural2")) return "neural2";
   if (lowerName.includes("studio")) return "studio";
   return "standard";
 }
 
+/** Whether synthesis should use Chirp 3 markup input (Phase 3+) */
+export function isChirp3Voice(voiceName: string): boolean {
+  return getVoiceTier(voiceName) === "chirp3";
+}
+
 /**
- * Price multiplier for standard-equivalent quota (Standard 1x, WaveNet/Neural2 4x, Studio 16x)
+ * Price multiplier for standard-equivalent quota (Standard 1x, WaveNet/Neural2 4x, Chirp3 8x, Studio 16x)
  */
 export function getPriceMultiplier(voiceName: string): number {
   const voice = getVoiceOption(voiceName);
@@ -128,10 +211,11 @@ export function getVoiceLabel(name: string): string {
  */
 export function getVoicesByTier(): Record<VoiceTier, TTSVoiceOption[]> {
   return {
-    standard: TTS_VOICE_OPTIONS.filter(v => v.tier === "standard"),
-    wavenet: TTS_VOICE_OPTIONS.filter(v => v.tier === "wavenet"),
-    neural2: TTS_VOICE_OPTIONS.filter(v => v.tier === "neural2"),
-    studio: TTS_VOICE_OPTIONS.filter(v => v.tier === "studio"),
+    standard: TTS_VOICE_OPTIONS.filter((v) => v.tier === "standard"),
+    wavenet: TTS_VOICE_OPTIONS.filter((v) => v.tier === "wavenet"),
+    neural2: TTS_VOICE_OPTIONS.filter((v) => v.tier === "neural2"),
+    chirp3: TTS_VOICE_OPTIONS.filter((v) => v.tier === "chirp3"),
+    studio: TTS_VOICE_OPTIONS.filter((v) => v.tier === "studio"),
   };
 }
 

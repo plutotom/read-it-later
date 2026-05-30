@@ -32,6 +32,29 @@ export function VoiceSelector({
         <SelectValue placeholder="Select a voice" />
       </SelectTrigger>
       <SelectContent className="max-h-80 overflow-y-auto">
+        {/* Chirp 3 HD voices - 8x price (recommended default) */}
+        <div className="px-2 py-1.5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-300">
+              Chirp 3 HD
+            </span>
+            <span className="rounded bg-emerald-900/60 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
+              Recommended
+            </span>
+          </div>
+          <div className="text-[10px] text-gray-500">
+            Natural narration • 8x usage • Paragraph pauses
+          </div>
+        </div>
+        {TTS_VOICE_OPTIONS.filter((v) => v.tier === "chirp3").map((voice) => (
+          <SelectItem key={voice.name} value={voice.name}>
+            <div className="flex w-full items-center justify-between gap-3">
+              <span>{voice.label}</span>
+              <span className="text-xs text-gray-400">{voice.description}</span>
+            </div>
+          </SelectItem>
+        ))}
+
         {/* Standard voices - 1x price */}
         <div className="px-2 py-1.5">
           <div className="text-xs font-semibold text-gray-300">Standard</div>

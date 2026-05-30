@@ -24,7 +24,7 @@ export const env = createEnv({
     BETTER_AUTH_SECRET: z.string().min(1).default("dev-secret-change-me"),
     // Google Cloud TTS
     GOOGLE_CLOUD_TTS_CREDENTIALS: z.string().optional(),
-    TTS_VOICE_NAME: z.string().default("en-US-Standard-A"),
+    TTS_VOICE_NAME: z.string().default("en-US-Chirp3-HD-Charon"),
     TTS_VOICE_LANGUAGE: z.string().default("en-US"),
     // Vercel Blob
     BLOB_READ_WRITE_TOKEN: z.string().optional(),

@@ -7,7 +7,8 @@ This document describes the TTS feature that converts saved articles to listenab
 - **Provider**: [Google Cloud Text-to-Speech](https://cloud.google.com/text-to-speech/docs)
 - **Storage**: Vercel Blob (public MP3 URLs)
 - **Format**: MP3
-- **Chunking**: HTML → plain text, then ~4000 characters per chunk at sentence boundaries
+- **Chunking**: HTML → plain text or Chirp markup, then ~4000 characters per chunk at sentence boundaries
+- **Chirp 3 HD**: Default narration tier with pause markup — see [docs/plans/chirp-3-tts.md](docs/plans/chirp-3-tts.md)
 - **Caching**: One `article_audio` row per article (per owner); regeneration replaces blob + row
 - **Usage tracking**: Monthly standard-equivalent character quota per user (`tts_usage`)
 
@@ -65,6 +66,7 @@ weightedChars = rawChars × priceMultiplier(voice)
 | Standard | 1× |
 | WaveNet | 4× |
 | Neural2 | 4× |
+| Chirp 3 HD | 8× |
 | Studio | 16× |
 
 **Free tier:** 4,000,000 standard-equivalent characters per month (`TTS_FREE_TIER_LIMIT` in `src/lib/tts-voices.ts`).
@@ -102,7 +104,7 @@ GOOGLE_CLOUD_TTS_CREDENTIALS='{"type":"service_account",...}'  # JSON string
 BLOB_READ_WRITE_TOKEN=your_token
 
 # Defaults when user has no preference (optional)
-TTS_VOICE_NAME=en-US-Standard-A
+TTS_VOICE_NAME=en-US-Chirp3-HD-Charon
 TTS_VOICE_LANGUAGE=en-US
 ```
 
@@ -115,6 +117,8 @@ Both `GOOGLE_CLOUD_TTS_CREDENTIALS` and `BLOB_READ_WRITE_TOKEN` are optional in 
 | `src/server/db/schema.ts` | `article_audio` table |
 | `src/schemas/auth.ts` | `tts_usage`, `user_preferences.ttsVoiceName` |
 | `src/server/services/tts.ts` | HTML stripping, chunking, synthesis, blob upload |
+| `src/server/services/tts-markup.ts` | Chirp 3 HTML → pause markup |
+| `docs/plans/chirp-3-tts.md` | Chirp 3 integration plan |
 | `src/server/api/routers/tts.ts` | tRPC router |
 | `src/lib/tts-voices.ts` | Voice labels/tiers for UI |
 | `src/env.js` | Env validation |
@@ -142,8 +146,8 @@ Both `GOOGLE_CLOUD_TTS_CREDENTIALS` and `BLOB_READ_WRITE_TOKEN` are optional in 
 ## Backend Generation Flow
 
 1. Load article HTML (owner check).
-2. `stripHtmlToPlainText` (JSDOM) → `chunkText` (~4000 chars).
-3. For each chunk: Google `synthesizeSpeech` (MP3).
+2. Chirp 3: `htmlToChirpMarkup` → `chunkText`; legacy: `stripHtmlToPlainText` → `chunkText` (~4000 chars).
+3. For each chunk: Google `synthesizeSpeech` with `input.markup` (Chirp) or `input.text` (legacy).
 4. Concatenate buffers → `put` to Vercel Blob at `article-audio/{articleId}.mp3`.
 5. In one transaction: upsert `tts_usage` (weighted + raw) and insert `article_audio`.
 
@@ -174,6 +178,7 @@ See [Google Cloud TTS voices](https://cloud.google.com/text-to-speech/docs/voice
 | Standard | `en-US-Standard-A` … `J` | 1× |
 | WaveNet | `en-US-Wavenet-*` | 4× |
 | Neural2 | `en-US-Neural2-*` | 4× |
+| Chirp 3 HD | `en-US-Chirp3-HD-*` | 8× |
 | Studio | `en-US-Studio-*` | 16× |
 
 All tiers share one monthly cap of **4M standard-equivalent characters**. A 10k-character article with Neural2 consumes 40k from the quota.

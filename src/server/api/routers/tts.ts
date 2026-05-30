@@ -16,6 +16,7 @@ import {
   deleteAudioFromBlob,
 } from "~/server/services/tts";
 import {
+  DEFAULT_VOICE,
   TTS_FREE_TIER_LIMIT,
   toWeightedCharacters,
 } from "~/lib/tts-voices";
@@ -75,7 +76,7 @@ async function getUserVoicePreference(
     columns: { ttsVoiceName: true },
   });
   return (
-    prefs?.ttsVoiceName ?? process.env.TTS_VOICE_NAME ?? "en-US-Standard-A"
+    prefs?.ttsVoiceName ?? process.env.TTS_VOICE_NAME ?? DEFAULT_VOICE
   );
 }
 

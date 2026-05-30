@@ -7,7 +7,10 @@
 import { TextToSpeechClient } from "@google-cloud/text-to-speech";
 import { put, del } from "@vercel/blob";
 import { env } from "~/env";
+import { DEFAULT_VOICE, isChirp3Voice } from "~/lib/tts-voices";
+import { htmlToChirpMarkup } from "~/server/services/tts-markup";
 import { JSDOM } from "jsdom";
+import type { google } from "@google-cloud/text-to-speech/build/protos/protos";
 
 // Max characters per chunk (Google Cloud TTS limit is 5000 bytes, ~4000 chars to be safe)
 const MAX_CHUNK_CHARS = 4000;
@@ -148,12 +151,17 @@ function findLastWordBoundary(slice: string): number {
  */
 async function synthesizeChunk(
   client: TextToSpeechClient,
-  text: string,
+  chunk: string,
   voiceName: string,
   languageCode: string,
 ): Promise<{ buffer: Buffer; charactersUsed: number }> {
+  const useMarkup = isChirp3Voice(voiceName);
+  const input: google.cloud.texttospeech.v1.ISynthesisInput = useMarkup
+    ? { markup: chunk }
+    : { text: chunk };
+
   const [response] = await client.synthesizeSpeech({
-    input: { text },
+    input,
     voice: {
       languageCode,
       name: voiceName,
@@ -169,7 +177,7 @@ async function synthesizeChunk(
 
   // Billable characters match the exact text sent to the API.
   // JS .length counts UTF-16 code units; rare emoji may differ slightly from Google's count.
-  const charactersUsed = text.length;
+  const charactersUsed = chunk.length;
 
   // audioContent can be string or Uint8Array
   const buffer =
@@ -221,19 +229,20 @@ export async function generateAudioForArticle(
   }
 
   const client = getTTSClient();
-  const voiceName = voiceNameOverride ?? process.env.TTS_VOICE_NAME ?? "en-US-Standard-A";
+  const voiceName =
+    voiceNameOverride ?? process.env.TTS_VOICE_NAME ?? DEFAULT_VOICE;
   // Derive language code from voice name (e.g., "en-US-Neural2-A" -> "en-US")
   const languageCode = voiceName.split("-").slice(0, 2).join("-");
 
-  // Convert HTML to plain text
-  const plainText = stripHtmlToPlainText(htmlContent);
+  const speakableText = isChirp3Voice(voiceName)
+    ? htmlToChirpMarkup(htmlContent)
+    : stripHtmlToPlainText(htmlContent);
 
-  if (!plainText.trim()) {
+  if (!speakableText.trim()) {
     throw new Error("Article content is empty after HTML processing");
   }
 
-  // Split into chunks
-  const chunks = chunkText(plainText);
+  const chunks = chunkText(speakableText);
 
   // Synthesize each chunk
   const audioBuffers: Buffer[] = [];

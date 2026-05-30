@@ -11,6 +11,11 @@ import { Button } from "~/components/ui/button";
 import { Play, Pause, Headphones, Loader2, AlertCircle } from "lucide-react";
 import { DEFAULT_VOICE, getVoiceOption } from "~/lib/tts-voices";
 import { isPlaybackSpeed } from "~/lib/playback-speed";
+import {
+  clearTtsGenerationPending,
+  isTtsGenerationPending,
+  markTtsGenerationPending,
+} from "~/lib/tts-generation-pending";
 import { cn } from "~/lib/utils";
 import { AudioPlayerExpanded } from "./audio-player-expanded";
 import { AudioPlayerSheet } from "./audio-player-sheet";
@@ -35,6 +40,8 @@ type PlaybackInfo = {
 };
 
 const PROGRESS_SAVE_INTERVAL = 5000;
+/** Poll server while a generation may still be running after refresh. */
+const GENERATION_STATUS_POLL_MS = 3000;
 
 const DOCK_CLASS =
   "rounded-2xl border border-rule bg-surface px-4 py-3 shadow-[var(--shadow-strong)]";
@@ -68,6 +75,8 @@ export function AudioPlayer({
   const utils = api.useUtils();
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressSaveRef = useRef<NodeJS.Timeout | null>(null);
+  /** Avoid re-seeking on every effect re-run (was causing stuck ~0.5s loops). */
+  const resumeAppliedForUrlRef = useRef<string | null>(null);
 
   const [playerState, setPlayerState] = useState<PlayerState>("idle");
   const [playback, setPlayback] = useState<PlaybackInfo | null>(null);
@@ -91,6 +100,8 @@ export function AudioPlayer({
 
   const regenerateAudio = api.tts.regenerateAudio.useMutation();
   const updateProgress = api.tts.updateProgress.useMutation();
+  const updateProgressRef = useRef(updateProgress.mutateAsync);
+  updateProgressRef.current = updateProgress.mutateAsync;
   const { data: voiceConfig } = api.tts.getVoiceConfig.useQuery();
 
   const voiceName = voiceConfig?.voiceName ?? DEFAULT_VOICE;
@@ -120,14 +131,48 @@ export function AudioPlayer({
     setDuration(0);
     setErrorMessage(null);
     setExpanded(false);
+    resumeAppliedForUrlRef.current = null;
+    clearTtsGenerationPending(articleId);
   }, [articleId]);
+
+  // After refresh: resume "generating" UI if we started before reload
+  useEffect(() => {
+    if (isCheckingStatus) return;
+    if (audioStatus?.hasAudio) {
+      clearTtsGenerationPending(articleId);
+      return;
+    }
+    if (
+      isTtsGenerationPending(articleId) &&
+      playerState !== "generating" &&
+      playerState !== "loading" &&
+      playerState !== "ready"
+    ) {
+      setPlayerState("generating");
+    }
+  }, [articleId, audioStatus?.hasAudio, isCheckingStatus, playerState]);
+
+  // Poll until background generation writes article_audio
+  useEffect(() => {
+    const awaitingServer =
+      (playerState === "generating" || isTtsGenerationPending(articleId)) &&
+      !audioStatus?.hasAudio;
+    if (!awaitingServer) return;
+
+    const interval = setInterval(() => {
+      void utils.tts.getStatus.invalidate({ articleId });
+    }, GENERATION_STATUS_POLL_MS);
+
+    return () => clearInterval(interval);
+  }, [articleId, audioStatus?.hasAudio, playerState, utils]);
 
   // Hydrate from server when status loads (skip while generating to avoid races)
   useEffect(() => {
     if (isCheckingStatus) return;
-    if (playerState === "generating") return;
+    if (playerState === "generating" && !audioStatus?.hasAudio) return;
 
     if (audioStatus?.hasAudio && audioStatus.audio) {
+      clearTtsGenerationPending(articleId);
       const serverUrl = audioStatus.audio.audioUrl;
       if (playback?.audioUrl === serverUrl && playerState === "ready") {
         return;
@@ -166,11 +211,16 @@ export function AudioPlayer({
         setDuration(audio.duration);
       }
       audio.playbackRate = playbackSpeed;
-      const resumeAt = playback?.currentTimeSeconds ?? 0;
-      if (resumeAt > 0) {
-        audio.currentTime = Math.min(resumeAt, audio.duration || resumeAt);
-        setCurrentTime(audio.currentTime);
+
+      if (resumeAppliedForUrlRef.current !== audioUrl) {
+        resumeAppliedForUrlRef.current = audioUrl;
+        const resumeAt = playback?.currentTimeSeconds ?? 0;
+        if (resumeAt > 0) {
+          audio.currentTime = Math.min(resumeAt, audio.duration || resumeAt);
+          setCurrentTime(audio.currentTime);
+        }
       }
+
       setPlayerState("ready");
     };
 
@@ -180,7 +230,7 @@ export function AudioPlayer({
 
     const handleEnded = () => {
       setIsPlaying(false);
-      void updateProgress.mutateAsync({
+      void updateProgressRef.current({
         articleId,
         currentTimeSeconds: audio.duration,
       });
@@ -206,20 +256,19 @@ export function AudioPlayer({
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
     };
-  }, [
-    articleId,
-    audioUrl,
-    playback?.currentTimeSeconds,
-    playbackSpeed,
-    updateProgress,
-  ]);
+  }, [articleId, audioUrl, playbackSpeed]);
+
+  useEffect(() => {
+    const el = audioRef.current;
+    if (el) el.playbackRate = playbackSpeed;
+  }, [playbackSpeed, audioUrl]);
 
   useEffect(() => {
     if (isPlaying) {
       progressSaveRef.current = setInterval(() => {
         const audio = audioRef.current;
         if (audio && !audio.paused) {
-          void updateProgress.mutateAsync({
+          void updateProgressRef.current({
             articleId,
             currentTimeSeconds: audio.currentTime,
           });
@@ -229,10 +278,18 @@ export function AudioPlayer({
     return () => {
       if (progressSaveRef.current) clearInterval(progressSaveRef.current);
     };
-  }, [isPlaying, articleId, updateProgress]);
+  }, [isPlaying, articleId]);
 
   const handleGenerateAudio = useCallback(
     async (options?: { regenerate?: boolean }) => {
+      if (
+        !audioStatus?.hasAudio &&
+        (playerState === "generating" || isTtsGenerationPending(articleId))
+      ) {
+        return;
+      }
+
+      markTtsGenerationPending(articleId);
       setPlayerState("generating");
       setErrorMessage(null);
       setIsPlaying(false);
@@ -259,10 +316,12 @@ export function AudioPlayer({
         setPlayback(info);
         setCurrentTime(info.currentTimeSeconds);
         setDuration(info.durationSeconds);
+        clearTtsGenerationPending(articleId);
         setPlayerState("loading");
         void utils.tts.getStatus.invalidate({ articleId });
         void utils.tts.getUsage.invalidate();
       } catch (err) {
+        clearTtsGenerationPending(articleId);
         setPlayerState("error");
         setErrorMessage(
           err instanceof Error ? err.message : "Failed to generate audio",
@@ -273,6 +332,7 @@ export function AudioPlayer({
       articleId,
       audioStatus?.hasAudio,
       generateAudioQuery,
+      playerState,
       regenerateAudio,
       utils,
       voiceName,
@@ -289,12 +349,12 @@ export function AudioPlayer({
     } else {
       audio.pause();
       setIsPlaying(false);
-      void updateProgress.mutateAsync({
+      void updateProgressRef.current({
         articleId,
         currentTimeSeconds: audio.currentTime,
       });
     }
-  }, [articleId, updateProgress]);
+  }, [articleId]);
 
   const handleSpeedSelect = useCallback((speed: number) => {
     setPlaybackSpeed(speed);
@@ -348,6 +408,8 @@ export function AudioPlayer({
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const canExpand = playerState === "ready";
   const isInitialCheck = isCheckingStatus && !playback;
+  const generationInFlight =
+    playerState === "generating" || isTtsGenerationPending(articleId);
 
   const dock = (() => {
     if (isInitialCheck) {
@@ -368,7 +430,7 @@ export function AudioPlayer({
       );
     }
 
-    if (playerState === "idle") {
+    if (playerState === "idle" && !generationInFlight) {
       return (
         <div className="flex items-center gap-3">
           <Button
@@ -396,7 +458,7 @@ export function AudioPlayer({
       );
     }
 
-    if (playerState === "generating") {
+    if (playerState === "generating" || generationInFlight) {
       return (
         <div className="flex items-center gap-3">
           <div className="bg-accent text-accent-foreground flex h-10 w-10 items-center justify-center rounded-full">
@@ -407,7 +469,8 @@ export function AudioPlayer({
               Generating audio
             </div>
             <div className="text-muted-foreground text-[11px]">
-              This may take a minute for long articles
+              May take 1–3 min for long articles. Safe to refresh — we&apos;ll
+              pick up when it&apos;s ready.
             </div>
           </div>
           <PlaybackSpeedPicker
