@@ -1,107 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { Check, Palette } from "lucide-react";
 
+import {
+  DEFAULT_THEME,
+  THEMES,
+  type ThemeName,
+  persistTheme,
+  readStoredTheme,
+} from "~/lib/theme";
 import { cn } from "~/lib/utils";
 
-export type ThemeName =
-  | "ember"
-  | "parchment"
-  | "forest"
-  | "cobalt"
-  | "matter"
-  | "matter-dark";
-
-const STORAGE_KEY = "ril.theme";
-
-interface ThemeDef {
-  id: ThemeName;
-  name: string;
-  tagline: string;
-  /** Small palette preview: [background, primary, accent]. */
-  swatches: [string, string, string];
-  /** Whether the palette is a light theme (drives `.dark` class removal). */
-  light?: boolean;
-}
-
-export const THEMES: readonly ThemeDef[] = [
-  {
-    id: "ember",
-    name: "Ember",
-    tagline: "Volcanic red on charcoal",
-    swatches: ["#2b2b2b", "#e0372c", "#5bb5e6"],
-  },
-  {
-    id: "parchment",
-    name: "Parchment",
-    tagline: "Warm paper, deep ink",
-    swatches: ["#f1e9d6", "#5a3d2a", "#c67b3a"],
-    light: true,
-  },
-  {
-    id: "forest",
-    name: "Forest",
-    tagline: "Moss, sage & brass",
-    swatches: ["#1f2a24", "#5fbf7a", "#d4a84b"],
-  },
-  {
-    id: "cobalt",
-    name: "Cobalt",
-    tagline: "Midnight navy, cyan & gold",
-    swatches: ["#121a2d", "#4fb8e0", "#e0b84f"],
-  },
-  {
-    id: "matter",
-    name: "Matter Paper",
-    tagline: "Warm paper, coral & ink",
-    swatches: ["#faf6ee", "#e94b27", "#1c1a17"],
-    light: true,
-  },
-  {
-    id: "matter-dark",
-    name: "Matter Winter",
-    tagline: "Warm night, coral & parchment",
-    swatches: ["#16130f", "#f26a47", "#efe6d2"],
-  },
-] as const;
-
-/**
- * Apply a theme to <html>. Safe to call from the pre-hydration inline script
- * — kept tiny and dependency-free. The inline bootstrap in `layout.tsx`
- * mirrors this logic to avoid FOUC.
- */
-export function applyTheme(theme: ThemeName): void {
-  if (typeof document === "undefined") return;
-  const root = document.documentElement;
-  root.setAttribute("data-theme", theme);
-  const isLight = THEMES.find((t) => t.id === theme)?.light ?? false;
-  root.classList.toggle("dark", !isLight);
-}
-
-function readStoredTheme(): ThemeName {
-  if (typeof window === "undefined") return "ember";
-  const v = window.localStorage.getItem(STORAGE_KEY);
-  if (v && THEMES.some((t) => t.id === v)) return v as ThemeName;
-  return "ember";
-}
+export type { ThemeName } from "~/lib/theme";
+export { THEMES, applyTheme } from "~/lib/theme";
 
 /**
  * Theme switcher rendered as a compact palette grid. Drops cleanly into the
- * user menu dropdown. Persists selection in localStorage and applies the
- * palette instantly without a re-render cascade.
+ * user menu dropdown. Persists to localStorage + cookie and applies instantly.
  */
 export function ThemeSwitcher({ className }: { className?: string }) {
-  const [theme, setTheme] = useState<ThemeName>("ember");
+  const [theme, setTheme] = useState<ThemeName>(DEFAULT_THEME);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setTheme(readStoredTheme());
   }, []);
 
   const select = (next: ThemeName) => {
     setTheme(next);
-    window.localStorage.setItem(STORAGE_KEY, next);
-    applyTheme(next);
+    persistTheme(next);
   };
 
   return (

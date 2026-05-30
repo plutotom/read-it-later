@@ -2,12 +2,23 @@ import "~/styles/globals.css";
 
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { cookies } from "next/headers";
+import Script from "next/script";
 import {
   Geist,
   Inter,
   Newsreader,
   Source_Serif_4,
 } from "next/font/google";
+
+import { ThemeProvider } from "~/app/_components/theme-provider";
+import {
+  THEME_BOOTSTRAP_SCRIPT,
+  THEME_COOKIE_KEY,
+  isLightTheme,
+  resolveTheme,
+} from "~/lib/theme";
+import { cn } from "~/lib/utils";
 
 const geist = Geist({
   subsets: ["latin"],
@@ -47,37 +58,37 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-// Applied before hydration to eliminate a theme flash. Mirrors the
-// allow-list in `theme-switcher.tsx`.
-const THEME_BOOTSTRAP = `(() => {
-  try {
-    var t = localStorage.getItem('ril.theme');
-    var allowed = ['ember','parchment','forest','cobalt','matter','matter-dark'];
-    if (!t || allowed.indexOf(t) === -1) t = 'ember';
-    var r = document.documentElement;
-    r.setAttribute('data-theme', t);
-    if (t === 'parchment' || t === 'matter') r.classList.remove('dark'); else r.classList.add('dark');
-  } catch (_) {
-    document.documentElement.setAttribute('data-theme', 'ember');
-    document.documentElement.classList.add('dark');
-  }
-})();`;
+/** Cookie-driven theme on <html> must not be statically cached. */
+export const dynamic = "force-dynamic";
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
+  const cookieStore = await cookies();
+  const theme = resolveTheme(cookieStore.get(THEME_COOKIE_KEY)?.value);
+  const isLight = isLightTheme(theme);
+
   return (
     <html
       lang="en"
-      className={`dark ${geist.variable} ${inter.variable} ${newsreader.variable} ${sourceSerif4.variable}`}
-      data-theme="ember"
-      // Bootstrap script applies localStorage theme before hydration.
+      data-theme={theme}
+      className={cn(!isLight && "dark")}
       suppressHydrationWarning
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
-      </head>
-      <body className="bg-background font-sans antialiased">{children}</body>
+      <body
+        className={cn(
+          geist.variable,
+          inter.variable,
+          newsreader.variable,
+          sourceSerif4.variable,
+          "bg-background font-sans antialiased",
+        )}
+      >
+        <Script id="ril-theme-bootstrap" strategy="beforeInteractive">
+          {THEME_BOOTSTRAP_SCRIPT}
+        </Script>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }
