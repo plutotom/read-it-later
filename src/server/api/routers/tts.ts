@@ -5,7 +5,12 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
-import { articleAudio, articles, ttsUsage, userPreferences } from "~/server/db/schema";
+import {
+  articleAudio,
+  articles,
+  ttsUsage,
+  userPreferences,
+} from "~/server/db/schema";
 import {
   generateAudioForArticle,
   deleteAudioFromBlob,
@@ -85,13 +90,15 @@ async function recordTTSUsage(
  */
 async function getUserVoicePreference(
   db: typeof import("~/server/db").db,
-  userId: string
+  userId: string,
 ): Promise<string> {
   const prefs = await db.query.userPreferences.findFirst({
     where: eq(userPreferences.userId, userId),
     columns: { ttsVoiceName: true },
   });
-  return prefs?.ttsVoiceName ?? process.env.TTS_VOICE_NAME ?? "en-US-Standard-A";
+  return (
+    prefs?.ttsVoiceName ?? process.env.TTS_VOICE_NAME ?? "en-US-Standard-A"
+  );
 }
 
 export const ttsRouter = createTRPCRouter({
@@ -100,10 +107,12 @@ export const ttsRouter = createTRPCRouter({
    * Generates audio if not cached, returns cached audio if available
    */
   getAudio: protectedProcedure
-    .input(z.object({ 
-      articleId: z.string().uuid(),
-      voiceName: z.string().optional(), // Optional override for this generation
-    }))
+    .input(
+      z.object({
+        articleId: z.string().uuid(),
+        voiceName: z.string().optional(), // Optional override for this generation
+      }),
+    )
     .query(async ({ ctx, input }) => {
       // Check for existing audio
       const existingAudio = await ctx.db.query.articleAudio.findFirst({
@@ -138,7 +147,9 @@ export const ttsRouter = createTRPCRouter({
       }
 
       // Get voice to use (override > user preference > env default)
-      const voiceName = input.voiceName ?? await getUserVoicePreference(ctx.db, ctx.session.user.id);
+      const voiceName =
+        input.voiceName ??
+        (await getUserVoicePreference(ctx.db, ctx.session.user.id));
 
       // Generate audio
       const result = await generateAudioForArticle(
@@ -212,10 +223,12 @@ export const ttsRouter = createTRPCRouter({
    * Force regenerate audio (e.g., after voice change)
    */
   regenerateAudio: protectedProcedure
-    .input(z.object({ 
-      articleId: z.string().uuid(),
-      voiceName: z.string().optional(), // Optional override for this generation
-    }))
+    .input(
+      z.object({
+        articleId: z.string().uuid(),
+        voiceName: z.string().optional(), // Optional override for this generation
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       // Check for existing audio and delete from blob storage
       const existingAudio = await ctx.db.query.articleAudio.findFirst({
@@ -257,7 +270,9 @@ export const ttsRouter = createTRPCRouter({
       }
 
       // Get voice to use (override > user preference > env default)
-      const voiceName = input.voiceName ?? await getUserVoicePreference(ctx.db, ctx.session.user.id);
+      const voiceName =
+        input.voiceName ??
+        (await getUserVoicePreference(ctx.db, ctx.session.user.id));
 
       // Generate new audio
       const result = await generateAudioForArticle(

@@ -28,6 +28,12 @@ interface AudioPlayerProps {
 
 type PlayerState = "idle" | "generating" | "loading" | "ready" | "error";
 
+type PlaybackInfo = {
+  audioUrl: string;
+  durationSeconds: number;
+  currentTimeSeconds: number;
+};
+
 const PROGRESS_SAVE_INTERVAL = 5000;
 
 const DOCK_CLASS =
@@ -39,6 +45,18 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
+function toPlaybackInfo(data: {
+  audioUrl: string;
+  durationSeconds: number | null;
+  currentTimeSeconds?: number | null;
+}): PlaybackInfo {
+  return {
+    audioUrl: data.audioUrl,
+    durationSeconds: data.durationSeconds ?? 0,
+    currentTimeSeconds: data.currentTimeSeconds ?? 0,
+  };
+}
+
 export function AudioPlayer({
   articleId,
   articleTitle,
@@ -47,10 +65,12 @@ export function AudioPlayer({
   articleImageUrl,
   onJumpToReadingPosition,
 }: AudioPlayerProps) {
+  const utils = api.useUtils();
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressSaveRef = useRef<NodeJS.Timeout | null>(null);
 
   const [playerState, setPlayerState] = useState<PlayerState>("idle");
+  const [playback, setPlayback] = useState<PlaybackInfo | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -61,12 +81,12 @@ export function AudioPlayer({
   const { data: audioStatus, isLoading: isCheckingStatus } =
     api.tts.getStatus.useQuery(
       { articleId },
-      { refetchOnWindowFocus: false, staleTime: Infinity },
+      { refetchOnWindowFocus: false },
     );
 
-  const generateAudio = api.tts.getAudio.useQuery(
+  const generateAudioQuery = api.tts.getAudio.useQuery(
     { articleId },
-    { enabled: false, refetchOnWindowFocus: false },
+    { enabled: false, retry: false, refetchOnWindowFocus: false },
   );
 
   const regenerateAudio = api.tts.regenerateAudio.useMutation();
@@ -79,6 +99,8 @@ export function AudioPlayer({
     return v ? `Voice · ${v.label}` : null;
   })();
 
+  const audioUrl = playback?.audioUrl;
+
   useEffect(() => {
     const savedSpeed = localStorage.getItem("tts-playback-speed");
     if (savedSpeed) {
@@ -89,29 +111,65 @@ export function AudioPlayer({
     }
   }, []);
 
+  // Reset when switching articles
   useEffect(() => {
-    if (!isCheckingStatus && audioStatus) {
-      if (audioStatus.hasAudio && audioStatus.audio) {
-        setPlayerState("loading");
-        setCurrentTime(audioStatus.audio.currentTimeSeconds ?? 0);
-        if (audioStatus.audio.durationSeconds) {
-          setDuration(audioStatus.audio.durationSeconds);
-        }
-      } else {
-        setPlayerState("idle");
-      }
-    }
-  }, [audioStatus, isCheckingStatus]);
+    setPlayback(null);
+    setPlayerState("idle");
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setErrorMessage(null);
+    setExpanded(false);
+  }, [articleId]);
 
+  // Hydrate from server when status loads (skip while generating to avoid races)
+  useEffect(() => {
+    if (isCheckingStatus) return;
+    if (playerState === "generating") return;
+
+    if (audioStatus?.hasAudio && audioStatus.audio) {
+      const serverUrl = audioStatus.audio.audioUrl;
+      if (playback?.audioUrl === serverUrl && playerState === "ready") {
+        return;
+      }
+
+      const info = toPlaybackInfo({
+        audioUrl: serverUrl,
+        durationSeconds: audioStatus.audio.durationSeconds,
+        currentTimeSeconds: audioStatus.audio.currentTimeSeconds,
+      });
+      setPlayback(info);
+      setCurrentTime(info.currentTimeSeconds);
+      setDuration(info.durationSeconds);
+      setPlayerState((prev) => (prev === "ready" ? "ready" : "loading"));
+      return;
+    }
+
+    if (!audioStatus?.hasAudio && playerState === "idle") {
+      setPlayback(null);
+    }
+  }, [
+    articleId,
+    audioStatus,
+    isCheckingStatus,
+    playerState,
+    playback?.audioUrl,
+  ]);
+
+  // Attach media listeners and transition loading → ready
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !audioUrl) return;
 
     const handleLoadedMetadata = () => {
-      setDuration(audio.duration);
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      }
       audio.playbackRate = playbackSpeed;
-      if (audioStatus?.audio?.currentTimeSeconds) {
-        audio.currentTime = audioStatus.audio.currentTimeSeconds;
+      const resumeAt = playback?.currentTimeSeconds ?? 0;
+      if (resumeAt > 0) {
+        audio.currentTime = Math.min(resumeAt, audio.duration || resumeAt);
+        setCurrentTime(audio.currentTime);
       }
       setPlayerState("ready");
     };
@@ -130,13 +188,17 @@ export function AudioPlayer({
 
     const handleError = () => {
       setPlayerState("error");
-      setErrorMessage("Failed to load audio");
+      setErrorMessage("Failed to load audio. Try generating again.");
     };
 
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
     audio.addEventListener("timeupdate", handleTimeUpdate);
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("error", handleError);
+
+    if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      handleLoadedMetadata();
+    }
 
     return () => {
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
@@ -146,7 +208,8 @@ export function AudioPlayer({
     };
   }, [
     articleId,
-    audioStatus?.audio?.currentTimeSeconds,
+    audioUrl,
+    playback?.currentTimeSeconds,
     playbackSpeed,
     updateProgress,
   ]);
@@ -169,29 +232,35 @@ export function AudioPlayer({
   }, [isPlaying, articleId, updateProgress]);
 
   const handleGenerateAudio = useCallback(
-    async (voiceOverride?: string) => {
+    async (options?: { regenerate?: boolean }) => {
       setPlayerState("generating");
       setErrorMessage(null);
+      setIsPlaying(false);
+
       try {
-        if (voiceOverride) {
-          const result = await regenerateAudio.mutateAsync({
+        let data;
+        if (options?.regenerate || audioStatus?.hasAudio) {
+          data = await regenerateAudio.mutateAsync({
             articleId,
-            voiceName: voiceOverride,
+            voiceName: voiceName,
           });
-          if (result) {
-            setPlayerState("loading");
-            setDuration(result.durationSeconds ?? 0);
-          }
         } else {
-          const result = await generateAudio.refetch();
-          if (result.data) {
-            setPlayerState("loading");
-            setDuration(result.data.durationSeconds ?? 0);
-          } else if (result.error) {
-            setPlayerState("error");
-            setErrorMessage(result.error.message);
+          const result = await generateAudioQuery.refetch();
+          if (result.error) {
+            throw result.error;
           }
+          if (!result.data) {
+            throw new Error("No audio returned from server");
+          }
+          data = result.data;
         }
+
+        const info = toPlaybackInfo(data);
+        setPlayback(info);
+        setCurrentTime(info.currentTimeSeconds);
+        setDuration(info.durationSeconds);
+        setPlayerState("loading");
+        void utils.tts.getStatus.invalidate({ articleId });
       } catch (err) {
         setPlayerState("error");
         setErrorMessage(
@@ -199,7 +268,14 @@ export function AudioPlayer({
         );
       }
     },
-    [generateAudio, regenerateAudio, articleId],
+    [
+      articleId,
+      audioStatus?.hasAudio,
+      generateAudioQuery,
+      regenerateAudio,
+      utils,
+      voiceName,
+    ],
   );
 
   const togglePlayPause = useCallback(() => {
@@ -269,17 +345,35 @@ export function AudioPlayer({
   }, [onJumpToReadingPosition, currentTime, duration]);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const audioUrl = audioStatus?.audio?.audioUrl ?? generateAudio.data?.audioUrl;
   const canExpand = playerState === "ready";
+  const isInitialCheck = isCheckingStatus && !playback;
 
-  if (playerState === "idle" && !isCheckingStatus) {
-    return (
-      <div className={DOCK_CLASS}>
+  const dock = (() => {
+    if (isInitialCheck) {
+      return (
+        <div className="flex items-center gap-3">
+          <div className="bg-background-deep text-muted-foreground flex h-10 w-10 items-center justify-center rounded-full">
+            <Loader2 className="size-4 animate-spin" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-foreground truncate text-[13px] font-medium tracking-tight">
+              Checking audio
+            </div>
+            <div className="text-muted-foreground text-[11px]">
+              One moment
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (playerState === "idle") {
+      return (
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => handleGenerateAudio(voiceName)}
+            onClick={() => void handleGenerateAudio()}
             className="bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground h-10 w-10 rounded-full"
           >
             <Headphones className="size-4" />
@@ -298,13 +392,11 @@ export function AudioPlayer({
             variant="mini"
           />
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (playerState === "generating") {
-    return (
-      <div className={DOCK_CLASS}>
+    if (playerState === "generating") {
+      return (
         <div className="flex items-center gap-3">
           <div className="bg-accent text-accent-foreground flex h-10 w-10 items-center justify-center rounded-full">
             <Loader2 className="size-4 animate-spin" />
@@ -314,7 +406,7 @@ export function AudioPlayer({
               Generating audio
             </div>
             <div className="text-muted-foreground text-[11px]">
-              This may take a moment
+              This may take a minute for long articles
             </div>
           </div>
           <PlaybackSpeedPicker
@@ -324,13 +416,11 @@ export function AudioPlayer({
             disabled
           />
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (playerState === "error") {
-    return (
-      <div className={DOCK_CLASS}>
+    if (playerState === "error") {
+      return (
         <div className="flex items-center gap-3">
           <div className="bg-background-deep text-muted-foreground flex h-10 w-10 items-center justify-center rounded-full">
             <AlertCircle className="size-4" />
@@ -346,19 +436,17 @@ export function AudioPlayer({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleGenerateAudio(voiceName)}
+            onClick={() => void handleGenerateAudio({ regenerate: true })}
             className="border-rule text-foreground-soft hover:bg-background-deep hover:text-foreground rounded-full border px-3 text-xs"
           >
             Retry
           </Button>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (isCheckingStatus || (playerState === "loading" && !audioUrl)) {
-    return (
-      <div className={DOCK_CLASS}>
+    if (playerState === "loading" || !audioUrl) {
+      return (
         <div className="flex items-center gap-3">
           <div className="bg-background-deep text-muted-foreground flex h-10 w-10 items-center justify-center rounded-full">
             <Loader2 className="size-4 animate-spin" />
@@ -378,15 +466,11 @@ export function AudioPlayer({
             disabled
           />
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  return (
-    <>
-      <div className={DOCK_CLASS}>
-        {audioUrl && <audio ref={audioRef} src={audioUrl} preload="metadata" />}
-
+    return (
+      <>
         <div
           className={cn(
             "bg-background-deep mb-3 h-1.5 rounded-full",
@@ -458,7 +542,23 @@ export function AudioPlayer({
             disabled={playerState !== "ready"}
           />
         </div>
-      </div>
+      </>
+    );
+  })();
+
+  return (
+    <>
+      {audioUrl ? (
+        <audio
+          ref={audioRef}
+          src={audioUrl}
+          preload="metadata"
+          className="hidden"
+          key={audioUrl}
+        />
+      ) : null}
+
+      <div className={DOCK_CLASS}>{dock}</div>
 
       <AudioPlayerSheet
         open={expanded}
