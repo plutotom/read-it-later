@@ -14,6 +14,8 @@ import {
   countArticleWords,
   readingTimeFromWordCount,
 } from "~/server/lib/articleWordCount";
+import { paraExports } from "~/server/db/schema";
+import { refreshExportFromArticle } from "~/server/services/paraExportService";
 
 export const articleRouter = createTRPCRouter({
   getAll: protectedProcedure.query(async ({ ctx }) => {
@@ -154,6 +156,19 @@ export const articleRouter = createTRPCRouter({
           ),
         )
         .returning();
+
+      if (updatedArticle && input.title) {
+        const exportRow = await ctx.db.query.paraExports.findFirst({
+          where: and(
+            eq(paraExports.articleId, updatedArticle.id),
+            eq(paraExports.userId, ctx.session.user.id),
+          ),
+        });
+
+        if (exportRow) {
+          await refreshExportFromArticle(ctx.db, exportRow, updatedArticle);
+        }
+      }
 
       return {
         success: !!updatedArticle,

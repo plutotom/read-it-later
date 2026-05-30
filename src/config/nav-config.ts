@@ -1,4 +1,4 @@
-import { Home, FolderArchive, type LucideIcon } from "lucide-react";
+import { Home, FolderArchive, Tablet, type LucideIcon } from "lucide-react";
 
 /**
  * Shared navigation configuration
@@ -32,6 +32,12 @@ export const mainNavItems: NavItem[] = [
     url: "/archived",
     icon: FolderArchive,
     description: "Saved articles",
+  },
+  {
+    title: "Para",
+    url: "/para",
+    icon: Tablet,
+    description: "E-reader sync queue",
   },
 ];
 

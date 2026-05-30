@@ -192,6 +192,62 @@ export const notes = createTable(
   ],
 );
 
+// Para device exports — plain-text snapshots for e-reader sync
+export const paraExports = createTable(
+  "para_export",
+  (d) => ({
+    id: d.uuid().primaryKey().defaultRandom(),
+    userId: d
+      .text()
+      .notNull()
+      .references(() => user.id),
+    articleId: d
+      .uuid()
+      .references(() => articles.id, { onDelete: "set null" }),
+    title: d.text().notNull(),
+    filename: d.text().notNull(),
+    txtContent: d.text().notNull(),
+    bytes: d.integer().notNull(),
+    sha256: d.text().notNull(),
+    contentHash: d.text().notNull(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  }),
+  (t) => [
+    index("para_export_user_idx").on(t.userId),
+    index("para_export_article_idx").on(t.articleId),
+    index("para_export_created_at_idx").on(t.createdAt),
+  ],
+);
+
+// General-purpose API keys (device sync, future integrations)
+export const apiKeys = createTable(
+  "api_key",
+  (d) => ({
+    id: d.uuid().primaryKey().defaultRandom(),
+    userId: d
+      .text()
+      .notNull()
+      .references(() => user.id),
+    label: d.text().notNull(),
+    keyPrefix: d.text().notNull(),
+    keyHash: d.text().notNull(),
+    scopes: d.text().array().notNull().default(["para:read"]),
+    lastUsedAt: d.timestamp({ withTimezone: true }),
+    revokedAt: d.timestamp({ withTimezone: true }),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  }),
+  (t) => [
+    index("api_key_user_idx").on(t.userId),
+    index("api_key_hash_idx").on(t.keyHash),
+  ],
+);
+
 // Article Audio table - for TTS audio caching and playback progress
 export const articleAudio = createTable(
   "article_audio",
@@ -241,6 +297,25 @@ export const articlesRelations = relations(articles, ({ one, many }) => ({
   highlights: many(highlights),
   notes: many(notes),
   audio: one(articleAudio),
+  paraExports: many(paraExports),
+}));
+
+export const paraExportsRelations = relations(paraExports, ({ one }) => ({
+  user: one(user, {
+    fields: [paraExports.userId],
+    references: [user.id],
+  }),
+  article: one(articles, {
+    fields: [paraExports.articleId],
+    references: [articles.id],
+  }),
+}));
+
+export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
+  user: one(user, {
+    fields: [apiKeys.userId],
+    references: [user.id],
+  }),
 }));
 
 export const foldersRelations = relations(folders, ({ one, many }) => ({

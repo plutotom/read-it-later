@@ -30,6 +30,7 @@ import { useRouter } from "next/navigation";
 import { withViewTransition } from "~/lib/with-view-transition";
 import { HighlightsMenu } from "./highlights-menu";
 import { ShareDialog } from "./share-dialog";
+import { ParaToggle } from "./para-toggle";
 import { cn } from "~/lib/utils";
 
 interface ArticleReaderHeaderProps {
@@ -197,6 +198,11 @@ export function ArticleReaderHeader({
                 <Share2 className="mr-2 h-4 w-4" />
                 Share
               </DropdownMenuItem>
+              <ParaToggle
+                articleId={article.id}
+                articleTitle={article.title}
+                variant="menu"
+              />
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleDelete}
@@ -219,6 +225,14 @@ export function ArticleReaderHeader({
               autoHighlight={autoHighlight}
               onAutoHighlightChange={onAutoHighlightChange}
             />
+
+            <div className="border-t border-rule pt-3">
+              <ParaToggle
+                articleId={article.id}
+                articleTitle={article.title}
+                className="px-1 py-2"
+              />
+            </div>
 
             <div className="border-t border-rule pt-3">
               <HighlightsMenu

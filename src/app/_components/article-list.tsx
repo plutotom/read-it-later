@@ -7,8 +7,11 @@
 
 import { type Article } from "~/types/article";
 import { ArticleCard } from "./article-card";
+import { ArticleActionsMenu } from "./article-actions-menu";
+import { ParaBadge } from "./para-badge";
 import { SearchBar } from "./search-bar";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { api } from "~/trpc/react";
 
 interface ArticleListProps {
   articles: Article[];
@@ -79,6 +82,16 @@ export function ArticleList({
   const listArticles = heroArticle ? filteredArticles.slice(1) : filteredArticles;
   const visibleArticles = listArticles.slice(0, visibleCount);
   const remainingCount = Math.max(0, listArticles.length - visibleArticles.length);
+
+  const articleIds = useMemo(
+    () => filteredArticles.map((article) => article.id),
+    [filteredArticles],
+  );
+
+  const { data: paraStatuses = {} } = api.para.getArticleStatuses.useQuery(
+    { articleIds },
+    { enabled: articleIds.length > 0 },
+  );
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
@@ -168,48 +181,64 @@ export function ArticleList({
         ) : (
           <div className="space-y-4">
             {heroArticle && (
-              <button
-                type="button"
-                onClick={() => onArticleClick?.(heroArticle)}
-                className="group grid w-full overflow-hidden rounded-2xl border border-rule bg-surface text-left transition hover:-translate-y-0.5 hover:shadow-soft"
-              >
-                <div className="grid min-h-[240px] grid-cols-1 sm:grid-cols-[1.2fr_0.8fr]">
-                  <div className="p-5 sm:p-7">
-                    <div className="text-xs tracking-[0.18em] text-muted-foreground uppercase">
-                      Continue reading
-                    </div>
-                    <h2
-                      className="mt-3 text-3xl leading-[1.05] font-medium tracking-tight text-foreground sm:text-4xl"
-                      style={{ fontFamily: "var(--font-app-display)" }}
-                    >
-                      {heroArticle.title}
-                    </h2>
-                    {heroArticle.excerpt && (
-                      <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-foreground-soft">
-                        {heroArticle.excerpt}
-                      </p>
-                    )}
-                    <div className="mt-5 flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{getDomainFromUrl(heroArticle.url)}</span>
-                      {heroArticle.readingTime && (
-                        <>
-                          <span>·</span>
-                          <span>{heroArticle.readingTime} min</span>
-                        </>
+              <div className="group relative overflow-hidden rounded-2xl border border-rule bg-surface transition hover:-translate-y-0.5 hover:shadow-soft">
+                <button
+                  type="button"
+                  onClick={() => onArticleClick?.(heroArticle)}
+                  className="grid w-full text-left"
+                >
+                  <div className="grid min-h-[240px] grid-cols-1 sm:grid-cols-[1.2fr_0.8fr]">
+                    <div className="p-5 sm:p-7">
+                      <div className="text-xs tracking-[0.18em] text-muted-foreground uppercase">
+                        Continue reading
+                      </div>
+                      <h2
+                        className="mt-3 text-3xl leading-[1.05] font-medium tracking-tight text-foreground sm:text-4xl"
+                        style={{ fontFamily: "var(--font-app-display)" }}
+                      >
+                        {heroArticle.title}
+                      </h2>
+                      {heroArticle.excerpt && (
+                        <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-foreground-soft">
+                          {heroArticle.excerpt}
+                        </p>
                       )}
+                      <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <span>{getDomainFromUrl(heroArticle.url)}</span>
+                        {heroArticle.readingTime && (
+                          <>
+                            <span>·</span>
+                            <span>{heroArticle.readingTime} min</span>
+                          </>
+                        )}
+                        {paraStatuses[heroArticle.id] && (
+                          <ParaBadge size="md" />
+                        )}
+                      </div>
+                      <div className="mt-6 h-[3px] overflow-hidden rounded-full bg-background-deep">
+                        <div
+                          className="m-progress-fill h-full rounded-full bg-accent"
+                          style={{ "--p": "46%" } as CSSProperties}
+                        />
+                      </div>
                     </div>
-                    <div className="mt-6 h-[3px] overflow-hidden rounded-full bg-background-deep">
-                      <div
-                        className="m-progress-fill h-full rounded-full bg-accent"
-                        style={{ "--p": "46%" } as CSSProperties}
-                      />
+                    <div className="relative min-h-[180px] bg-[radial-gradient(120%_120%_at_20%_10%,var(--highlight-peach)_0%,var(--accent)_58%,color-mix(in_oklch,var(--foreground)_82%,var(--accent))_100%)]">
+                      <div className="absolute inset-5 rounded-[1.25rem] border border-white/20 bg-white/10 backdrop-blur-md dark:border-white/10 dark:bg-black/10" />
                     </div>
                   </div>
-                  <div className="relative min-h-[180px] bg-[radial-gradient(120%_120%_at_20%_10%,var(--highlight-peach)_0%,var(--accent)_58%,color-mix(in_oklch,var(--foreground)_82%,var(--accent))_100%)]">
-                    <div className="absolute inset-5 rounded-[1.25rem] border border-white/20 bg-white/10 backdrop-blur-md dark:border-white/10 dark:bg-black/10" />
-                  </div>
+                </button>
+                <div className="absolute top-3 right-3 z-10 sm:top-4 sm:right-4">
+                  <ArticleActionsMenu
+                    article={heroArticle}
+                    isOnPara={paraStatuses[heroArticle.id] ?? false}
+                    onArchive={() => onArchive?.(heroArticle.id)}
+                    onUnarchive={() => onUnarchive?.(heroArticle.id)}
+                    onDelete={() => onDelete?.(heroArticle.id)}
+                    alwaysVisible
+                    className="bg-surface/80 text-foreground backdrop-blur-sm hover:bg-surface"
+                  />
                 </div>
-              </button>
+              </div>
             )}
 
             <div className="overflow-hidden rounded-2xl border border-rule bg-surface">
@@ -218,6 +247,7 @@ export function ArticleList({
                   <ArticleCard
                     key={article.id}
                     article={article}
+                    isOnPara={paraStatuses[article.id] ?? false}
                     onClick={() => onArticleClick?.(article)}
                     onArchive={() => onArchive?.(article.id)}
                     onUnarchive={() => onUnarchive?.(article.id)}

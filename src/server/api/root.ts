@@ -3,6 +3,8 @@ import { articleRouter } from "~/server/api/routers/article";
 import { folderRouter } from "~/server/api/routers/folder";
 import { annotationRouter } from "~/server/api/routers/annotation";
 import { ttsRouter } from "~/server/api/routers/tts";
+import { paraRouter } from "~/server/api/routers/para";
+import { apiKeyRouter } from "~/server/api/routers/apiKey";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -16,6 +18,8 @@ export const appRouter = createTRPCRouter({
   folder: folderRouter,
   annotation: annotationRouter,
   tts: ttsRouter,
+  para: paraRouter,
+  apiKey: apiKeyRouter,
 });
 
 // export type definition of API

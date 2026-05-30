@@ -15,6 +15,7 @@ import { Moon, Sun, Loader2, Volume2 } from "lucide-react";
 import { DEFAULT_VOICE } from "~/lib/tts-voices";
 import { TTSUsageDisplay } from "~/app/_components/tts-usage-display";
 import { VoiceSelector } from "~/app/_components/voice-selector";
+import { ApiKeysSettings } from "~/app/_components/api-keys-settings";
 import { Layout } from "~/app/_components/layout";
 
 export default function PreferencesPage() {
@@ -190,6 +191,8 @@ export default function PreferencesPage() {
             </div>
           </CardContent>
         </Card>
+
+        <ApiKeysSettings />
 
         <Card className="bg-card mt-6 border-gray-700">
           <CardHeader>

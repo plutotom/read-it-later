@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "~/server/auth";
 import { TRPCReactProvider } from "~/trpc/react";
+import { AppToaster } from "~/app/_components/app-toaster";
 
 export default async function RootLayout({
   children,
@@ -19,6 +20,7 @@ export default async function RootLayout({
   return (
     <TRPCReactProvider>
       <div className="bg-background min-h-screen">{children}</div>
+      <AppToaster />
     </TRPCReactProvider>
   );
 }

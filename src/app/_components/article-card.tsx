@@ -1,29 +1,9 @@
-/**
- * Article Card Component
- * Mobile-optimized card display for individual articles
- */
-
 "use client";
 
 import { type Article } from "~/types/article";
-import { useContext } from "react";
-import { GeneralContext } from "../(protected)/contexts/general-context";
 import { ListenProgress } from "./listen-progress";
-import { Button } from "~/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
-import {
-  MoreVertical,
-  ExternalLink,
-  Pencil,
-  Archive,
-  Trash2,
-} from "lucide-react";
+import { ArticleActionsMenu } from "./article-actions-menu";
+import { ParaBadge } from "./para-badge";
 
 interface ArticleCardProps {
   article: Article;
@@ -33,6 +13,7 @@ interface ArticleCardProps {
   onDelete?: () => void;
   onMoveToFolder?: (folderId: string | null) => void;
   showActions?: boolean;
+  isOnPara?: boolean;
   /** Listen progress as a fraction (0-1), undefined if no audio */
   listenProgress?: number;
 }
@@ -45,10 +26,9 @@ export function ArticleCard({
   onDelete,
   onMoveToFolder: _onMoveToFolder,
   showActions = true,
+  isOnPara = false,
   listenProgress,
 }: ArticleCardProps) {
-  const { setMetadataEditArticle } = useContext(GeneralContext);
-
   const formatReadingTime = (minutes: number) => {
     if (minutes < 1) return "< 1 min";
     return `${minutes} min`;
@@ -105,7 +85,7 @@ export function ArticleCard({
             </p>
           )}
 
-          <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
             <span>{domain}</span>
             {article.readingTime && (
               <>
@@ -113,6 +93,7 @@ export function ArticleCard({
                 <span>{formatReadingTime(article.readingTime)}</span>
               </>
             )}
+            {isOnPara && <ParaBadge />}
             {listenProgress !== undefined && (
               <>
                 <span>·</span>
@@ -124,83 +105,13 @@ export function ArticleCard({
 
         <div className="flex shrink-0 items-start">
           {showActions && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-full text-muted-foreground opacity-0 transition hover:bg-foreground/10 hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100"
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label="Article actions"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(article.url, "_blank");
-                  }}
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Open Original
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMetadataEditArticle({
-                      id: article.id,
-                      title: article.title,
-                      url: article.url,
-                    });
-                  }}
-                >
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit metadata
-                </DropdownMenuItem>
-
-                {article.isArchived ? (
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUnarchive?.();
-                    }}
-                  >
-                    <Archive className="mr-2 h-4 w-4" />
-                    Unarchive
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onArchive?.();
-                    }}
-                  >
-                    <Archive className="mr-2 h-4 w-4" />
-                    Archive
-                  </DropdownMenuItem>
-                )}
-
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (
-                      confirm("Are you sure you want to delete this article?")
-                    ) {
-                      onDelete?.();
-                    }
-                  }}
-                  className="text-red-400 focus:bg-red-900/30 focus:text-red-400"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <ArticleActionsMenu
+              article={article}
+              isOnPara={isOnPara}
+              onArchive={onArchive}
+              onUnarchive={onUnarchive}
+              onDelete={onDelete}
+            />
           )}
         </div>
       </div>
