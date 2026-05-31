@@ -5,12 +5,14 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import {
+  clearParaGotoPage,
   createParaExport,
   getParaArticleStatuses,
   getTotalParaBytes,
   listParaExports,
   removeParaExportByArticleId,
   removeParaExportById,
+  setParaGotoPage,
 } from "~/server/services/paraExportService";
 
 export const paraRouter = createTRPCRouter({
@@ -91,5 +93,47 @@ export const paraRouter = createTRPCRouter({
       }
 
       return { success: true };
+    }),
+
+  setGotoPage: protectedProcedure
+    .input(
+      z.object({
+        exportId: z.string().uuid(),
+        page: z.number().int().min(1).max(99_999),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await setParaGotoPage(
+          ctx.db,
+          ctx.session.user.id,
+          input.exportId,
+          input.page,
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to set goto page";
+        throw new TRPCError({
+          code: message === "Export not found" ? "NOT_FOUND" : "BAD_REQUEST",
+          message,
+        });
+      }
+    }),
+
+  clearGotoPage: protectedProcedure
+    .input(z.object({ exportId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await clearParaGotoPage(
+          ctx.db,
+          ctx.session.user.id,
+          input.exportId,
+        );
+      } catch {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Export not found",
+        });
+      }
     }),
 });

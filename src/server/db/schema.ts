@@ -210,6 +210,9 @@ export const paraExports = createTable(
     bytes: d.integer().notNull(),
     sha256: d.text().notNull(),
     contentHash: d.text().notNull(),
+    gotoPage: d.integer(),
+    gotoVersion: d.integer().notNull().default(0),
+    gotoSetAt: d.timestamp({ withTimezone: true }),
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)

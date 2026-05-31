@@ -71,6 +71,20 @@
       "when": 1772380800000,
       "tag": "0009_tts_unified_usage",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1775000000000,
+      "tag": "0010_para_export_goto",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1780175505807,
+      "tag": "0011_giant_thunderbolt_ross",
+      "breakpoints": true
     }
   ]
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { api } from "~/trpc/react";
 import { Layout } from "~/app/_components/layout";
 import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
 import {
   Card,
   CardContent,
@@ -11,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import { AlertTriangle, ExternalLink, Loader2, Trash2 } from "lucide-react";
+import { AlertTriangle, ExternalLink, Loader2, Trash2, X } from "lucide-react";
 import { PARA_SIZE_WARNING_BYTES } from "~/lib/paraConstants";
 import { toast } from "~/hooks/use-toast";
 
@@ -19,6 +21,140 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function ParaGotoPageControl({
+  exportId,
+  gotoPage,
+  gotoVersion,
+  gotoSetAt,
+}: {
+  exportId: string;
+  gotoPage: number | null;
+  gotoVersion: number;
+  gotoSetAt: Date | null;
+}) {
+  const utils = api.useUtils();
+  const [pageInput, setPageInput] = useState(
+    gotoPage != null ? String(gotoPage) : "",
+  );
+
+  const setGoto = api.para.setGotoPage.useMutation({
+    onSuccess: (row) => {
+      void utils.para.list.invalidate();
+      setPageInput(String(row.gotoPage ?? ""));
+      toast({
+        title: "Go to page saved",
+        description: `Your device will jump to page ${row.gotoPage} on the next sync.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Could not save page",
+        description: error.message,
+      });
+    },
+  });
+
+  const clearGoto = api.para.clearGotoPage.useMutation({
+    onSuccess: () => {
+      void utils.para.list.invalidate();
+      setPageInput("");
+      toast({
+        title: "Go to page cleared",
+        description: "Your device will no longer receive a jump command on sync.",
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Could not clear page",
+        description: "Something went wrong. Please try again.",
+      });
+    },
+  });
+
+  const isPending = setGoto.isPending || clearGoto.isPending;
+
+  const handleSave = () => {
+    const parsed = Number.parseInt(pageInput, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      toast({
+        variant: "destructive",
+        title: "Invalid page",
+        description: "Enter a whole number of 1 or greater.",
+      });
+      return;
+    }
+    setGoto.mutate({ exportId, page: parsed });
+  };
+
+  return (
+    <div className="mt-3 space-y-2 border-t border-gray-700/60 pt-3">
+      <p className="text-xs font-medium text-gray-300">Go to page on device</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          type="number"
+          min={1}
+          max={99999}
+          placeholder="Page"
+          value={pageInput}
+          onChange={(e) => setPageInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSave();
+          }}
+          className="h-8 w-24 border-gray-600 bg-gray-900 text-sm text-white"
+          disabled={isPending}
+        />
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          className="h-8"
+          disabled={isPending || !pageInput.trim()}
+          onClick={handleSave}
+        >
+          {setGoto.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            "Save"
+          )}
+        </Button>
+        {gotoPage != null && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8 text-gray-400 hover:text-white"
+            disabled={isPending}
+            onClick={() => clearGoto.mutate({ exportId })}
+          >
+            <X className="mr-1 h-3.5 w-3.5" />
+            Clear
+          </Button>
+        )}
+      </div>
+      {gotoPage != null && (
+        <p className="text-xs text-amber-400/90">
+          Will jump to page {gotoPage} on next sync
+          {gotoSetAt != null && (
+            <>
+              {" "}
+              · set {new Date(gotoSetAt).toLocaleString()}
+            </>
+          )}
+          {gotoVersion > 0 && (
+            <span className="text-gray-500"> · v{gotoVersion}</span>
+          )}
+        </p>
+      )}
+      <p className="text-[11px] text-gray-500">
+        Page numbers match your device display (1-indexed). Pagination may differ
+        from the web reader.
+      </p>
+    </div>
+  );
 }
 
 export default function ParaPage() {
@@ -128,6 +264,12 @@ export default function ParaPage() {
                   <p className="mt-1 font-mono text-[11px] text-gray-500">
                     {item.filename}
                   </p>
+                  <ParaGotoPageControl
+                    exportId={item.id}
+                    gotoPage={item.gotoPage}
+                    gotoVersion={item.gotoVersion}
+                    gotoSetAt={item.gotoSetAt}
+                  />
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">

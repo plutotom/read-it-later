@@ -129,7 +129,52 @@ These fields and semantics are unchanged:
 - `books[]` sorted by `name` ascending (server guarantees this; firmware may assume)
 - `bytes` required — reject partial downloads
 - `sha256` optional — verify if present
-- `id` is stable per article — use for logging/debugging; filename on disk comes from `name`
+- `id` is stable per export — use for logging/debugging and goto version tracking; filename on disk comes from `name`
+
+### 6b. Read location (goto page) — optional manifest fields
+
+Read It Later can send a **one-way** “jump to page” command from the web `/para` page. The device must apply it **once per version**, not on every sync.
+
+Each book entry may include:
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "how-to-build-habits.txt",
+  "url": "https://read-it-later.com/api/para/articles/550e8400-e29b-41d4-a716-446655440000",
+  "sha256": "abc123...",
+  "bytes": 48291,
+  "goto_page": 42,
+  "goto_version": 3
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `goto_page` | **1-indexed** page number (matches status bar display: `pageIndex + 1` in firmware 1.5) |
+| `goto_version` | Monotonic integer; incremented each time the user sets/changes goto from the web |
+
+**Omitted** when there is no pending goto command.
+
+**Firmware behavior:**
+
+1. After download (or when the book is already on disk with matching `sha256`), if `goto_page` and `goto_version` are present:
+2. Read `last_applied_goto_version` for this manifest `id` from NVS (default `0`).
+3. If `goto_version` > `last_applied_goto_version`:
+   - Resolve book file by manifest `name` under `/books/<name>`
+   - Set reading progress to `goto_page - 1` (0-indexed `pageIndex`)
+   - Persist with the same NVS key scheme as local progress (`prefKeyForBook` + `_p`)
+   - Store `goto_version` as the new `last_applied_goto_version` for that `id`
+4. If the book file is missing or `goto_page < 1`, ignore the command (do not update applied version).
+5. **Do not** clear or POST back to the server in v1 — the web UI keeps showing the last set page; the version gate prevents re-jumping every sync.
+
+**When to apply the jump:**
+
+- If the book is **not** currently open: apply on next open (progress is in NVS).
+- If the book **is** open during sync: jump immediately to the new page (recommended).
+- If the library UI is idle and sync completes: applying before the user opens the book is also fine.
+
+**Backward compatibility:** Older manifests without `goto_page` / `goto_version` behave exactly as today.
 
 ### 7. Device UI updates
 
@@ -166,6 +211,9 @@ Remove or de-emphasize LAN-only instructions if the app now defaults to cloud ho
 5. `sha256` mismatch (if server sends it) → reject re-download or flag error (match existing firmware behavior)
 6. HTTPS handshake succeeds on target domain
 7. Sync with empty `api_key` against legacy local PalaRead server still works (backward compat)
+8. Set goto page 42 in Read It Later `/para` → manifest includes `goto_page: 42` and `goto_version` → device jumps once → second sync with same version does **not** re-jump
+9. Change goto to page 10 in web → `goto_version` increments → device jumps to page 10 once
+10. Clear goto in web → manifest omits `goto_page` → device does not jump (existing NVS applied version unchanged)
 
 ### cURL equivalents for debugging (host machine)
 

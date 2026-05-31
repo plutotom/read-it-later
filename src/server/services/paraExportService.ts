@@ -16,7 +16,31 @@ export type ParaManifestBook = {
   url: string;
   sha256: string;
   bytes: number;
+  goto_page?: number;
+  goto_version?: number;
 };
+
+const GOTO_PAGE_MAX = 99_999;
+
+export function manifestBookFromExport(
+  row: typeof paraExports.$inferSelect,
+  baseUrl: string,
+): ParaManifestBook {
+  const book: ParaManifestBook = {
+    id: row.id,
+    name: row.filename,
+    url: `${baseUrl.replace(/\/$/, "")}/api/para/articles/${row.id}`,
+    sha256: row.sha256,
+    bytes: row.bytes,
+  };
+
+  if (row.gotoPage != null && row.gotoPage >= 1) {
+    book.goto_page = row.gotoPage;
+    book.goto_version = row.gotoVersion;
+  }
+
+  return book;
+}
 
 export type ParaManifest = {
   version: 1;
@@ -256,13 +280,7 @@ export async function buildManifestForUser(
   );
 
   const books: ParaManifestBook[] = freshRows
-    .map((row) => ({
-      id: row.id,
-      name: row.filename,
-      url: `${baseUrl.replace(/\/$/, "")}/api/para/articles/${row.id}`,
-      sha256: row.sha256,
-      bytes: row.bytes,
-    }))
+    .map((row) => manifestBookFromExport(row, baseUrl))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return { version: 1, books };
@@ -280,4 +298,64 @@ export async function getExportForDownload(
   if (!row) return null;
 
   return ensureFreshExport(db, row);
+}
+
+export async function setParaGotoPage(
+  db: Database,
+  userId: string,
+  exportId: string,
+  page: number,
+) {
+  if (!Number.isInteger(page) || page < 1 || page > GOTO_PAGE_MAX) {
+    throw new Error(
+      `Page must be an integer between 1 and ${GOTO_PAGE_MAX.toLocaleString()}`,
+    );
+  }
+
+  const row = await db.query.paraExports.findFirst({
+    where: and(eq(paraExports.id, exportId), eq(paraExports.userId, userId)),
+  });
+
+  if (!row) {
+    throw new Error("Export not found");
+  }
+
+  const [updated] = await db
+    .update(paraExports)
+    .set({
+      gotoPage: page,
+      gotoVersion: row.gotoVersion + 1,
+      gotoSetAt: new Date(),
+    })
+    .where(eq(paraExports.id, exportId))
+    .returning();
+
+  if (!updated) {
+    throw new Error("Failed to update goto page");
+  }
+
+  return updated;
+}
+
+export async function clearParaGotoPage(
+  db: Database,
+  userId: string,
+  exportId: string,
+) {
+  const [updated] = await db
+    .update(paraExports)
+    .set({
+      gotoPage: null,
+      gotoSetAt: null,
+    })
+    .where(
+      and(eq(paraExports.id, exportId), eq(paraExports.userId, userId)),
+    )
+    .returning();
+
+  if (!updated) {
+    throw new Error("Export not found");
+  }
+
+  return updated;
 }
