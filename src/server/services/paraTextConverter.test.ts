@@ -5,6 +5,7 @@ import {
   htmlToPlainText,
 } from "~/server/services/paraTextConverter";
 import {
+  MAX_PARA_FILENAME_BYTES,
   resolveUniqueFilename,
   sanitizeTxtFilename,
 } from "~/server/lib/paraFilename";
@@ -39,10 +40,26 @@ describe("paraFilename", () => {
     expect(sanitizeTxtFilename("Hello World!")).toBe("hello-world.txt");
   });
 
+  it("keeps filenames within the firmware temp-path budget", () => {
+    const filename = sanitizeTxtFilename("A".repeat(200));
+    expect(filename.length).toBeLessThanOrEqual(MAX_PARA_FILENAME_BYTES);
+    expect(`/books/${filename}.tmp`.length).toBeLessThanOrEqual(95);
+  });
+
   it("resolves filename collisions", () => {
     const taken = new Set(["hello-world.txt"]);
     expect(resolveUniqueFilename("hello-world.txt", taken)).toBe(
       "hello-world-2.txt",
     );
+  });
+
+  it("preserves the collision suffix within the firmware path budget", () => {
+    const filename = sanitizeTxtFilename("Long ".repeat(60));
+    const taken = new Set([filename]);
+    const collision = resolveUniqueFilename(filename, taken);
+
+    expect(collision).toMatch(/-2\.txt$/);
+    expect(collision.length).toBeLessThanOrEqual(MAX_PARA_FILENAME_BYTES);
+    expect(`/books/${collision}.tmp`.length).toBeLessThanOrEqual(95);
   });
 });

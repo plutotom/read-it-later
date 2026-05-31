@@ -41,7 +41,9 @@ Read It Later articles can be marked for sync to a Para e-reader device. The ser
 
 1. `GET /api/para/manifest` with `Authorization: Bearer ril_...`
 2. For each book entry, `GET` the absolute `url` from manifest (same auth header).
-3. Firmware behavior unchanged except auth + HTTPS — see `para-device-firmware-integration.md`.
+3. Firmware uses HTTPS for Vercel-hosted endpoints. `setInsecure()` is acceptable only for first bring-up/debug builds; stable firmware should use a pinned/root CA certificate because the bearer token crosses the public internet.
+4. Firmware must stream downloads directly to a temp file and verify the exact raw bytes from the server. Do not normalize, compact, or rewrite the downloaded body on-device before comparing `bytes`/`sha256`.
+5. Firmware keeps cloud metadata (`name`, `bytes`, `sha256`) and skips only when the local file plus metadata match the manifest. If `bytes` or `sha256` changes, download to `.tmp`, verify, replace the existing file, and update the metadata index.
 
 ---
 
@@ -55,7 +57,7 @@ Read It Later articles can be marked for sync to a Para e-reader device. The ser
 | `userId` | text FK | Owner |
 | `articleId` | uuid nullable FK | Null after source article deleted |
 | `title` | text | Copied at export time |
-| `filename` | text | Slugged title + `.txt`; collision suffix `-2`, `-3`, … |
+| `filename` | text | ASCII slug + `.txt`; collision suffix `-2`, `-3`, … |
 | `txtContent` | text | UTF-8 plain text body |
 | `bytes` | integer | Byte length of txtContent |
 | `sha256` | text | Lowercase hex of txtContent |
@@ -111,13 +113,16 @@ Consider: derive `paraEnabled` from join rather than denormalized column. Simple
 ```
 
 5. Slug filename from title: `sanitizeTxtFilename(title)` → `{slug}.txt`.
+   - Filenames must be ASCII-only for firmware safety.
+   - Allowed output: lowercase `a-z`, `0-9`, `-`, `_`, and `.txt`.
+   - Keep filenames short enough for firmware path limits (`/books/<filename>` must fit the existing 96 byte path buffer).
 6. Compute `bytes`, `sha256`, `contentHash` (hash of source HTML).
 
 **Regeneration (Option C — smart cache):**
 
-- On manifest/download request, if `article.content` hash ≠ stored `contentHash`, regenerate TXT in place (same export `id`, updated `bytes`/`sha256`/`txtContent`).
+- On manifest/download request, if `article.content` hash ≠ stored `contentHash`, regenerate TXT in place (same export `id`, updated `bytes`/`sha256`/`txtContent`; filename remains stable).
 - If source article deleted (`articleId` null), **do not** regenerate — frozen snapshot.
-- Device re-downloads when `sha256` or `bytes` change.
+- Device re-downloads when `sha256` or `bytes` change by comparing manifest metadata against its cloud metadata index.
 
 ---
 
@@ -149,6 +154,8 @@ Consider: derive `paraEnabled` from join rather than denormalized column. Simple
 
 - Sort `books` by `name` ascending.
 - Absolute URLs from request origin or `NEXT_PUBLIC_APP_URL`.
+- Manifest JSON must stay within the firmware manifest budget. Target firmware cap: **64 KB**. Add tests or server-side checks if the manifest can approach that size.
+- Device target: verified sync of at least **1 MB** text files. Test fixtures should include roughly `30 KB`, `250 KB`, `1 MB`, and `3 MB` exports.
 
 **Auth middleware:**
 
@@ -197,6 +204,70 @@ Alternatively REST under `/api/keys` — match existing `/api/preferences` patte
 - "Add to Para" toggle/checkbox
 - If export exists → show as enabled
 - Toggle off → remove export (same as `/para` remove)
+
+---
+
+## Firmware Requirements
+
+### HTTPS and API keys
+
+- Device stores manifest URL, Wi-Fi credentials, and Para API key.
+- Device sends `Authorization: Bearer <key>` on both manifest and article download requests.
+- Serial logs must never print the full API key. Log only whether auth is configured and, if needed, a short prefix.
+- Public internet HTTPS should move from debug-only `setInsecure()` to root CA validation before treating the integration as production-stable.
+
+### Large file handling
+
+- Firmware must handle files larger than `30 KB`; acceptance target is a verified `1 MB` `.txt` download.
+- Downloads must stream to `LittleFS` in chunks and never hold article bodies in RAM.
+- Require `bytes` in every manifest entry. Reject entries with missing/zero bytes.
+- Require enough free filesystem space for temp-file download and replacement overhead before starting a download.
+- Preserve raw server bytes on disk so `sha256` and `bytes` match the manifest exactly.
+
+### Cloud metadata index
+
+Store one entry per cloud-managed book with:
+
+```text
+name
+bytes
+sha256
+```
+
+Sync behavior:
+
+```text
+if local file exists and metadata bytes/sha256 match manifest:
+  skip as up-to-date
+else:
+  download to /books/<name>.tmp
+  stream sha256 while writing raw bytes
+  verify total bytes and sha256
+  replace /books/<name>
+  update metadata index
+```
+
+### Required serial logs
+
+Add high-volume logs around the sync process so first-device testing can diagnose memory, stack, storage, network, auth, and server issues.
+
+Log at sync start, after Wi-Fi connect, after manifest download, before each book, after each book, before/after prune, and sync end:
+
+```text
+[CloudSync] FS total=<bytes> used=<bytes> free=<bytes>
+[CloudSync] Heap free=<bytes> min=<bytes> largest=<bytes>
+[CloudSync] Stack high-water=<bytes>
+```
+
+Also log:
+
+- manifest URL host/path and whether auth is configured
+- Wi-Fi status, local IP, RSSI
+- HTTP status codes, content length, bytes read, duration
+- manifest byte count, parsed book count, and skipped entry reasons
+- per-book name, expected bytes, sha presence, free-space decision, temp path, final path
+- exact failure reason for bad URL, 401/403, timeout, early EOF, write failure, byte mismatch, SHA mismatch, rename failure, and metadata save failure
+- final downloaded/deleted/skipped/failed counts
 
 ---
 

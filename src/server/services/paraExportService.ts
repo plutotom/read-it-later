@@ -84,19 +84,10 @@ export async function refreshExportFromArticle(
     return exportRow;
   }
 
-  const takenFilenames = await getTakenFilenames(db, exportRow.userId, exportRow.id);
-  const baseFilename = sanitizeTxtFilename(article.title);
-  const filename =
-    exportRow.filename.startsWith(baseFilename.replace(".txt", "")) &&
-    exportRow.title === article.title
-      ? exportRow.filename
-      : resolveUniqueFilename(baseFilename, takenFilenames);
-
   const [updated] = await db
     .update(paraExports)
     .set({
       title: article.title,
-      filename,
       txtContent: converted.txtContent,
       bytes: converted.bytes,
       sha256: converted.sha256,
