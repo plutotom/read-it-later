@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { api } from "~/trpc/react";
+import { prependArticleToListCache } from "~/lib/article-query-cache";
 
 function AddArticleContent() {
   const searchParams = useSearchParams();
@@ -24,8 +25,14 @@ function AddArticleContent() {
   const url = searchParams.get("url");
   const title = searchParams.get("title");
 
+  const utils = api.useUtils();
   const createArticle = api.article.create.useMutation({
-    onSuccess: () => {
+    onSuccess: async (newArticle) => {
+      if (newArticle) {
+        await prependArticleToListCache(utils, newArticle);
+      } else {
+        await utils.article.getAll.refetch();
+      }
       setStatus("success");
       setMessage("Article saved successfully!");
       setIsProcessing(false);

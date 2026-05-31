@@ -3,6 +3,10 @@ import { useContext, useEffect, useMemo } from "react";
 import { cn } from "~/lib/utils";
 import { AddArticleForm } from "./add-article-form";
 import { api } from "~/trpc/react";
+import {
+  patchArticleInListCache,
+  prependArticleToListCache,
+} from "~/lib/article-query-cache";
 import { X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 
@@ -41,21 +45,33 @@ export function AddArticleFormCard() {
   });
 
   const createArticle = api.article.create.useMutation({
-    onSuccess: () => {
-      void utils.article.getAll.invalidate();
+    onSuccess: async (newArticle) => {
+      if (newArticle) {
+        await prependArticleToListCache(utils, newArticle);
+      } else {
+        await utils.article.getAll.refetch();
+      }
       handleClose();
     },
   });
 
   const createArticleFromText = api.article.createFromText.useMutation({
-    onSuccess: () => {
-      void utils.article.getAll.invalidate();
+    onSuccess: async (newArticle) => {
+      if (newArticle) {
+        await prependArticleToListCache(utils, newArticle);
+      } else {
+        await utils.article.getAll.refetch();
+      }
       handleClose();
     },
   });
   const updateArticleMetadata = api.article.updateMetadata.useMutation({
-    onSuccess: () => {
-      void utils.article.getAll.invalidate();
+    onSuccess: async (result) => {
+      if (result.article) {
+        await patchArticleInListCache(utils, result.article);
+      } else {
+        await utils.article.getAll.refetch();
+      }
       handleClose();
     },
   });
