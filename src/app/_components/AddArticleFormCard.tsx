@@ -90,15 +90,8 @@ export function AddArticleFormCard() {
         title: data.title ?? metadataEditArticle.title,
         url: data.url ?? metadataEditArticle.url,
       });
-    } else if (data.url) {
-      // URL mode
-      await createArticle.mutateAsync({
-        url: data.url,
-        folderId: data.folderId,
-        tags: data.tags,
-      });
     } else if (data.content && data.title) {
-      // Text mode
+      // Text mode — optional source URL is stored as-is, not auto-fetched
       await createArticleFromText.mutateAsync({
         content: data.content,
         title: data.title,
@@ -107,6 +100,13 @@ export function AddArticleFormCard() {
         folderId: data.folderId,
         tags: data.tags,
         url: data.url,
+      });
+    } else if (data.url) {
+      // URL mode
+      await createArticle.mutateAsync({
+        url: data.url,
+        folderId: data.folderId,
+        tags: data.tags,
       });
     }
   };
