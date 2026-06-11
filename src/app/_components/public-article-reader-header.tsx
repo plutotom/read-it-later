@@ -6,14 +6,20 @@
 
 import { type Article } from "~/types/article";
 import { Button } from "~/components/ui/button";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, List } from "lucide-react";
 
 interface PublicArticleReaderHeaderProps {
   article: Article;
+  hasToc?: boolean;
+  isTocOpen?: boolean;
+  onOpenToc?: () => void;
 }
 
 export function PublicArticleReaderHeader({
   article,
+  hasToc = false,
+  isTocOpen = false,
+  onOpenToc,
 }: PublicArticleReaderHeaderProps) {
   const domain = (() => {
     try {
@@ -46,17 +52,31 @@ export function PublicArticleReaderHeader({
           </div>
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          asChild
-          className="rounded-full px-2.5 text-sm text-foreground-soft hover:bg-foreground/10 hover:text-foreground"
-        >
-          <a href={article.url} target="_blank" rel="noopener noreferrer">
-            Original
-            <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-          </a>
-        </Button>
+        <div className="flex items-center gap-1">
+          {hasToc && !isTocOpen && onOpenToc && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenToc}
+              className="hidden h-8 w-8 rounded-full text-foreground-soft hover:bg-foreground/10 hover:text-foreground lg:inline-flex"
+              aria-label="Show table of contents"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          )}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            className="rounded-full px-2.5 text-sm text-foreground-soft hover:bg-foreground/10 hover:text-foreground"
+          >
+            <a href={article.url} target="_blank" rel="noopener noreferrer">
+              Original
+              <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+            </a>
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -139,6 +139,11 @@ html {
   line-height: 1.25;
 }
 
+.article-content h2,
+.article-content h3 {
+  scroll-margin-top: 6rem;
+}
+
 .article-content h1 {
   font-size: 1.875rem;
   border-bottom: 2px solid var(--border);

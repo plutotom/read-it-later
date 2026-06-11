@@ -15,6 +15,8 @@ import { StandaloneNotes } from "./standalone-notes";
 import { applyHighlights, type HighlightData } from "~/lib/highlihgter-util";
 import { cn } from "~/lib/utils";
 import { AudioPlayer } from "./audio-player";
+import { ArticleTableOfContents } from "./article-table-of-contents";
+import { useArticleToc, useTocOpenPreference } from "~/hooks/use-article-toc";
 
 interface ArticleReaderProps {
   article: Article;
@@ -99,6 +101,15 @@ export function ArticleReader({
       textColor: "black",
       highlightIndex: index,
     }));
+  });
+
+  const { isOpen: isTocOpen, close: closeToc, open: openToc } =
+    useTocOpenPreference();
+  const tocContentKey = `${article.id}:${fontSize}:${highlights.length}:${article.content.length}`;
+  const { headings, activeId, scrollToHeading, hasToc } = useArticleToc({
+    contentRef,
+    scrollerRef,
+    contentKey: tocContentKey,
   });
 
   // Auto highlight preference stored in localStorage
@@ -291,6 +302,9 @@ export function ArticleReader({
             highlights={initialHighlights}
             onHighlightDelete={onHighlightDelete}
             onHighlightNoteUpdate={onHighlightNoteUpdate}
+            hasToc={hasToc}
+            isTocOpen={isTocOpen}
+            onOpenToc={openToc}
           />
 
           <div className="h-[2px] bg-background-deep">
@@ -302,7 +316,7 @@ export function ArticleReader({
 
           <div
             ref={scrollerRef}
-            className="flex-1 min-h-0 overflow-y-auto px-5 pt-8 pb-36 sm:px-8 sm:pt-12 sm:pb-40"
+            className="min-h-0 flex-1 scroll-pt-24 overflow-y-auto px-5 pt-8 pb-36 sm:px-8 sm:pt-12 sm:pb-40"
           >
             <article className="mx-auto max-w-[640px]">
               <ArticleMetadata article={article} />
@@ -326,6 +340,16 @@ export function ArticleReader({
             </article>
           </div>
         </div>
+
+        {hasToc && (
+          <ArticleTableOfContents
+            headings={headings}
+            activeId={activeId}
+            isOpen={isTocOpen}
+            onClose={closeToc}
+            onNavigate={scrollToHeading}
+          />
+        )}
 
         <div
           className={cn(

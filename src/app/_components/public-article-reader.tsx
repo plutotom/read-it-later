@@ -15,6 +15,8 @@ import { ArticleMetadata } from "./article-metadata";
 import { ArticleContent } from "./article-content";
 import { AudioPlayer } from "./audio-player";
 import { cn } from "~/lib/utils";
+import { ArticleTableOfContents } from "./article-table-of-contents";
+import { useArticleToc, useTocOpenPreference } from "~/hooks/use-article-toc";
 
 interface PublicArticleReaderProps {
   article: Article;
@@ -33,6 +35,14 @@ export function PublicArticleReader({
   const hideScrollAccumulatorRef = useRef(0);
   const [progress, setProgress] = useState(0);
   const [isPlayerVisible, setIsPlayerVisible] = useState(true);
+  const { isOpen: isTocOpen, close: closeToc, open: openToc } =
+    useTocOpenPreference();
+  const tocContentKey = `${article.id}:${DEFAULT_FONT_SIZE}:${article.content.length}`;
+  const { headings, activeId, scrollToHeading, hasToc } = useArticleToc({
+    contentRef,
+    scrollerRef,
+    contentKey: tocContentKey,
+  });
 
   const articleImageUrl = (() => {
     const meta = article.metadata as ArticleMeta | null | undefined;
@@ -92,7 +102,12 @@ export function PublicArticleReader({
   return (
     <div className="relative flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)]">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden m-slide-in">
-        <PublicArticleReaderHeader article={article} />
+        <PublicArticleReaderHeader
+          article={article}
+          hasToc={hasToc}
+          isTocOpen={isTocOpen}
+          onOpenToc={openToc}
+        />
 
         <div className="h-[2px] bg-background-deep">
           <div
@@ -103,7 +118,7 @@ export function PublicArticleReader({
 
         <div
           ref={scrollerRef}
-          className="flex-1 min-h-0 overflow-y-auto px-5 pt-8 pb-36 sm:px-8 sm:pt-12 sm:pb-40"
+          className="min-h-0 flex-1 scroll-pt-24 overflow-y-auto px-5 pt-8 pb-36 sm:px-8 sm:pt-12 sm:pb-40"
         >
           <article className="mx-auto max-w-[640px]">
             <ArticleMetadata article={article} />
@@ -116,6 +131,16 @@ export function PublicArticleReader({
           </article>
         </div>
       </div>
+
+      {hasToc && (
+        <ArticleTableOfContents
+          headings={headings}
+          activeId={activeId}
+          isOpen={isTocOpen}
+          onClose={closeToc}
+          onNavigate={scrollToHeading}
+        />
+      )}
 
       <div
         className={cn(
