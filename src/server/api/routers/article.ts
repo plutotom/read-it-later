@@ -290,8 +290,35 @@ export const articleRouter = createTRPCRouter({
   getByShareToken: publicProcedure
     .input(z.object({ token: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.query.articles.findFirst({
+      const row = await ctx.db.query.articles.findFirst({
         where: eq(articles.shareToken, input.token),
+        columns: {
+          id: true,
+          url: true,
+          title: true,
+          content: true,
+          excerpt: true,
+          author: true,
+          publishedAt: true,
+          readingTime: true,
+          wordCount: true,
+          metadata: true,
+          shareToken: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
+
+      if (!row) return undefined;
+
+      return {
+        ...row,
+        isFavorite: false,
+        readAt: null,
+        isRead: false,
+        isArchived: false,
+        folderId: null,
+        tags: null,
+      };
     }),
 });

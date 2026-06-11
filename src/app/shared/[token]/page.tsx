@@ -1,9 +1,9 @@
-"use client";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
-import React, { use } from "react";
-import { api } from "~/trpc/react";
-import { Alert, AlertDescription } from "~/components/ui/alert";
 import { PublicArticleReader } from "~/app/_components/public-article-reader";
+import { getSharedArticleByToken } from "~/server/shared-article";
+import { type ArticleMetadata } from "~/types/article";
 
 interface SharedArticlePageProps {
   params: Promise<{
@@ -11,48 +11,64 @@ interface SharedArticlePageProps {
   }>;
 }
 
-export default function SharedArticlePage({ params }: SharedArticlePageProps) {
-  const { token } = use(params);
+function getSharedDescription(
+  excerpt: string | null,
+  content: string,
+): string {
+  if (excerpt?.trim()) return excerpt.trim();
 
-  const {
-    data: article,
-    isLoading,
-    error,
-  } = api.article.getByShareToken.useQuery({ token }, { enabled: !!token });
+  const plainText = content
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-  if (isLoading) {
-    return (
-      <div className="flex h-dvh items-center justify-center bg-background">
-        <p className="text-muted-foreground">Loading article…</p>
-      </div>
-    );
-  }
+  if (plainText.length <= 160) return plainText;
+  return `${plainText.slice(0, 157)}...`;
+}
 
-  if (error) {
-    return (
-      <div className="bg-background flex min-h-screen items-center justify-center p-4">
-        <Alert variant="destructive" className="max-w-md">
-          <AlertDescription>
-            Error loading article: {error.message}
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+export async function generateMetadata({
+  params,
+}: SharedArticlePageProps): Promise<Metadata> {
+  const { token } = await params;
+  const article = await getSharedArticleByToken(token);
 
   if (!article) {
-    return (
-      <div className="flex h-dvh items-center justify-center bg-background p-4">
-        <div className="max-w-md text-center">
-          <h1 className="mb-3 text-2xl font-medium tracking-tight text-foreground">
-            Article not found
-          </h1>
-          <p className="text-muted-foreground">
-            This shared article may have been removed or the link is invalid.
-          </p>
-        </div>
-      </div>
-    );
+    return {
+      title: "Article not found",
+      description: "This shared article may have been removed or the link is invalid.",
+    };
+  }
+
+  const metadata = article.metadata as ArticleMetadata | null | undefined;
+  const imageUrl = metadata?.imageUrl;
+  const description = getSharedDescription(article.excerpt, article.content);
+
+  return {
+    title: article.title,
+    description,
+    openGraph: {
+      title: article.title,
+      description,
+      type: "article",
+      ...(imageUrl ? { images: [{ url: imageUrl }] } : {}),
+    },
+    twitter: {
+      card: imageUrl ? "summary_large_image" : "summary",
+      title: article.title,
+      description,
+      ...(imageUrl ? { images: [imageUrl] } : {}),
+    },
+  };
+}
+
+export default async function SharedArticlePage({
+  params,
+}: SharedArticlePageProps) {
+  const { token } = await params;
+  const article = await getSharedArticleByToken(token);
+
+  if (!article) {
+    notFound();
   }
 
   return <PublicArticleReader article={article} shareToken={token} />;
