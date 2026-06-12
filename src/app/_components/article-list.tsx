@@ -10,7 +10,8 @@ import { ArticleCard } from "./article-card";
 import { ArticleActionsMenu } from "./article-actions-menu";
 import { ParaBadge } from "./para-badge";
 import { SearchBar } from "./search-bar";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 
 interface ArticleListProps {
@@ -92,6 +93,14 @@ export function ArticleList({
     { articleIds },
     { enabled: articleIds.length > 0 },
   );
+
+  const router = useRouter();
+  const prefetchedRef = useRef(new Set<string>());
+  const prefetchArticle = (articleId: string) => {
+    if (prefetchedRef.current.has(articleId)) return;
+    prefetchedRef.current.add(articleId);
+    router.prefetch(`/article/${articleId}`);
+  };
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
@@ -185,6 +194,8 @@ export function ArticleList({
                 <button
                   type="button"
                   onClick={() => onArticleClick?.(heroArticle)}
+                  onPointerEnter={() => prefetchArticle(heroArticle.id)}
+                  onFocus={() => prefetchArticle(heroArticle.id)}
                   className="grid w-full text-left"
                 >
                   <div className="grid min-h-[240px] grid-cols-1 sm:grid-cols-[1.2fr_0.8fr]">
@@ -249,6 +260,7 @@ export function ArticleList({
                     article={article}
                     isOnPara={paraStatuses[article.id] ?? false}
                     onClick={() => onArticleClick?.(article)}
+                    onPrefetch={() => prefetchArticle(article.id)}
                     onArchive={() => onArchive?.(article.id)}
                     onUnarchive={() => onUnarchive?.(article.id)}
                     onDelete={() => onDelete?.(article.id)}

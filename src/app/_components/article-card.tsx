@@ -8,6 +8,7 @@ import { ParaBadge } from "./para-badge";
 interface ArticleCardProps {
   article: Article;
   onClick?: () => void;
+  onPrefetch?: () => void;
   onArchive?: () => void;
   onUnarchive?: () => void;
   onDelete?: () => void;
@@ -21,6 +22,7 @@ interface ArticleCardProps {
 export function ArticleCard({
   article,
   onClick,
+  onPrefetch,
   onArchive,
   onUnarchive,
   onDelete,
@@ -58,6 +60,8 @@ export function ArticleCard({
       <div
         className="flex cursor-pointer items-start gap-4 px-4 py-4 transition-colors duration-200 hover:bg-foreground/10 sm:px-6 sm:py-5"
         onClick={onClick}
+        onPointerEnter={onPrefetch}
+        onFocus={onPrefetch}
       >
         <div className="mt-0.5 flex items-center gap-3">
           <span
