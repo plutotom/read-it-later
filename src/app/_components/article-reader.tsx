@@ -290,7 +290,7 @@ export function ArticleReader({
   return (
     <div className="relative flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)]">
         {/* m-slide-in uses transform; keep fixed/absolute docks outside it (iOS Safari) */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden m-slide-in">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden m-slide-in">
           <ArticleReaderHeader
             article={article}
             showSettings={showSettings}
@@ -316,9 +316,9 @@ export function ArticleReader({
 
           <div
             ref={scrollerRef}
-            className="min-h-0 flex-1 scroll-pt-24 overflow-y-auto px-5 pt-8 pb-36 sm:px-8 sm:pt-12 sm:pb-40"
+            className="min-h-0 min-w-0 flex-1 scroll-pt-24 overflow-x-hidden overflow-y-auto px-5 pt-8 pb-36 sm:px-8 sm:pt-12 sm:pb-40"
           >
-            <article className="mx-auto max-w-[640px]">
+            <article className="mx-auto min-w-0 max-w-[640px]">
               <ArticleMetadata article={article} />
 
               {initialNotes.length > 0 && (

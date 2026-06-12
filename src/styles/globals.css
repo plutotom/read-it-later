@@ -80,6 +80,12 @@ html {
 /* Reading experience optimizations */
 .prose {
   max-width: none;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.prose a {
+  overflow-wrap: anywhere;
 }
 
 .prose p {
@@ -124,6 +130,8 @@ html {
 .article-content {
   color: var(--foreground);
   font-family: var(--font-app-sans);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .article-content h1,
@@ -166,6 +174,7 @@ html {
   margin-bottom: 1.25em;
   line-height: 1.75;
   color: color-mix(in oklch, var(--foreground) 88%, var(--muted-foreground));
+  overflow-wrap: break-word;
 }
 
 .article-content ul,
@@ -177,6 +186,7 @@ html {
 .article-content li {
   margin-bottom: 0.5em;
   line-height: 1.6;
+  overflow-wrap: break-word;
 }
 
 .article-content blockquote {
@@ -188,6 +198,7 @@ html {
   font-style: italic;
   color: var(--foreground);
   position: relative;
+  overflow-wrap: break-word;
 }
 
 .article-content blockquote::before {
@@ -231,6 +242,7 @@ html {
   color: var(--foreground);
   padding: 1.5em;
   border-radius: 0.5rem;
+  max-width: 100%;
   overflow-x: auto;
   margin: 1.5em 0;
   font-family: var(--font-mono, "Monaco", "Menlo", "Ubuntu Mono", monospace);
@@ -274,6 +286,7 @@ html {
   text-decoration-color: color-mix(in oklch, var(--accent) 60%, transparent);
   text-underline-offset: 2px;
   transition: color 0.2s ease;
+  overflow-wrap: anywhere;
 }
 
 .article-content a:hover,
@@ -313,6 +326,7 @@ html {
 
 .article-content table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   margin: 1.5em 0;
   font-size: 0.875em;
@@ -323,6 +337,7 @@ html {
   padding: 0.75em;
   text-align: left;
   border-bottom: 1px solid var(--border);
+  overflow-wrap: break-word;
 }
 
 .article-content th {

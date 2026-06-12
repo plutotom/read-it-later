@@ -23,7 +23,7 @@ export function ArticleContent({
   return (
     <div
       ref={contentRef}
-      className="article-content max-w-none leading-relaxed text-foreground"
+      className="article-content min-w-0 w-full max-w-none leading-relaxed text-foreground"
       style={{
         fontFamily: "var(--font-app-reading)",
         fontSize: `${fontSize}px`,
