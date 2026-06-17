@@ -1,20 +1,25 @@
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { highlights, notes } from "~/server/db/schema";
+import { HIGHLIGHT_COLORS } from "~/server/services/annotationService";
+import {
+  createHighlight,
+  createNote,
+  deleteHighlight,
+  deleteNote,
+  listHighlights,
+  listNotes,
+  updateHighlight,
+  updateNote,
+} from "~/server/services/annotationService";
+
+const highlightColorSchema = z.enum(HIGHLIGHT_COLORS);
 
 export const annotationRouter = createTRPCRouter({
   // Highlights
   getHighlightsByArticleId: protectedProcedure
     .input(z.object({ articleId: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.query.highlights.findMany({
-        where: and(
-          eq(highlights.articleId, input.articleId),
-          eq(highlights.userId, ctx.session.user.id),
-        ),
-        orderBy: (highlights, { asc }) => [asc(highlights.startOffset)],
-      });
+      return listHighlights(ctx.db, ctx.session.user.id, input.articleId);
     }),
 
   createHighlight: protectedProcedure
@@ -24,18 +29,7 @@ export const annotationRouter = createTRPCRouter({
         text: z.string(),
         startOffset: z.number(),
         endOffset: z.number(),
-        color: z
-          .enum([
-            "yellow",
-            "green",
-            "blue",
-            "pink",
-            "purple",
-            "orange",
-            "red",
-            "gray",
-          ])
-          .default("yellow"),
+        color: highlightColorSchema.default("yellow"),
         note: z.string().optional(),
         contextPrefix: z.string().max(100).optional(),
         contextSuffix: z.string().max(100).optional(),
@@ -43,95 +37,48 @@ export const annotationRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const [newHighlight] = await ctx.db
-        .insert(highlights)
-        .values({
-          userId: ctx.session.user.id,
-          articleId: input.articleId,
-          text: input.text,
-          startOffset: input.startOffset,
-          endOffset: input.endOffset,
-          color: input.color,
-          note: input.note ?? null,
-          contextPrefix: input.contextPrefix ?? null,
-          contextSuffix: input.contextSuffix ?? null,
-          tags: input.tags ?? [],
-        })
-        .returning();
-
-      return newHighlight;
+      return createHighlight(ctx.db, ctx.session.user.id, input);
     }),
 
   updateHighlight: protectedProcedure
     .input(
       z.object({
         id: z.string(),
-        color: z
-          .enum([
-            "yellow",
-            "green",
-            "blue",
-            "pink",
-            "purple",
-            "orange",
-            "red",
-            "gray",
-          ])
-          .optional(),
+        color: highlightColorSchema.optional(),
         note: z.string().max(2000).optional().nullable(),
         tags: z.array(z.string().max(50)).max(10).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...updateData } = input;
-      const [updatedHighlight] = await ctx.db
-        .update(highlights)
-        .set({
-          ...updateData,
-          note: updateData.note ?? undefined,
-        })
-        .where(
-          and(
-            eq(highlights.id, id),
-            eq(highlights.userId, ctx.session.user.id),
-          ),
-        )
-        .returning();
-
-      if (!updatedHighlight) {
+      const { id, ...patch } = input;
+      const updated = await updateHighlight(
+        ctx.db,
+        ctx.session.user.id,
+        id,
+        patch,
+      );
+      if (!updated) {
         throw new Error("Highlight not found");
       }
-
-      return updatedHighlight;
+      return updated;
     }),
 
   deleteHighlight: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const result = await ctx.db
-        .delete(highlights)
-        .where(
-          and(
-            eq(highlights.id, input.id),
-            eq(highlights.userId, ctx.session.user.id),
-          ),
-        )
-        .returning();
-
-      return { success: result.length > 0 };
+      const success = await deleteHighlight(
+        ctx.db,
+        ctx.session.user.id,
+        input.id,
+      );
+      return { success };
     }),
 
   // Notes
   getNotesByArticleId: protectedProcedure
     .input(z.object({ articleId: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.query.notes.findMany({
-        where: and(
-          eq(notes.articleId, input.articleId),
-          eq(notes.userId, ctx.session.user.id),
-        ),
-        orderBy: (notes, { desc }) => [desc(notes.createdAt)],
-      });
+      return listNotes(ctx.db, ctx.session.user.id, input.articleId);
     }),
 
   createNote: protectedProcedure
@@ -143,17 +90,7 @@ export const annotationRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const [newNote] = await ctx.db
-        .insert(notes)
-        .values({
-          userId: ctx.session.user.id,
-          articleId: input.articleId,
-          content: input.content,
-          highlightId: input.highlightId ?? null,
-        })
-        .returning();
-
-      return newNote;
+      return createNote(ctx.db, ctx.session.user.id, input);
     }),
 
   updateNote: protectedProcedure
@@ -172,33 +109,18 @@ export const annotationRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...updateData } = input;
-      const [updatedNote] = await ctx.db
-        .update(notes)
-        .set({
-          ...updateData,
-          highlightId: updateData.highlightId ?? undefined,
-        })
-        .where(and(eq(notes.id, id), eq(notes.userId, ctx.session.user.id)))
-        .returning();
-
-      if (!updatedNote) {
+      const { id, ...patch } = input;
+      const updated = await updateNote(ctx.db, ctx.session.user.id, id, patch);
+      if (!updated) {
         throw new Error("Note not found");
       }
-
-      return updatedNote;
+      return updated;
     }),
 
   deleteNote: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const result = await ctx.db
-        .delete(notes)
-        .where(
-          and(eq(notes.id, input.id), eq(notes.userId, ctx.session.user.id)),
-        )
-        .returning();
-
-      return { success: result.length > 0 };
+      const success = await deleteNote(ctx.db, ctx.session.user.id, input.id);
+      return { success };
     }),
 });

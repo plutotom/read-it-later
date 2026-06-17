@@ -1,55 +1,26 @@
-import { and, eq, isNull } from "drizzle-orm";
-import { db } from "~/server/db";
-import { apiKeys } from "~/server/db/schema";
-import { extractBearerToken, hashApiKey } from "~/server/lib/apiKey";
 import { PARA_READ_SCOPE } from "~/lib/paraConstants";
+import {
+  authenticateApiRequest,
+  getRequestBaseUrl,
+} from "~/server/lib/apiAuth";
 
 export type ParaAuthResult =
   | { ok: true; userId: string; apiKeyId: string }
-  | { ok: false; status: 401 };
+  | { ok: false; status: 401 | 403 };
 
+/**
+ * Backwards-compatible wrapper used by the `/api/para/*` firmware endpoints.
+ * Delegates to the shared {@link authenticateApiRequest}.
+ */
 export async function authenticateParaRequest(
   authHeader: string | null,
   requiredScope: string = PARA_READ_SCOPE,
 ): Promise<ParaAuthResult> {
-  const token = extractBearerToken(authHeader);
-
-  if (!token) {
-    return { ok: false, status: 401 };
+  const result = await authenticateApiRequest(authHeader, requiredScope);
+  if (!result.ok) {
+    return { ok: false, status: result.status };
   }
-
-  const keyHash = hashApiKey(token);
-
-  const key = await db.query.apiKeys.findFirst({
-    where: and(eq(apiKeys.keyHash, keyHash), isNull(apiKeys.revokedAt)),
-  });
-
-  if (!key) {
-    return { ok: false, status: 401 };
-  }
-
-  if (!key.scopes.includes(requiredScope)) {
-    return { ok: false, status: 401 };
-  }
-
-  await db
-    .update(apiKeys)
-    .set({ lastUsedAt: new Date() })
-    .where(eq(apiKeys.id, key.id));
-
-  return { ok: true, userId: key.userId, apiKeyId: key.id };
+  return { ok: true, userId: result.userId, apiKeyId: result.apiKeyId };
 }
 
-export function getRequestBaseUrl(request: Request): string {
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const host = forwardedHost ?? request.headers.get("host");
-
-  if (host) {
-    const proto =
-      request.headers.get("x-forwarded-proto") ??
-      (host.includes("localhost") ? "http" : "https");
-    return `${proto}://${host}`;
-  }
-
-  return process.env.AUTH_URL ?? "http://localhost:3000";
-}
+export { getRequestBaseUrl };

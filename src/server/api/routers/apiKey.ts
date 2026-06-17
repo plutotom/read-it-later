@@ -11,7 +11,7 @@ import {
   getApiKeyPrefix,
   hashApiKey,
 } from "~/server/lib/apiKey";
-import { PARA_READ_SCOPE } from "~/lib/paraConstants";
+import { READ_ONLY_SCOPES, READ_WRITE_SCOPES } from "~/lib/paraConstants";
 
 export const apiKeyRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -31,9 +31,18 @@ export const apiKeyRouter = createTRPCRouter({
   }),
 
   create: protectedProcedure
-    .input(z.object({ label: z.string().min(1).max(100) }))
+    .input(
+      z.object({
+        label: z.string().min(1).max(100),
+        accessLevel: z.enum(["read", "readwrite"]).default("readwrite"),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const rawKey = generateApiKey();
+      const scopes =
+        input.accessLevel === "read"
+          ? [...READ_ONLY_SCOPES]
+          : [...READ_WRITE_SCOPES];
 
       const [created] = await ctx.db
         .insert(apiKeys)
@@ -42,7 +51,7 @@ export const apiKeyRouter = createTRPCRouter({
           label: input.label.trim(),
           keyPrefix: getApiKeyPrefix(rawKey),
           keyHash: hashApiKey(rawKey),
-          scopes: [PARA_READ_SCOPE],
+          scopes,
         })
         .returning({
           id: apiKeys.id,

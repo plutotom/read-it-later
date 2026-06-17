@@ -15,8 +15,11 @@ import {
 import { Copy, Check, KeyRound, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "~/hooks/use-toast";
 
+type AccessLevel = "read" | "readwrite";
+
 export function ApiKeysSettings() {
   const [label, setLabel] = useState("");
+  const [accessLevel, setAccessLevel] = useState<AccessLevel>("readwrite");
   const [newKey, setNewKey] = useState<string | null>(null);
   const [manifestUrl, setManifestUrl] = useState("/api/para/manifest");
 
@@ -154,27 +157,56 @@ export function ApiKeysSettings() {
           </div>
         )}
 
-        <div className="flex gap-2">
-          <Input
-            placeholder="Key label (e.g. Heltec bedroom)"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            className="border-gray-600 bg-gray-900"
-          />
-          <Button
-            type="button"
-            disabled={!label.trim() || createKey.isPending}
-            onClick={() => createKey.mutate({ label: label.trim() })}
-          >
-            {createKey.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <Plus className="mr-2 h-4 w-4" />
-                Create
-              </>
-            )}
-          </Button>
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Key label (e.g. Heltec bedroom)"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              className="border-gray-600 bg-gray-900"
+            />
+            <Button
+              type="button"
+              disabled={!label.trim() || createKey.isPending}
+              onClick={() =>
+                createKey.mutate({ label: label.trim(), accessLevel })
+              }
+            >
+              {createKey.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create
+                </>
+              )}
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={accessLevel === "readwrite" ? "default" : "outline"}
+              size="sm"
+              className="border-gray-600"
+              onClick={() => setAccessLevel("readwrite")}
+            >
+              Read &amp; write
+            </Button>
+            <Button
+              type="button"
+              variant={accessLevel === "read" ? "default" : "outline"}
+              size="sm"
+              className="border-gray-600"
+              onClick={() => setAccessLevel("read")}
+            >
+              Read-only
+            </Button>
+          </div>
+          <p className="text-xs text-gray-400">
+            {accessLevel === "readwrite"
+              ? "Can read and modify your library (articles, folders, highlights, notes)."
+              : "Can only read your library. Use for the Para e-reader or read-only integrations."}
+          </p>
         </div>
 
         {isLoading ? (
@@ -194,6 +226,10 @@ export function ApiKeysSettings() {
                   <p className="text-sm font-medium text-white">{key.label}</p>
                   <p className="font-mono text-xs text-gray-400">
                     ril_{key.keyPrefix}…
+                    {" · "}
+                    {key.scopes.includes("ril:write")
+                      ? "read & write"
+                      : "read-only"}
                     {key.revokedAt ? " · revoked" : ""}
                   </p>
                   {key.lastUsedAt && (
