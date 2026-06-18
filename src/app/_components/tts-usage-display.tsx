@@ -107,7 +107,7 @@ export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
         </div>
 
         {/* Reset date */}
-        <div className="text-xs text-gray-400">
+        <div className="text-xs text-gray-400" suppressHydrationWarning>
           Resets {formatResetDate(usage.resetDate)}
         </div>
 
@@ -152,7 +152,7 @@ export function TTSUsageDisplay({ compact = false }: TTSUsageDisplayProps) {
         </div>
         <div>
           <div className="text-gray-400">Resets</div>
-          <div className="font-medium text-white">
+          <div className="font-medium text-white" suppressHydrationWarning>
             {formatResetDate(usage.resetDate)}
           </div>
         </div>

@@ -53,7 +53,7 @@ export function StandaloneNotes({
           >
             <div className="flex-1">
               <p className="text-sm text-gray-200">{note.content}</p>
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-gray-400" suppressHydrationWarning>
                 {formatDate(note.createdAt)}
               </p>
             </div>

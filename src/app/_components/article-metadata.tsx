@@ -57,7 +57,7 @@ export function ArticleMetadata({ article }: ArticleMetadataProps) {
         {article.publishedAt && (
           <>
             <span>·</span>
-            <span>{formatDate(article.publishedAt)}</span>
+            <span suppressHydrationWarning>{formatDate(article.publishedAt)}</span>
           </>
         )}
       </div>

@@ -141,7 +141,10 @@ function ParaGotoPageControl({
           {gotoSetAt != null && (
             <>
               {" "}
-              · set {new Date(gotoSetAt).toLocaleString()}
+              · set{" "}
+              <span suppressHydrationWarning>
+                {new Date(gotoSetAt).toLocaleString()}
+              </span>
             </>
           )}
           {gotoVersion > 0 && (
@@ -242,7 +245,7 @@ export default function ParaPage() {
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-400">
                     <span>{formatBytes(item.bytes)}</span>
                     <span>·</span>
-                    <span>
+                    <span suppressHydrationWarning>
                       Added {new Date(item.createdAt).toLocaleDateString()}
                     </span>
                     {item.isLarge && (

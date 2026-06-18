@@ -233,7 +233,7 @@ export function ApiKeysSettings() {
                     {key.revokedAt ? " · revoked" : ""}
                   </p>
                   {key.lastUsedAt && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500" suppressHydrationWarning>
                       Last used{" "}
                       {new Date(key.lastUsedAt).toLocaleDateString()}
                     </p>

@@ -112,14 +112,14 @@ export function ArticleReader({
     contentKey: tocContentKey,
   });
 
-  // Auto highlight preference stored in localStorage
-  const [autoHighlight, setAutoHighlight] = useState(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("autoHighlight");
-      return stored !== null ? stored === "true" : true; // Default to true
-    }
-    return true;
-  });
+  // Auto highlight preference stored in localStorage.
+  // Initialize to a server-stable default and sync from localStorage in an
+  // effect to avoid a hydration mismatch (mirrors useTocOpenPreference).
+  const [autoHighlight, setAutoHighlight] = useState(true); // Default to true
+  useEffect(() => {
+    const stored = localStorage.getItem("autoHighlight");
+    if (stored !== null) setAutoHighlight(stored === "true");
+  }, []);
 
   // Keep ref updated with latest callback
   useEffect(() => {
