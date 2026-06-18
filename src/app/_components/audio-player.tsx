@@ -359,7 +359,9 @@ export function AudioPlayer({
         } else {
           const result = await generateAudioQuery.refetch();
           if (result.error) {
-            throw result.error;
+            throw result.error instanceof Error
+              ? result.error
+              : new Error("Failed to generate audio");
           }
           if (!result.data) {
             throw new Error("No audio returned from server");

@@ -268,7 +268,7 @@ export function AddArticleForm({
   };
 
   const primaryLabel =
-    submitLabel ||
+    submitLabel ??
     (isMetadataMode
       ? "Save metadata"
       : isTextMode
@@ -521,7 +521,7 @@ export function AddArticleForm({
             )}
           </div>
 
-          {(detectedMetadata.title || detectedMetadata.author) && (
+          {(!!detectedMetadata.title || !!detectedMetadata.author) && (
             <div className="rounded-2xl border border-rule bg-background-deep p-3">
               <p className="mb-2 text-sm font-medium text-foreground">
                 Detected metadata:

@@ -22,9 +22,9 @@ type GeneralContextType = {
 
 export const GeneralContext = createContext<GeneralContextType>({
   isAddFormOpen: false,
-  setIsAddFormOpen: () => {},
+  setIsAddFormOpen: () => undefined,
   metadataEditArticle: null,
-  setMetadataEditArticle: () => {},
+  setMetadataEditArticle: () => undefined,
 });
 
 export const GeneralProvider = ({

@@ -29,18 +29,18 @@ export function useClickAway<T extends Event = Event>(
   targetRef.current = target;
 
   useEffect(() => {
-    const handler = (event: any) => {
+    const handler = (event: Event) => {
       const targets = Array.isArray(targetRef.current)
         ? targetRef.current
         : [targetRef.current];
 
       const isClickAway = targets.every((target) => {
         const targetElement = getTargetElement(target);
-        return !targetElement || !targetElement.contains(event.target);
+        return !targetElement?.contains(event.target as Node | null);
       });
 
       if (isClickAway) {
-        onClickAwayRef.current(event);
+        onClickAwayRef.current(event as T);
       }
     };
 

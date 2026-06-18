@@ -213,8 +213,8 @@ export function applyHighlights(
 
     // Apply highlight using existing function
     const highlightInfo: HighlightInfo = {
-      color: highlight.color || "yellow",
-      textColor: highlight.textColor || "inherit",
+      color: highlight.color ?? "yellow",
+      textColor: highlight.textColor ?? "inherit",
       highlightIndex: highlight.highlightIndex ?? i,
       selectionString: highlight.text,
       anchor: range.startContainer,
@@ -434,7 +434,7 @@ function _recursiveWrapper(
       }
       if (char === selectionString[charsHighlighted]) {
         charsHighlighted++;
-      } else if (!char.match(/\s/u)) {
+      } else if (!(/\s/u.exec(char))) {
         // Similarly, if the char in the text node is a whitespace, ignore any differences
         // Otherwise, we can't find the highlight text; throw an error
         throw new Error(
@@ -458,7 +458,7 @@ function _recursiveWrapper(
     }
 
     // If the text is all whitespace, ignore it
-    if (highlightText.match(/^\s*$/u)) {
+    if (/^\s*$/u.exec(highlightText)) {
       parent.normalize(); // Undo any 'splitText' operations
       return [startFound, charsHighlighted];
     }

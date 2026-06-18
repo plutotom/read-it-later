@@ -137,7 +137,7 @@ export default function FolderViewPage({ params }: FolderViewPageProps) {
 
       <main className="flex-1 p-4">
         <div className="space-y-4">
-          {articles && articles.length === 0 ? (
+          {articles?.length === 0 ? (
             <Card>
               <CardContent className="text-muted-foreground py-8 text-center">
                 No articles in this folder yet.

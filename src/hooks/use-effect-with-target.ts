@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, type DependencyList } from "react";
 import type { BasicTarget } from "./use-click-away";
 import { createEffectWithTarget } from "./create-effect-with-target";
 
@@ -11,7 +11,7 @@ import { createEffectWithTarget } from "./create-effect-with-target";
  */
 export function useEffectWithTarget(
   effect: (target: Element | null) => void | (() => void),
-  deps: any[],
+  deps: DependencyList,
   target: BasicTarget | BasicTarget[],
 ) {
   useEffect(() => {
@@ -31,7 +31,7 @@ export function useEffectWithTarget(
  */
 export function useLayoutEffectWithTarget(
   effect: (target: Element | null) => void | (() => void),
-  deps: any[],
+  deps: DependencyList,
   target: BasicTarget | BasicTarget[],
 ) {
   useLayoutEffect(() => {

@@ -46,7 +46,7 @@ export function AudioPlayerSeekBar({
         max={max || 0}
         step={0.1}
         value={value}
-        disabled={disabled || max <= 0}
+        disabled={!!disabled || max <= 0}
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
         aria-label="Seek playback position"

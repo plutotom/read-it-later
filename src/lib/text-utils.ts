@@ -33,7 +33,7 @@ export function truncateText(text: string, maxLength: number): string {
 /**
  * Gets a clean text preview from HTML content
  */
-export function getTextPreview(html: string, maxLength: number = 150): string {
+export function getTextPreview(html: string, maxLength = 150): string {
   const cleanText = stripHtml(html);
   return truncateText(cleanText, maxLength);
 }

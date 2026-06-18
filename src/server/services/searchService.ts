@@ -3,8 +3,13 @@
  * Provides advanced search functionality for articles
  */
 
-import type { Article } from "~/types/article";
+import type { Article, ArticleMetadata } from "~/types/article";
 import type { SearchResponse } from "~/types/api";
+
+/** Read an article's loosely-typed jsonb metadata as a structured object. */
+function readMeta(article: Article): ArticleMetadata {
+  return (article.metadata ?? {}) as ArticleMetadata;
+}
 
 export interface SearchOptions {
   query: string;
@@ -81,14 +86,15 @@ export class SearchService {
     if (!query.trim()) return true;
 
     const searchTerms = query.toLowerCase().split(/\s+/);
+    const meta = readMeta(article);
     const searchableText = [
       article.title,
       article.content,
-      article.excerpt || "",
-      article.author || "",
-      ...(article.tags || []),
-      (article.metadata as any)?.siteName || "",
-      (article.metadata as any)?.description || "",
+      article.excerpt ?? "",
+      article.author ?? "",
+      ...(article.tags ?? []),
+      meta.siteName ?? "",
+      meta.description ?? "",
     ]
       .join(" ")
       .toLowerCase();
@@ -125,7 +131,7 @@ export class SearchService {
 
     // Tags filter
     if (filters.tags && filters.tags.length > 0) {
-      const articleTags = article.tags || [];
+      const articleTags = article.tags ?? [];
       const hasMatchingTag = filters.tags.some((tag) =>
         articleTags.some((articleTag) =>
           articleTag.toLowerCase().includes(tag.toLowerCase()),
@@ -155,12 +161,9 @@ export class SearchService {
     }
 
     // Site name filter
-    if (filters.siteName && (article.metadata as any)?.siteName) {
-      if (
-        !(article.metadata as any).siteName
-          .toLowerCase()
-          .includes(filters.siteName.toLowerCase())
-      ) {
+    const siteName = readMeta(article).siteName;
+    if (filters.siteName && siteName) {
+      if (!siteName.toLowerCase().includes(filters.siteName.toLowerCase())) {
         return false;
       }
     }
@@ -192,7 +195,7 @@ export class SearchService {
       } else if (typeof aValue === "number" && typeof bValue === "number") {
         comparison = aValue - bValue;
       } else {
-        comparison = String(aValue).localeCompare(String(bValue));
+        comparison = JSON.stringify(aValue).localeCompare(JSON.stringify(bValue));
       }
 
       return sort.order === "desc" ? -comparison : comparison;
@@ -228,13 +231,13 @@ export class SearchService {
 
     const title = article.title.toLowerCase();
     const content = article.content.toLowerCase();
-    const excerpt = (article.excerpt || "").toLowerCase();
-    const tags = (article.tags || []).join(" ").toLowerCase();
+    const excerpt = (article.excerpt ?? "").toLowerCase();
+    const tags = (article.tags ?? []).join(" ").toLowerCase();
 
     for (const term of searchTerms) {
       // Title matches are worth more
       if (title.includes(term)) {
-        score += title.indexOf(term) === 0 ? 10 : 5; // Exact start match is worth more
+        score += title.startsWith(term) ? 10 : 5; // Exact start match is worth more
       }
 
       // Excerpt matches
@@ -248,7 +251,7 @@ export class SearchService {
       }
 
       // Content matches
-      const contentMatches = (content.match(new RegExp(term, "g")) || [])
+      const contentMatches = (content.match(new RegExp(term, "g")) ?? [])
         .length;
       score += Math.min(contentMatches, 5); // Cap content matches to avoid spam
     }
@@ -288,7 +291,7 @@ export class SearchService {
       });
 
       // Tag-based suggestions
-      (article.tags || []).forEach((tag) => {
+      (article.tags ?? []).forEach((tag) => {
         const tagLower = tag.toLowerCase();
         if (tagLower.startsWith(queryLower) && tagLower !== queryLower) {
           suggestions.add(tag);
@@ -312,7 +315,7 @@ export class SearchService {
    */
   private static generateFacets(
     articles: Article[],
-    currentFilters: SearchOptions["filters"] = {},
+    _currentFilters: SearchOptions["filters"] = {},
   ): Record<string, Array<{ value: string; count: number }>> {
     const facets: Record<string, Map<string, number>> = {
       tags: new Map(),
@@ -325,7 +328,7 @@ export class SearchService {
       // Tag facets
       if (facets.tags && article.tags) {
         article.tags.forEach((tag) => {
-          facets.tags!.set(tag, (facets.tags!.get(tag) || 0) + 1);
+          facets.tags!.set(tag, (facets.tags!.get(tag) ?? 0) + 1);
         });
       }
 
@@ -333,23 +336,21 @@ export class SearchService {
       if (facets.authors && article.author) {
         facets.authors.set(
           article.author,
-          (facets.authors.get(article.author) || 0) + 1,
+          (facets.authors.get(article.author) ?? 0) + 1,
         );
       }
 
       // Site facets
-      if (facets.sites && (article.metadata as any)?.siteName) {
-        facets.sites.set(
-          (article.metadata as any).siteName,
-          (facets.sites.get((article.metadata as any).siteName) || 0) + 1,
-        );
+      const siteName = readMeta(article).siteName;
+      if (facets.sites && siteName) {
+        facets.sites.set(siteName, (facets.sites.get(siteName) ?? 0) + 1);
       }
 
       // Folder facets (would need folder names from database)
       if (facets.folders && article.folderId) {
         facets.folders.set(
           article.folderId,
-          (facets.folders.get(article.folderId) || 0) + 1,
+          (facets.folders.get(article.folderId) ?? 0) + 1,
         );
       }
     });
@@ -370,7 +371,7 @@ export class SearchService {
   /**
    * Extract keywords from article content
    */
-  static extractKeywords(content: string, maxKeywords: number = 10): string[] {
+  static extractKeywords(content: string, maxKeywords = 10): string[] {
     // Simple keyword extraction - in production, use a proper NLP library
     const words = content
       .toLowerCase()
@@ -381,7 +382,7 @@ export class SearchService {
     // Count word frequency
     const wordCounts = new Map<string, number>();
     words.forEach((word) => {
-      wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
+      wordCounts.set(word, (wordCounts.get(word) ?? 0) + 1);
     });
 
     // Get most frequent words

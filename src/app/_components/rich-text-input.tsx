@@ -88,7 +88,7 @@ export function RichTextInput({
 
       for (const pattern of authorPatterns) {
         const match = text.match(pattern);
-        if (match && match[1]) {
+        if (match?.[1]) {
           author = match[1].trim();
           break;
         }

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-export type IProps = Record<string, any>;
+export type IProps = Record<string, unknown>;
 
 export function useWhyDidYouUpdate(componentName: string, props: IProps) {
   const prevProps = useRef<IProps>({});
@@ -20,7 +20,7 @@ export function useWhyDidYouUpdate(componentName: string, props: IProps) {
       });
 
       if (Object.keys(changedProps).length) {
-        // eslint-disable-next-line no-console
+         
         console.log("[why-did-you-update]", componentName, changedProps);
       }
     }

@@ -180,7 +180,7 @@ export function AudioPlayerExpanded({
         <button
           type="button"
           onClick={onJumpToReadingPosition}
-          disabled={disabled || !onJumpToReadingPosition}
+          disabled={!!disabled || !onJumpToReadingPosition}
           className="flex h-10 w-10 items-center justify-center rounded-full text-foreground-soft transition-colors hover:bg-foreground/8 hover:text-foreground disabled:opacity-40"
           aria-label="Scroll to listen position in article"
           title="Scroll to listen position in article"

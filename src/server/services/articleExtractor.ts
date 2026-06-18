@@ -117,7 +117,7 @@ export class ArticleExtractor {
     }
 
     // Post-process content to handle <picture> elements and links
-    const processedContent = this.processPictureElements(article.content || "");
+    const processedContent = this.processPictureElements(article.content ?? "");
     const finalContent = this.processLinks(processedContent, urlObj);
 
     // Word count from text only — Readability's `length` is *characters*, not words.
@@ -128,7 +128,7 @@ export class ArticleExtractor {
     const metadata = this.extractMetadata(html, urlObj);
 
     return {
-      title: this.cleanText(article.title || "Untitled"),
+      title: this.cleanText(article.title ?? "Untitled"),
       content: finalContent, // This is now properly formatted HTML with processed picture elements and links
       excerpt: article.excerpt
         ? this.cleanText(article.excerpt)
@@ -140,11 +140,11 @@ export class ArticleExtractor {
       wordCount,
       readingTime,
       metadata: {
-        siteName: article.siteName || metadata.siteName,
+        siteName: article.siteName ?? metadata.siteName,
         siteUrl: urlObj.origin,
-        description: article.excerpt || metadata.description,
+        description: article.excerpt ?? metadata.description,
         imageUrl: metadata.imageUrl,
-        language: article.lang || metadata.language,
+        language: article.lang ?? metadata.language,
       },
     };
   }
@@ -159,16 +159,14 @@ export class ArticleExtractor {
     const urlObj = new URL(url);
 
     // Basic metadata extraction
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    const ogTitleMatch = html.match(
-      /<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i,
-    );
+    const titleMatch = /<title[^>]*>([^<]+)<\/title>/i.exec(html);
+    const ogTitleMatch = /<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i.exec(html);
     const title =
-      ogTitleMatch?.[1] || titleMatch?.[1] || `Article from ${urlObj.hostname}`;
+      ogTitleMatch?.[1] ?? titleMatch?.[1] ?? `Article from ${urlObj.hostname}`;
 
     // Try to extract main content area
-    const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
-    const mainMatch = html.match(/<main[^>]*>([\s\S]*?)<\/main>/i);
+    const articleMatch = /<article[^>]*>([\s\S]*?)<\/article>/i.exec(html);
+    const mainMatch = /<main[^>]*>([\s\S]*?)<\/main>/i.exec(html);
 
     let content = "";
     if (articleMatch?.[1]) {
@@ -204,35 +202,23 @@ export class ArticleExtractor {
    * Extract metadata from HTML
    */
   private static extractMetadata(html: string, urlObj: URL) {
-    const descMatch = html.match(
-      /<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i,
-    );
-    const ogDescMatch = html.match(
-      /<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i,
-    );
-    const authorMatch = html.match(
-      /<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i,
-    );
-    const siteNameMatch = html.match(
-      /<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i,
-    );
-    const imageMatch = html.match(
-      /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i,
-    );
-    const languageMatch = html.match(/<html[^>]*lang=["']([^"']+)["']/i);
+    const descMatch = /<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i.exec(html);
+    const ogDescMatch = /<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i.exec(html);
+    const authorMatch = /<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i.exec(html);
+    const siteNameMatch = /<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i.exec(html);
+    const imageMatch = /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i.exec(html);
+    const languageMatch = /<html[^>]*lang=["']([^"']+)["']/i.exec(html);
 
     let publishedAt: Date | undefined;
-    const dateMatch = html.match(
-      /<meta[^>]*property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i,
-    );
+    const dateMatch = /<meta[^>]*property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i.exec(html);
     if (dateMatch?.[1]) {
       publishedAt = new Date(dateMatch[1]);
     }
 
     return {
-      description: ogDescMatch?.[1] || descMatch?.[1],
+      description: ogDescMatch?.[1] ?? descMatch?.[1],
       author: authorMatch?.[1],
-      siteName: siteNameMatch?.[1] || urlObj.hostname,
+      siteName: siteNameMatch?.[1] ?? urlObj.hostname,
       imageUrl: imageMatch?.[1],
       language: languageMatch?.[1],
       publishedAt,
@@ -303,7 +289,7 @@ export class ArticleExtractor {
           }
 
           // Add visual indicator for external links and general link class
-          const existingClass = link.getAttribute("class") || "";
+          const existingClass = link.getAttribute("class") ?? "";
           let newClass = `${existingClass} article-link`.trim();
 
           if (!href.startsWith("#") && !href.startsWith(baseUrl.origin)) {

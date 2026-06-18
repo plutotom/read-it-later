@@ -321,12 +321,10 @@ export function useArticleToc({
       if (clickLockRef.current) return;
 
       // Live update from scrollTop + cached measurements; throttled to frames.
-      if (scrollRafRef.current === null) {
-        scrollRafRef.current = requestAnimationFrame(() => {
-          scrollRafRef.current = null;
-          updateActiveHeading();
-        });
-      }
+      scrollRafRef.current ??= requestAnimationFrame(() => {
+        scrollRafRef.current = null;
+        updateActiveHeading();
+      });
 
       if (scrollEndTimeoutRef.current !== null) {
         window.clearTimeout(scrollEndTimeoutRef.current);

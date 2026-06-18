@@ -8,7 +8,7 @@ import type { BasicTarget } from "./use-click-away";
  */
 export function createEffectWithTarget(
   effect: (target: Element | null) => void | (() => void),
-  deps: BasicTarget<any>[],
+  deps: BasicTarget[],
 ) {
   const destroyRef = { current: undefined as (() => void) | undefined };
 
