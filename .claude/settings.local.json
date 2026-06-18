@@ -4,7 +4,14 @@
       "Bash(pnpm build *)",
       "Bash(pnpm check *)",
       "Bash(pnpm typecheck *)",
-      "Bash(pnpm lint *)"
+      "Bash(pnpm lint *)",
+      "Bash(npm --version)",
+      "Bash(curl -s https://ril.plutotom.com/api/v1/openapi.json -o /tmp/ril-openapi.json)",
+      "Read(//tmp/**)",
+      "Bash(python3 *)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npx ray *)"
     ]
   }
 }
