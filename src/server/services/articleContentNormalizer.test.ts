@@ -54,4 +54,21 @@ Every father is called to love the Word.
       "<p>First paragraph.</p>\n<p>Second paragraph.</p>",
     );
   });
+
+  it("splits single-newline plain text into separate paragraphs", () => {
+    const text =
+      "First paragraph of the article.\nSecond paragraph follows.\nThird paragraph wraps it up.";
+    expect(normalizeManualArticleContent(text)).toBe(
+      "<p>First paragraph of the article.</p>\n" +
+        "<p>Second paragraph follows.</p>\n" +
+        "<p>Third paragraph wraps it up.</p>",
+    );
+  });
+
+  it("keeps single newlines as <br> when blank lines separate paragraphs", () => {
+    const text = "Line one.\nLine two.\n\nSecond paragraph.";
+    expect(normalizeManualArticleContent(text)).toBe(
+      "<p>Line one.<br>Line two.</p>\n<p>Second paragraph.</p>",
+    );
+  });
 });

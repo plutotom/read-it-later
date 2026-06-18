@@ -26,14 +26,14 @@ const saveArticleInputSchema = z.object({
 export const saveArticleTool: Tool = {
   name: "save_article_to_read_it_later",
   description:
-    "Save an article to the read-it-later app. The article content can be HTML or plain text. The tool will automatically calculate word count and reading time.",
+    "Save an article to the read-it-later app. Provide the article body as well-structured HTML so it renders with real formatting in the reader. The tool calculates word count and reading time automatically.",
   inputSchema: {
     type: "object",
     properties: {
       content: {
         type: "string",
         description:
-          "The article content in HTML or plain text format. This is required.",
+          "The article body. REQUIRED. Send well-structured HTML so it renders with real formatting: wrap each paragraph in its own <p>, use <h2>/<h3> for headings, <ul>/<ol> with <li> for lists, <blockquote> for quotes, and <strong>/<em> for emphasis. Keep heading text and body text in separate tags. Do NOT send one giant <p>, do NOT separate paragraphs with <br>, and do NOT send single-line flattened markdown or plain text with single line breaks — all of those collapse into one unformatted block. Markdown is accepted only as a fallback with a blank line between every block.",
       },
       title: {
         type: "string",

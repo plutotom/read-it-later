@@ -79,13 +79,20 @@ function splitHeadingFromBody(line: string): string {
 }
 
 function plainTextToHtml(text: string): string {
-  return text
-    .split(/\n{2,}/)
+  // When blank lines separate paragraphs, honor them and keep single newlines
+  // as <br> (soft wraps within a paragraph). When there are no blank lines at
+  // all — common from AI output that puts one paragraph per line — treat every
+  // newline as a paragraph break so the body doesn't collapse into one block.
+  const hasParagraphBreaks = /\n{2,}/.test(text);
+  const blocks = hasParagraphBreaks ? text.split(/\n{2,}/) : text.split(/\n/);
+
+  return blocks
     .map((block) => block.trim())
     .filter(Boolean)
     .map((block) => {
-      const withBreaks = escapeHtml(block).replace(/\n/g, "<br>");
-      return `<p>${withBreaks}</p>`;
+      const escaped = escapeHtml(block);
+      const inner = hasParagraphBreaks ? escaped.replace(/\n/g, "<br>") : escaped;
+      return `<p>${inner}</p>`;
     })
     .join("\n");
 }

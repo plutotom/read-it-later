@@ -2,15 +2,10 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { db } from "~/server/db";
-import { articles } from "~/server/db/schema";
 import { articleCreateFromTextSchema } from "~/schemas/article";
 import { auth } from "~/server/auth";
-import { JSDOM } from "jsdom";
 import { ZodError } from "zod";
-import {
-  countArticleWords,
-  readingTimeFromWordCount,
-} from "~/server/lib/articleWordCount";
+import { createArticleFromText } from "~/server/services/articleService";
 
 export async function POST(_req: NextRequest) {
   try {
@@ -38,44 +33,18 @@ export async function POST(_req: NextRequest) {
     // Validate input using the same schema as tRPC
     const validated = articleCreateFromTextSchema.parse(body);
 
-    // Generate placeholder URL for text articles
-    const placeholderUrl = `text://manual-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-
-    // Calculate word count and reading time from HTML content
-    const dom = new JSDOM(validated.content);
-    const document = dom.window.document;
-    const plainText = document.textContent ?? "";
-    const wordCount = countArticleWords(plainText);
-    const readingTime = readingTimeFromWordCount(wordCount);
-
-    // Extract excerpt from first paragraph
-    const firstParagraph = document.querySelector("p");
-    const excerpt =
-      firstParagraph?.textContent?.trim() ?? plainText.substring(0, 200).trim();
-
-    const [newArticle] = await db
-      .insert(articles)
-      .values({
-        userId: session.user.id,
-        url: placeholderUrl,
-        title: validated.title,
-        content: validated.content,
-        excerpt: excerpt.length > 0 ? excerpt : null,
-        author: validated.author ?? null,
-        publishedAt: validated.publishedAt ?? null,
-        wordCount: wordCount,
-        readingTime: readingTime,
-        folderId: validated.folderId ?? null,
-        tags: validated.tags ?? null,
-        metadata: {
-          siteName: "Manual Entry",
-          siteUrl: placeholderUrl,
-          description: excerpt,
-          language: "en",
-          category: "Manual Entry",
-        },
-      })
-      .returning();
+    // Delegate to the shared service so manual content is normalized to HTML
+    // (markdown / flattened markdown / plain text) before storage — keeping this
+    // route in lockstep with the tRPC and public v1 API surfaces.
+    const newArticle = await createArticleFromText(db, session.user.id, {
+      content: validated.content,
+      title: validated.title,
+      author: validated.author,
+      publishedAt: validated.publishedAt,
+      url: validated.url,
+      folderId: validated.folderId,
+      tags: validated.tags,
+    });
 
     return NextResponse.json(newArticle, { status: 201 });
   } catch (error) {
