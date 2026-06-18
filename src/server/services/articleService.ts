@@ -10,6 +10,7 @@ import { JSDOM } from "jsdom";
 import { nanoid } from "nanoid";
 import type { db as Db } from "~/server/db";
 import { articles, paraExports } from "~/server/db/schema";
+import { normalizeManualArticleContent } from "~/server/services/articleContentNormalizer";
 import { ArticleExtractor } from "~/server/services/articleExtractor";
 import { refreshExportFromArticle } from "~/server/services/paraExportService";
 import {
@@ -180,8 +181,9 @@ export async function createArticleFromText(
     .toString(36)
     .slice(2, 11)}`;
   const articleUrl = input.url ?? placeholderUrl;
+  const htmlContent = normalizeManualArticleContent(input.content);
 
-  const dom = new JSDOM(input.content);
+  const dom = new JSDOM(htmlContent);
   const document = dom.window.document;
   const plainText = document.textContent ?? "";
   const wordCount = countArticleWords(plainText);
@@ -198,7 +200,7 @@ export async function createArticleFromText(
       userId,
       url: articleUrl,
       title: input.title,
-      content: input.content,
+      content: htmlContent,
       excerpt: excerpt.length > 0 ? excerpt : null,
       author: input.author ?? null,
       publishedAt: input.publishedAt ?? null,

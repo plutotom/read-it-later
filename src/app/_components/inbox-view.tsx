@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 
 import { api } from "~/trpc/react";
 import { withViewTransition } from "~/lib/with-view-transition";
+import { useDeleteArticle } from "../_hooks/use-delete-article";
 import { ArticleList } from "./article-list";
 import { Layout } from "./layout";
 
@@ -17,11 +18,7 @@ export function InboxView() {
     },
   });
 
-  const deleteArticle = api.article.delete.useMutation({
-    onSuccess: () => {
-      void utils.article.getAll.invalidate();
-    },
-  });
+  const deleteArticle = useDeleteArticle();
 
   const router = useRouter();
 

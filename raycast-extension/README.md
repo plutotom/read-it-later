@@ -31,6 +31,18 @@ A form for saving new articles:
 - Fill in **Title** + **Content** for a manual text entry.
 - Optional comma-separated **tags**.
 
+## AI tools (Raycast)
+
+When using Raycast AI with this extension:
+
+- **Manual text entries** need `title` + `content`. The reader renders HTML; markdown
+  is also accepted and converted server-side.
+- When pasting an **email or newsletter**, the AI should strip headers, signatures,
+  conference promos, and P.S. resource blocks, then structure the real article body
+  with headings and paragraphs. Set `author` when the sender is clear.
+- Prefer preserving the author's voice over heavy summarization unless the user asks
+  to shorten it.
+
 ## Development
 
 ```bash

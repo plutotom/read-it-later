@@ -32,6 +32,8 @@ import { withViewTransition } from "~/lib/with-view-transition";
 import { HighlightsMenu } from "./highlights-menu";
 import { ShareDialog } from "./share-dialog";
 import { ParaToggle } from "./para-toggle";
+import { ConfirmDialog } from "~/components/ui/confirm-dialog";
+import { useDeleteArticle } from "../_hooks/use-delete-article";
 import { cn } from "~/lib/utils";
 
 interface ArticleReaderHeaderProps {
@@ -66,6 +68,7 @@ export function ArticleReaderHeader({
   onOpenToc,
 }: ArticleReaderHeaderProps) {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const utils = api.useUtils();
   const router = useRouter();
   const { mutate: archive } = api.article.archive.useMutation({
@@ -82,10 +85,10 @@ export function ArticleReaderHeader({
       void utils.article.getArchived.invalidate();
     },
   });
-  const { mutate: deleteArticle } = api.article.delete.useMutation({
-    onSuccess: () => {
-      void utils.article.getAll.invalidate();
-      void utils.article.getArchived.invalidate();
+  const { mutate: deleteArticle } = useDeleteArticle({
+    // Navigate the instant the article is removed from the cache, rather than
+    // waiting for the server round-trip to finish.
+    onOptimisticDelete: () => {
       withViewTransition(() => {
         router.push("/");
       });
@@ -120,9 +123,7 @@ export function ArticleReaderHeader({
   };
 
   const handleDelete = () => {
-    if (confirm("Are you sure you want to delete this article?")) {
-      deleteArticle({ id: article.id });
-    }
+    deleteArticle({ id: article.id });
   };
 
   const domain = (() => {
@@ -133,25 +134,27 @@ export function ArticleReaderHeader({
     }
   })();
 
-  const readingTime = article.readingTime ? `${article.readingTime} min` : "Saved";
+  const readingTime = article.readingTime
+    ? `${article.readingTime} min`
+    : "Saved";
 
   return (
-    <div className="bg-background/90 sticky top-0 z-20 border-b border-rule backdrop-blur-xl">
+    <div className="bg-background/90 border-rule sticky top-0 z-20 border-b backdrop-blur-xl">
       <div className="flex items-center justify-between px-4 py-3 sm:px-8">
         <Button
           variant="ghost"
           size="sm"
           onClick={handleBackClick}
-          className="rounded-full px-2.5 text-sm text-foreground-soft hover:bg-foreground/10 hover:text-foreground"
+          className="text-foreground-soft hover:bg-foreground/10 hover:text-foreground rounded-full px-2.5 text-sm"
         >
           <ArrowLeft className="mr-1.5 h-4 w-4" />
           Close
         </Button>
 
-        <div className="min-w-0 px-3 text-center text-xs text-muted-foreground">
+        <div className="text-muted-foreground min-w-0 px-3 text-center text-xs">
           <div className="flex items-center justify-center gap-2 truncate">
             <span
-              className="inline-flex h-4 w-4 items-center justify-center rounded-[4px] bg-accent text-[9px] font-bold text-accent-foreground"
+              className="bg-accent text-accent-foreground inline-flex h-4 w-4 items-center justify-center rounded-[4px] text-[9px] font-bold"
               aria-hidden
             >
               {domain.charAt(0).toUpperCase()}
@@ -168,7 +171,7 @@ export function ArticleReaderHeader({
               variant="ghost"
               size="icon"
               onClick={onOpenToc}
-              className="hidden h-8 w-8 rounded-full text-foreground-soft hover:bg-foreground/10 hover:text-foreground lg:inline-flex"
+              className="text-foreground-soft hover:bg-foreground/10 hover:text-foreground hidden h-8 w-8 rounded-full lg:inline-flex"
               aria-label="Show table of contents"
             >
               <List className="h-4 w-4" />
@@ -195,7 +198,7 @@ export function ArticleReaderHeader({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-full text-foreground-soft hover:bg-foreground/10 hover:text-foreground"
+                className="text-foreground-soft hover:bg-foreground/10 hover:text-foreground h-8 w-8 rounded-full"
                 aria-label="Article actions"
               >
                 <MoreVertical className="h-4 w-4" />
@@ -224,7 +227,7 @@ export function ArticleReaderHeader({
               />
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={handleDelete}
+                onSelect={() => setDeleteConfirmOpen(true)}
                 className="text-red-400 focus:bg-red-900/30 focus:text-red-400"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
@@ -236,8 +239,8 @@ export function ArticleReaderHeader({
       </div>
 
       {showSettings && (
-        <div className="border-t border-rule px-4 py-3 sm:px-8">
-          <div className="flex flex-col gap-3 rounded-2xl border border-rule bg-surface p-3 shadow-[var(--shadow-soft)]">
+        <div className="border-rule border-t px-4 py-3 sm:px-8">
+          <div className="border-rule bg-surface flex flex-col gap-3 rounded-2xl border p-3 shadow-[var(--shadow-soft)]">
             <ReadingSettings
               fontSize={fontSize}
               onFontSizeChange={onFontSizeChange}
@@ -245,7 +248,7 @@ export function ArticleReaderHeader({
               onAutoHighlightChange={onAutoHighlightChange}
             />
 
-            <div className="border-t border-rule pt-3">
+            <div className="border-rule border-t pt-3">
               <ParaToggle
                 articleId={article.id}
                 articleTitle={article.title}
@@ -253,7 +256,7 @@ export function ArticleReaderHeader({
               />
             </div>
 
-            <div className="border-t border-rule pt-3">
+            <div className="border-rule border-t pt-3">
               <HighlightsMenu
                 highlights={highlights}
                 onHighlightDelete={onHighlightDelete}
@@ -271,6 +274,16 @@ export function ArticleReaderHeader({
         existingShareToken={article.shareToken}
         open={shareDialogOpen}
         onOpenChange={setShareDialogOpen}
+      />
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete article?"
+        description="This article will be permanently removed. This action cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={handleDelete}
       />
     </div>
   );

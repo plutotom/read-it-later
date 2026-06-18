@@ -56,7 +56,7 @@
     {
       "name": "add-article",
       "title": "Add Article",
-      "description": "Save a new article to the library from a URL (the page is fetched and parsed) or as a manual text entry (title + content). Optionally apply tags."
+      "description": "Save a new article. URL mode: pass `url` and the page is fetched automatically. Manual text mode: pass `title` + `content` when the user pastes an email, newsletter, or notes. For manual entries, clean up pasted material (strip email headers, signatures, promos, P.S. footers), structure the body with HTML headings and paragraphs, set `author` when known, and preserve the author's voice — don't over-summarize unless asked. Content accepts HTML or markdown."
     }
   ],
   "dependencies": {

@@ -16,7 +16,8 @@
       "Bash(npx prettier@3.8.4 --check \"src/tools/*.ts\")",
       "Bash(npx prettier@3.8.4 --write \"src/tools/add-article.ts\")",
       "Bash(git -C /Users/proctoi/Documents/Coding/read-it-later diff --stat raycast-extension/src/tools/add-article.ts)",
-      "Bash(npx prettier@3.8.4 --print-width 120 --write \"src/tools/*.ts\")"
+      "Bash(npx prettier@3.8.4 --print-width 120 --write \"src/tools/*.ts\")",
+      "Bash(npx prettier *)"
     ]
   }
 }
