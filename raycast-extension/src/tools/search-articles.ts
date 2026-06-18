@@ -42,7 +42,8 @@ export default async function tool(input: Input) {
     tag: input.tag,
     isRead: input.isRead,
     isFavorite: input.isFavorite,
-    isArchived: input.isArchived,
+    // Default to the active inbox; only include archived when explicitly asked.
+    isArchived: input.includeArchived ? undefined : false,
   });
 
   // Trim each article down to the fields useful for the model.

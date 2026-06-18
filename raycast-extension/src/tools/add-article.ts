@@ -1,4 +1,4 @@
-import { Tool } from "@raycast/api";
+import { type Tool } from "@raycast/api";
 import { createArticle } from "../api";
 import type { ArticleCreate } from "../types";
 
