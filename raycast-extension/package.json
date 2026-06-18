@@ -32,6 +32,33 @@
       "mode": "view"
     }
   ],
+  "tools": [
+    {
+      "name": "search-articles",
+      "title": "Search Articles",
+      "description": "List the most recent articles in the user's read-it-later library, or search them by keyword. Returns article metadata (id, title, url, excerpt, tags, read/favorite/archived status, reading time). Use this to answer questions like \"my 5 most recent articles\" or to find the articles to operate on."
+    },
+    {
+      "name": "get-article-content",
+      "title": "Get Article Content",
+      "description": "Fetch the full readable text of a single article by its id. Use this to read an article before summarizing it or deciding appropriate tags."
+    },
+    {
+      "name": "list-tags",
+      "title": "List Tags",
+      "description": "List the tags already used across the user's library, with article counts. Use this before tagging so new tags stay consistent with existing ones."
+    },
+    {
+      "name": "update-article",
+      "title": "Update Article",
+      "description": "Update an article by id: set its tags, or change favorite/read/archived status, title, or folder. Use this to apply tags after reading an article. Setting tags replaces the article's existing tags."
+    },
+    {
+      "name": "add-article",
+      "title": "Add Article",
+      "description": "Save a new article to the library from a URL (the page is fetched and parsed) or as a manual text entry (title + content). Optionally apply tags."
+    }
+  ],
   "dependencies": {
     "@raycast/api": "^1.104.19",
     "@raycast/utils": "^2.2.6"

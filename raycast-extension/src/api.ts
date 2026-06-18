@@ -2,6 +2,7 @@ import { getPreferenceValues } from "@raycast/api";
 import type {
   Article,
   ArticleCreate,
+  ArticleList,
   ArticleUpdate,
   Folder,
   Me,
@@ -111,6 +112,31 @@ export function getTags(): Promise<Tag[]> {
 
 export function getArticle(id: string): Promise<Article> {
   return request<Article>(`/articles/${id}`);
+}
+
+export interface ListArticlesParams {
+  /** Free-text query. When set, hits /search; otherwise the full /articles list. */
+  q?: string;
+  limit?: number;
+  cursor?: string;
+  tag?: string;
+  folderId?: string;
+  isRead?: boolean;
+  isFavorite?: boolean;
+  isArchived?: boolean;
+}
+
+/** List articles (most recent first) or search them. Returns one page. */
+export function listArticles(params: ListArticlesParams = {}): Promise<ArticleList> {
+  const { q, ...rest } = params;
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(rest)) {
+    if (value !== undefined) search.set(key, String(value));
+  }
+  const trimmed = q?.trim();
+  if (trimmed) search.set("q", trimmed);
+  const path = trimmed ? "/search" : "/articles";
+  return request<ArticleList>(`${path}?${search.toString()}`);
 }
 
 export function createArticle(body: ArticleCreate): Promise<Article> {
