@@ -19,7 +19,8 @@
       "Bash(npx prettier@3.8.4 --print-width 120 --write \"src/tools/*.ts\")",
       "Bash(npx prettier *)",
       "Bash(pnpm run *)",
-      "Bash(npx vitest *)"
+      "Bash(npx vitest *)",
+      "Bash(break)"
     ]
   }
 }

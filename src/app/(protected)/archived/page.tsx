@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { withViewTransition } from "~/lib/with-view-transition";
 import { ArticleList } from "../../_components/article-list";
 import { Layout } from "../../_components/layout";
+import { useDeleteArticle } from "../../_hooks/use-delete-article";
 
 export default function ArchivedPage() {
   const utils = api.useUtils();
@@ -22,11 +23,7 @@ export default function ArchivedPage() {
     },
   });
 
-  const deleteArticle = api.article.delete.useMutation({
-    onSuccess: () => {
-      void utils.article.getArchived.invalidate();
-    },
-  });
+  const deleteArticle = useDeleteArticle();
 
   const handleUnarchive = (articleId: string) => {
     unarchiveArticle.mutate({ id: articleId });
