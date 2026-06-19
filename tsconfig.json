@@ -39,5 +39,5 @@
     "**/*.js",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "mcp-server", "raycast-extension", "dist", "public/**/*.js"]
+  "exclude": ["node_modules", "mcp-server", "raycast-extension", "packages", "dist", "public/**/*.js"]
 }

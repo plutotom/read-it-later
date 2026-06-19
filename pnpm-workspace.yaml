@@ -1,0 +1,6 @@
+packages:
+  - "packages/*"
+  - "mcp-server"
+# Note: raycast-extension is intentionally excluded — it installs via npm and is
+# published to the Raycast store with its own self-contained build (`ray build`).
+# Migrating it onto @read-it-later/core is a separate phase.

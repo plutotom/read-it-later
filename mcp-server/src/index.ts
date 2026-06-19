@@ -1,72 +1,41 @@
 #!/usr/bin/env node
 
 /**
- * MCP Server for Read-It-Later
- * Allows external systems to save articles to the read-it-later app
+ * MCP server for Read-It-Later.
+ *
+ * Exposes the read-it-later public REST API (`/api/v1`) as MCP tools so an AI
+ * assistant can save, search, read, tag, and share articles.
+ *
+ * Configuration (environment variables):
+ *   RIL_API_KEY   (required) a read-it-later API key, e.g. `ril_...`
+ *   RIL_BASE_URL  (optional) full API base incl. /api/v1. Defaults to the
+ *                 hosted instance (https://ril.plutotom.com/api/v1). For local
+ *                 dev use http://localhost:4114/api/v1.
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
-import { saveArticleTool, handleSaveArticle } from "./tools/save-article.js";
+import { createClient } from "@read-it-later/core";
+import { registerTools } from "./tools.js";
 
 async function main() {
-  // Create MCP server
-  const server = new Server(
-    {
-      name: "read-it-later-mcp",
-      version: "0.1.0",
-    },
-    {
-      capabilities: {
-        tools: {},
-      },
-    },
-  );
+  const apiKey = process.env.RIL_API_KEY;
+  if (!apiKey) {
+    console.error(
+      "Missing RIL_API_KEY. Set it to a read-it-later API key (ril_...). Create one in the app's settings.",
+    );
+    process.exit(1);
+  }
 
-  // List available tools
-  server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return {
-      tools: [saveArticleTool],
-    };
+  const client = createClient({ apiKey, baseUrl: process.env.RIL_BASE_URL });
+
+  const server = new McpServer({
+    name: "read-it-later",
+    version: "0.2.0",
   });
 
-  // Handle tool calls
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params;
+  registerTools(server, client);
 
-    if (name === "save_article_to_read_it_later") {
-      const result = await handleSaveArticle(args);
-
-      if (result.success) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Article saved successfully! Article ID: ${result.articleId}`,
-            },
-          ],
-        };
-      } else {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Failed to save article: ${result.error}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-    }
-
-    throw new Error(`Unknown tool: ${name}`);
-  });
-
-  // Start server with stdio transport
   const transport = new StdioServerTransport();
   await server.connect(transport);
 

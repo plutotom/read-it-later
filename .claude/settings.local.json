@@ -21,7 +21,8 @@
       "Bash(pnpm run *)",
       "Bash(npx vitest *)",
       "Bash(break)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(pnpm install *)"
     ]
   }
 }
