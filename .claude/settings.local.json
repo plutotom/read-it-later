@@ -20,7 +20,8 @@
       "Bash(npx prettier *)",
       "Bash(pnpm run *)",
       "Bash(npx vitest *)",
-      "Bash(break)"
+      "Bash(break)",
+      "WebSearch"
     ]
   }
 }

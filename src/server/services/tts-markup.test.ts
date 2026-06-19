@@ -54,6 +54,22 @@ describe("htmlToChirpMarkup", () => {
     expect(markup.match(/\[pause long\]/g)?.length).toBe(1);
   });
 
+  it("adds a sentence-ending period when a heading lacks punctuation", () => {
+    const markup = htmlToChirpMarkup("<h2>A Heading With No Period</h2>");
+    expect(markup).toMatch(/A Heading With No Period\.\s*\[pause\]/);
+  });
+
+  it("does not double up punctuation when text already ends with a period", () => {
+    const markup = htmlToChirpMarkup("<p>Already done.</p>");
+    expect(markup).not.toContain("..");
+    expect(markup).toMatch(/Already done\.\s*\[pause long\]/);
+  });
+
+  it("collapses consecutive pauses from empty elements", () => {
+    const markup = htmlToChirpMarkup("<p>Text.</p><p></p><p></p><p>More.</p>");
+    expect(markup).not.toMatch(/\[pause long\]\s*\[pause long\]/);
+  });
+
   it("preserves character count through chunkText round-trip", () => {
     const html = `<article>${"<p>Paragraph with some text. </p>".repeat(50)}</article>`;
     const markup = htmlToChirpMarkup(html);

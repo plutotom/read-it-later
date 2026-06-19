@@ -21,6 +21,11 @@ const SHORT_PAUSE_TAGS = new Set([
 ]);
 const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "NOSCRIPT"]);
 
+// Chirp 3 splits text into "sentences" by terminal punctuation, not pause
+// markup. Without it, headings/list items/paragraphs that lack a trailing
+// period merge into one huge sentence and the API rejects the request.
+const TERMINAL_PUNCTUATION = /[.!?…:;]$/;
+
 /**
  * Whether Google TTS should receive `input.markup` instead of `input.text`.
  */
@@ -76,6 +81,7 @@ function walkNode(node: Node, parts: string[]): void {
   }
 
   if (tag === "BR") {
+    ensureSentenceEnd(parts);
     parts.push(PAUSE);
     return;
   }
@@ -83,9 +89,34 @@ function walkNode(node: Node, parts: string[]): void {
   walkChildren(el, parts);
 
   if (LONG_PAUSE_TAGS.has(tag)) {
+    ensureSentenceEnd(parts);
     parts.push(PAUSE_LONG);
   } else if (SHORT_PAUSE_TAGS.has(tag)) {
+    ensureSentenceEnd(parts);
     parts.push(PAUSE);
+  }
+}
+
+/**
+ * Append a period before a structural pause when the preceding spoken text
+ * doesn't already end in terminal punctuation, so Chirp 3 sees a sentence
+ * boundary rather than one ever-growing sentence.
+ */
+function ensureSentenceEnd(parts: string[]): void {
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const part = parts[i]!;
+    // Skip pause tokens already emitted for nested elements.
+    if (part === PAUSE || part === PAUSE_LONG) {
+      continue;
+    }
+    const trimmed = part.replace(/\s+$/, "");
+    if (!trimmed) {
+      continue;
+    }
+    if (!TERMINAL_PUNCTUATION.test(trimmed)) {
+      parts.push(".");
+    }
+    return;
   }
 }
 
@@ -105,6 +136,12 @@ export function normalizeMarkupWhitespace(text: string): string {
   normalized = normalized
     .replace(/\s*\uE000PAUSE_LONG\uE001/g, PAUSE_LONG)
     .replace(/\s*\uE000PAUSE\uE001/g, PAUSE);
+
+  // Collapse consecutive pause tokens (e.g. from empty elements) into a single
+  // pause, preferring the longer one. Long runs garble Chirp 3 output.
+  normalized = normalized.replace(/(?:\s*\[pause(?: long)?\])+/gi, (match) =>
+    /long/i.test(match) ? PAUSE_LONG : PAUSE,
+  );
 
   return normalized.replace(/\s{2,}/g, " ").trim();
 }

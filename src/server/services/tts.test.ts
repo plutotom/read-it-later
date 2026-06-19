@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { chunkText, stripHtmlToPlainText } from "~/server/services/tts";
+import {
+  chunkText,
+  enforceMaxSentenceLength,
+  stripHtmlToPlainText,
+} from "~/server/services/tts";
 import {
   DEFAULT_VOICE,
   getPriceMultiplier,
@@ -35,6 +39,39 @@ describe("chunkText", () => {
     const chunks = chunkText(text, 4000);
     const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
     expect(total).toBe(text.length);
+  });
+});
+
+describe("enforceMaxSentenceLength", () => {
+  function longestSentence(text: string): number {
+    // Pause tokens and terminal punctuation both end a sentence.
+    return text
+      .replace(/\[pause long\]|\[pause\]/gi, ".")
+      .split(/[.!?…]+/)
+      .reduce((max, s) => Math.max(max, s.trim().length), 0);
+  }
+
+  it("leaves short, well-punctuated text untouched", () => {
+    const text = "Hello world. This is fine.";
+    expect(enforceMaxSentenceLength(text, 500)).toBe(text);
+  });
+
+  it("splits a long unpunctuated run into bounded sentences", () => {
+    const text = `${"word ".repeat(400).trim()} end.`;
+    const result = enforceMaxSentenceLength(text, 200);
+    expect(longestSentence(result)).toBeLessThanOrEqual(200);
+  });
+
+  it("preserves pause markup tokens and treats them as boundaries", () => {
+    const text = `${"word ".repeat(80).trim()} [pause long] ${"more ".repeat(80).trim()}`;
+    const result = enforceMaxSentenceLength(text, 500);
+    expect(result).toContain("[pause long]");
+    expect(longestSentence(result)).toBeLessThanOrEqual(500);
+  });
+
+  it("does not corrupt uppercase words that contain the sentinel letters", () => {
+    const text = "PLEASE NOTE THIS IS PLAIN UPPERCASE TEXT.";
+    expect(enforceMaxSentenceLength(text, 500)).toBe(text);
   });
 });
 
