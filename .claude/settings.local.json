@@ -22,7 +22,12 @@
       "Bash(npx vitest *)",
       "Bash(break)",
       "WebSearch",
-      "Bash(pnpm install *)"
+      "Bash(pnpm install *)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh api *)",
+      "Bash(grep -iE '\\\\.\\(js|json\\)$')",
+      "Bash(grep -iE '\\\\.js$')"
     ]
   }
 }

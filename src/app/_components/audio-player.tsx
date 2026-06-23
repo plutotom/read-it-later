@@ -31,6 +31,8 @@ interface AudioPlayerProps {
   shareToken?: string;
   /** Scroll article to approximate listen position (0–1). */
   onJumpToReadingPosition?: (progressRatio: number) => void;
+  /** Fired when playback starts or pauses (for dock visibility while reading). */
+  onPlayingChange?: (isPlaying: boolean) => void;
 }
 
 type PlayerState = "idle" | "generating" | "loading" | "ready" | "error";
@@ -82,6 +84,7 @@ export function AudioPlayer({
   articleImageUrl,
   shareToken,
   onJumpToReadingPosition,
+  onPlayingChange,
 }: AudioPlayerProps) {
   const isPublicShare = Boolean(shareToken);
   const utils = api.useUtils();
@@ -167,6 +170,10 @@ export function AudioPlayer({
     resumeAppliedForUrlRef.current = null;
     clearTtsGenerationPending(articleId);
   }, [articleId]);
+
+  useEffect(() => {
+    onPlayingChange?.(isPlaying);
+  }, [isPlaying, onPlayingChange]);
 
   const savePlaybackProgress = useCallback(
     (timeSeconds: number) => {

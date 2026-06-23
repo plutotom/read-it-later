@@ -35,6 +35,15 @@ export function PublicArticleReader({
   const hideScrollAccumulatorRef = useRef(0);
   const [progress, setProgress] = useState(0);
   const [isPlayerVisible, setIsPlayerVisible] = useState(true);
+  const isAudioPlayingRef = useRef(false);
+
+  const handlePlayingChange = useCallback((playing: boolean) => {
+    isAudioPlayingRef.current = playing;
+    if (playing) {
+      setIsPlayerVisible(true);
+      hideScrollAccumulatorRef.current = 0;
+    }
+  }, []);
   const { isOpen: isTocOpen, close: closeToc, open: openToc } =
     useTocOpenPreference();
   const tocContentKey = `${article.id}:${DEFAULT_FONT_SIZE}:${article.content.length}`;
@@ -66,6 +75,7 @@ export function PublicArticleReader({
   useEffect(() => {
     lastScrollTopRef.current = 0;
     hideScrollAccumulatorRef.current = 0;
+    isAudioPlayingRef.current = false;
     setIsPlayerVisible(true);
   }, [article.id]);
 
@@ -84,7 +94,10 @@ export function PublicArticleReader({
         setIsPlayerVisible(true);
       } else if (delta > 0) {
         hideScrollAccumulatorRef.current += delta;
-        if (hideScrollAccumulatorRef.current >= 48) {
+        if (
+          !isAudioPlayingRef.current &&
+          hideScrollAccumulatorRef.current >= 48
+        ) {
           setIsPlayerVisible(false);
         }
       } else if (delta < 0) {
@@ -164,6 +177,7 @@ export function PublicArticleReader({
             articleImageUrl={articleImageUrl}
             shareToken={shareToken}
             onJumpToReadingPosition={handleJumpToReadingPosition}
+            onPlayingChange={handlePlayingChange}
           />
         </div>
       </div>
