@@ -7,7 +7,6 @@
 
 import { useState } from "react";
 import { type Article } from "~/types/article";
-import { type Highlight } from "~/types/annotation";
 import { ReadingSettings } from "./reading-settings";
 import { Button } from "~/components/ui/button";
 import {
@@ -29,7 +28,6 @@ import {
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
 import { withViewTransition } from "~/lib/with-view-transition";
-import { HighlightsMenu } from "./highlights-menu";
 import { ShareDialog } from "./share-dialog";
 import { ParaToggle } from "./para-toggle";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
@@ -42,11 +40,6 @@ interface ArticleReaderHeaderProps {
   onToggleSettings: () => void;
   fontSize: number;
   onFontSizeChange: (size: number) => void;
-  autoHighlight: boolean;
-  onAutoHighlightChange: (enabled: boolean) => void;
-  highlights?: Highlight[];
-  onHighlightDelete?: (highlightId: string) => void;
-  onHighlightNoteUpdate?: (highlightId: string, note: string | null) => void;
   hasToc?: boolean;
   isTocOpen?: boolean;
   onOpenToc?: () => void;
@@ -58,11 +51,6 @@ export function ArticleReaderHeader({
   onToggleSettings,
   fontSize,
   onFontSizeChange,
-  autoHighlight,
-  onAutoHighlightChange,
-  highlights = [],
-  onHighlightDelete,
-  onHighlightNoteUpdate,
   hasToc = false,
   isTocOpen = false,
   onOpenToc,
@@ -244,8 +232,6 @@ export function ArticleReaderHeader({
             <ReadingSettings
               fontSize={fontSize}
               onFontSizeChange={onFontSizeChange}
-              autoHighlight={autoHighlight}
-              onAutoHighlightChange={onAutoHighlightChange}
             />
 
             <div className="border-rule border-t pt-3">
@@ -253,14 +239,6 @@ export function ArticleReaderHeader({
                 articleId={article.id}
                 articleTitle={article.title}
                 className="px-1 py-2"
-              />
-            </div>
-
-            <div className="border-rule border-t pt-3">
-              <HighlightsMenu
-                highlights={highlights}
-                onHighlightDelete={onHighlightDelete}
-                onHighlightNoteUpdate={onHighlightNoteUpdate}
               />
             </div>
           </div>

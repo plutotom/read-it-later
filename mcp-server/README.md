@@ -21,32 +21,40 @@ mcp-server/src/
   tools.ts   # thin handlers: parse args → call @read-it-later/core client → shape result
 ```
 
-## Setup
+## Quick start
+
+### 1. Build
 
 This is part of the root **pnpm workspace**. From the repo root:
 
 ```bash
-pnpm install                      # installs all workspace packages
+pnpm install
 pnpm --filter @read-it-later/core build   # build the shared package first
 pnpm --filter read-it-later-mcp-server build
 ```
 
-(The core package must be built before the MCP server, since the server imports
-its compiled output.)
+The core package must be built before the MCP server, since the server imports
+its compiled output. There is no `dist/` until you run the build step above.
 
-## Configuration
+### 2. Create an API key
 
-Configured entirely through environment variables:
+In the read-it-later app, open **Preferences** (`/preferences`) → **API Keys**.
 
-| Variable       | Required | Default                              | Notes |
-| -------------- | -------- | ------------------------------------ | ----- |
-| `RIL_API_KEY`  | yes      | —                                    | A read-it-later API key (`ril_...`). Create one in the app's settings. Needs the `ril:write` scope for save/update/share. |
-| `RIL_BASE_URL` | no       | `https://ril.plutotom.com/api/v1`    | Full API base **including** `/api/v1`. For local dev: `http://localhost:4114/api/v1`. |
+1. Enter a label (e.g. `Cursor MCP`).
+2. Choose **Read & write** — required for `add_article`, `update_article`, and
+   `create_share_link`.
+3. Click **Create** and copy the full key (`ril_...`). It is only shown once.
 
-## Using it with an MCP client
+### 3. Add to your MCP client
 
-Point your client at the built entrypoint and pass the env vars. Example
-(Claude Desktop / Cursor `mcpServers` config):
+Point the client at the built entrypoint and pass the env vars. Use an
+**absolute path** to `dist/index.js` — relative paths often fail because the
+client's working directory is not the repo root.
+
+#### Cursor
+
+**Settings → MCP → Add new MCP server**, or add a project config at
+`.cursor/mcp.json`:
 
 ```json
 {
@@ -62,7 +70,45 @@ Point your client at the built entrypoint and pass the env vars. Example
 }
 ```
 
-For Claude Code: `claude mcp add read-it-later -e RIL_API_KEY=ril_... -- node /absolute/path/to/mcp-server/dist/index.js`
+Reload the MCP server in Cursor (or reload the window). You should see the six
+tools listed below.
+
+#### Claude Desktop
+
+Same JSON shape as above — add it under **Settings → Developer → Edit Config**
+in the `mcpServers` block.
+
+#### Claude Code
+
+```bash
+claude mcp add read-it-later -e RIL_API_KEY=ril_... -- node /absolute/path/to/mcp-server/dist/index.js
+```
+
+### 4. Local dev vs production
+
+**Production** (default): omit `RIL_BASE_URL` — the server defaults to
+`https://ril.plutotom.com/api/v1`.
+
+**Local dev** (app running on port 4114): add `RIL_BASE_URL` to the env block:
+
+```json
+"env": {
+  "RIL_API_KEY": "ril_xxxxxxxxxxxxxxxxxxxx",
+  "RIL_BASE_URL": "http://localhost:4114/api/v1"
+}
+```
+
+## Configuration
+
+Configured entirely through environment variables:
+
+| Variable       | Required | Default                              | Notes |
+| -------------- | -------- | ------------------------------------ | ----- |
+| `RIL_API_KEY`  | yes      | —                                    | A read-it-later API key (`ril_...`). Create one in Preferences → API Keys. Needs the `ril:write` scope for save/update/share. |
+| `RIL_BASE_URL` | no       | `https://ril.plutotom.com/api/v1`    | Full API base **including** `/api/v1`. For local dev: `http://localhost:4114/api/v1`. |
+
+Do not commit your API key. Prefer your MCP client's env UI, or keep secrets in
+a local-only config file that is not checked into git.
 
 ## Tools
 

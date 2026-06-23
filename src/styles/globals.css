@@ -1484,51 +1484,6 @@ html[data-theme="cobalt"] {
   }
 }
 
-/* Text highlighting styles */
-/* Fallback styles for mark elements (DOM-based highlighting) */
-mark[data-hl-id] {
-  cursor: pointer;
-  padding: 2px 0;
-  border-radius: 2px;
-  transition: background-color 0.2s ease;
-}
-
-mark[data-hl-id]:hover {
-  opacity: 0.8;
-}
-
-.highlight-yellow {
-  background-color: #fef08a;
-}
-
-.highlight-green {
-  background-color: #bbf7d0;
-}
-
-.highlight-blue {
-  background-color: #bfdbfe;
-}
-
-.highlight-pink {
-  background-color: #fce7f3;
-}
-
-.highlight-purple {
-  background-color: #e9d5ff;
-}
-
-.highlight-orange {
-  background-color: #fed7aa;
-}
-
-.highlight-red {
-  background-color: #fecaca;
-}
-
-.highlight-gray {
-  background-color: #e5e7eb;
-}
-
 /* View Transitions (list ↔ article, etc.) — enabled via next.config experimental + withViewTransition() */
 @keyframes view-transition-fade-out {
   from {

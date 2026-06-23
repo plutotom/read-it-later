@@ -6,21 +6,9 @@
 "use client";
 
 import { type Note } from "~/types/annotation";
-import { type Highlight } from "~/types/annotation";
-import { Button } from "~/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
-import { Link2 } from "lucide-react";
-import { getHighlightColorHex } from "./article-reader-utils";
 
 interface StandaloneNotesProps {
   notes: Note[];
-  highlights?: Highlight[];
-  onAttachToHighlight?: (noteId: string, highlightId: string) => void;
 }
 
 function formatDate(date: Date) {
@@ -31,11 +19,7 @@ function formatDate(date: Date) {
   });
 }
 
-export function StandaloneNotes({
-  notes,
-  highlights = [],
-  onAttachToHighlight,
-}: StandaloneNotesProps) {
+export function StandaloneNotes({ notes }: StandaloneNotesProps) {
   const standaloneNotes = notes.filter((n) => !n.highlightId);
 
   if (standaloneNotes.length === 0) {
@@ -57,49 +41,6 @@ export function StandaloneNotes({
                 {formatDate(note.createdAt)}
               </p>
             </div>
-            {onAttachToHighlight && highlights.length > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="hover:bg-muted h-8 w-8 flex-shrink-0 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-gray-200"
-                    aria-label="Attach to highlight"
-                  >
-                    <Link2 className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="bg-card max-h-[300px] w-[250px] overflow-y-auto border-gray-700"
-                >
-                  <DropdownMenuItem disabled className="text-xs text-gray-500">
-                    Attach to highlight:
-                  </DropdownMenuItem>
-                  {highlights.map((highlight) => (
-                    <DropdownMenuItem
-                      key={highlight.id}
-                      onClick={() => onAttachToHighlight(note.id, highlight.id)}
-                      className="flex items-center gap-2 text-sm"
-                    >
-                      <div
-                        className="h-3 w-3 flex-shrink-0 rounded"
-                        style={{
-                          backgroundColor: getHighlightColorHex(
-                            highlight.color,
-                          ),
-                        }}
-                      />
-                      <span className="truncate text-gray-200">
-                        {highlight.text.length > 40
-                          ? `${highlight.text.slice(0, 40)}...`
-                          : highlight.text}
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
           </div>
         ))}
       </div>

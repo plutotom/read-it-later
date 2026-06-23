@@ -1,25 +1,29 @@
 /**
  * Article Content Component
- * Renders the article content with highlighting support
+ * Renders the article content
  */
 
 "use client";
 
-import { type RefObject } from "react";
+import { memo, useMemo, type RefObject } from "react";
 
 interface ArticleContentProps {
   content: string;
   fontSize: number;
   contentRef: RefObject<HTMLDivElement | null>;
-  onTextSelection: () => void;
 }
 
-export function ArticleContent({
+function ArticleContentImpl({
   content,
   fontSize,
   contentRef,
-  onTextSelection,
 }: ArticleContentProps) {
+  // Stabilize the dangerouslySetInnerHTML object identity. React 19 diffs this
+  // prop by object reference, so a fresh `{ __html }` literal every render makes
+  // React re-set innerHTML — destroying and rebuilding the whole subtree
+  // (including embedded iframes/videos) on every parent re-render (e.g. scroll).
+  const html = useMemo(() => ({ __html: content }), [content]);
+
   return (
     <div
       ref={contentRef}
@@ -29,10 +33,12 @@ export function ArticleContent({
         fontSize: `${fontSize}px`,
         lineHeight: 1.7,
       }}
-      onMouseUp={onTextSelection}
-      onTouchEnd={onTextSelection}
     >
-      <div dangerouslySetInnerHTML={{ __html: content }} />
+      <div dangerouslySetInnerHTML={html} />
     </div>
   );
 }
+
+// Memoize so per-frame scroll re-renders of the parent reader don't re-render
+// (and re-commit) the article body. All props are referentially stable.
+export const ArticleContent = memo(ArticleContentImpl);

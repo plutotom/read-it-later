@@ -145,8 +145,7 @@ export function ShareDialog({
               </div>
             )}
             <p className="text-xs text-gray-500">
-              Anyone with this link can view the article (without your
-              highlights)
+              Anyone with this link can view the article
             </p>
           </div>
 

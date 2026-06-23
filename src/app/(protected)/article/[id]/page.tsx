@@ -14,7 +14,6 @@ export default async function ArticleDetailPage({
 
   await Promise.all([
     api.article.get.prefetch({ id }),
-    api.annotation.getHighlightsByArticleId.prefetch({ articleId: id }),
     api.annotation.getNotesByArticleId.prefetch({ articleId: id }),
   ]);
 

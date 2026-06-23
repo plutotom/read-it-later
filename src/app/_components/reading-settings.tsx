@@ -1,27 +1,21 @@
 /**
  * Reading Settings Component
- * Settings panel for font size and highlight preferences
+ * Settings panel for font size preferences
  */
 
 "use client";
 
-import { Switch } from "~/components/ui/switch";
-import { Label } from "~/components/ui/label";
 import { Button } from "~/components/ui/button";
 import { Minus, Plus } from "lucide-react";
 
 interface ReadingSettingsProps {
   fontSize: number;
   onFontSizeChange: (size: number) => void;
-  autoHighlight: boolean;
-  onAutoHighlightChange: (enabled: boolean) => void;
 }
 
 export function ReadingSettings({
   fontSize,
   onFontSizeChange,
-  autoHighlight,
-  onAutoHighlightChange,
 }: ReadingSettingsProps) {
   return (
     <div className="space-y-3">
@@ -48,20 +42,6 @@ export function ReadingSettings({
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <Label
-          htmlFor="auto-highlight"
-          className="text-sm font-medium text-foreground"
-        >
-          Auto Highlight
-        </Label>
-        <Switch
-          id="auto-highlight"
-          checked={autoHighlight}
-          onCheckedChange={onAutoHighlightChange}
-        />
       </div>
     </div>
   );

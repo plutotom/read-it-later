@@ -126,7 +126,6 @@ export function PublicArticleReader({
               content={article.content}
               fontSize={DEFAULT_FONT_SIZE}
               contentRef={contentRef}
-              onTextSelection={() => undefined}
             />
           </article>
         </div>
