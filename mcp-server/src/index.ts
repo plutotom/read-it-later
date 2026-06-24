@@ -16,7 +16,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createClient } from "@read-it-later/core";
-import { registerTools } from "./tools.js";
+import { registerTools } from "@read-it-later/core/mcp";
 
 async function main() {
   const apiKey = process.env.RIL_API_KEY;

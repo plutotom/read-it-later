@@ -10,18 +10,61 @@ session or database access required.
 
 ## Architecture
 
-This package is intentionally thin. All the API logic, types, and the
-LLM-facing tool prompts live in the shared workspace package
-[`@read-it-later/core`](../packages/ril-core); the same package backs (or will
-back) the Raycast extension, so prompts and the client stay in one place.
+This package is intentionally thin. All the API logic, types, the LLM-facing
+tool prompts, **and the tool registration itself** live in the shared workspace
+package [`@read-it-later/core`](../packages/ril-core); the same package backs
+(or will back) the Raycast extension, so prompts and the client stay in one
+place.
 
 ```
 mcp-server/src/
-  index.ts   # McpServer + stdio transport, reads config from env
-  tools.ts   # thin handlers: parse args → call @read-it-later/core client → shape result
+  index.ts   # McpServer + stdio transport, reads config from env, calls registerTools()
+
+packages/ril-core/src/
+  mcp.ts     # registerTools(): thin handlers → @read-it-later/core client → shaped result
+             # (exposed via the @read-it-later/core/mcp subpath)
 ```
 
-## Quick start
+Because tool registration lives in `@read-it-later/core/mcp`, the **hosted**
+MCP endpoint (`/api/mcp` in the main app) and this **stdio** server share the
+exact same tools — see [Hosted vs stdio](#hosted-vs-stdio) below.
+
+## Hosted vs stdio
+
+There are two ways to connect a client, backed by the same tools:
+
+| | **Hosted (recommended)** | **stdio (this package)** |
+| --- | --- | --- |
+| Where it runs | The deployed app (`/api/mcp`) | A local `node` process on your machine |
+| Client config | A URL + `Authorization` header | A `command` + `args` + env |
+| Setup for users | Paste a URL + key — no install/build | Clone, `pnpm build`, absolute path |
+| Best for | Everyone; phones/hosted clients | Offline use, local dev, power users |
+
+### Hosted (Streamable HTTP)
+
+The app serves the same MCP tools at **`https://ril.plutotom.com/api/mcp`** over
+Streamable HTTP. Auth is per-request: send your API key as a Bearer token. No
+local install, no build.
+
+Create a key (Preferences → API Keys, **Read & write**), then add to your
+client:
+
+```json
+{
+  "mcpServers": {
+    "read-it-later": {
+      "url": "https://ril.plutotom.com/api/mcp",
+      "headers": { "Authorization": "Bearer ril_xxxxxxxxxxxxxxxxxxxx" }
+    }
+  }
+}
+```
+
+For local dev the endpoint is `http://localhost:4114/api/mcp`. The transport is
+stateless (no Redis/session store required). The rest of this README covers the
+stdio server below.
+
+## Quick start (stdio)
 
 ### 1. Build
 
