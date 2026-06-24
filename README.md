@@ -13,6 +13,39 @@ A modern "read it later" application built with the T3 Stack and Shadcn UI.
 - Modern UI with Shadcn UI components
 - Type-safe with TypeScript throughout
 
+## Highlighting (in progress)
+
+Text highlighting on articles is being rebuilt. The data layer and the
+create→paint pipeline are done; interaction polish remains.
+
+Anchoring uses the W3C Web Annotation model: a TextPosition selector
+(`startOffset`/`endOffset` into the article's `textContent`) for the fast path,
+plus a TextQuote selector (exact `text` + `contextPrefix`/`contextSuffix`) to
+re-anchor when content drifts. Highlights are painted with the CSS Custom
+Highlight API (no DOM mutation). See `src/lib/highlight-anchor.ts`,
+`src/hooks/use-highlights.ts`, and `src/hooks/use-highlight-painter.ts`.
+
+**Done**
+
+- [x] Schema/service/API: cascade FKs, `version`, `anchorContentHash`,
+      `anchorStatus`; notes moved to the `notes` table as the single source of truth
+- [x] Anchoring contract (`selectionToAnchor` / `resolveHighlight`) with tests
+- [x] Optimistic highlights data hook
+- [x] CSS Custom Highlight API painter (re-resolves on content/list change)
+- [x] Selection toolbar to create highlights by color
+
+**Remaining**
+
+- [ ] Click a highlight → popover/sheet to change color, delete, and add a note
+- [ ] Notes UI wired through the existing `notes` endpoints
+- [ ] Side panel listing highlights, including a "lost highlights" section for
+      highlights with `anchorStatus: 'lost'`
+- [ ] Mobile bottom-sheet variants for the selection toolbar and highlight actions
+- [ ] End-to-end visual verification in the running app
+
+> Note: run `pnpm db:push` to apply the highlight/notes schema changes (this
+> drops the old `highlights.note` column).
+
 ## Tech Stack
 
 - [Next.js](https://nextjs.org) - React framework

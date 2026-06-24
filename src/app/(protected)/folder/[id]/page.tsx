@@ -4,6 +4,7 @@ import React, { use } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import { withViewTransition } from "~/lib/with-view-transition";
+import { buildArticlePath } from "~/lib/article-navigation";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
@@ -150,7 +151,9 @@ export default function FolderViewPage({ params }: FolderViewPageProps) {
                 className="hover:bg-accent cursor-pointer transition-colors"
                 onClick={() =>
                   withViewTransition(() =>
-                    router.push(`/article/${article.id}`),
+                    router.push(
+                      buildArticlePath(article.id, `/folder/${folderId}`),
+                    ),
                   )
                 }
               >

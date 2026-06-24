@@ -30,9 +30,10 @@ export const annotationRouter = createTRPCRouter({
         startOffset: z.number(),
         endOffset: z.number(),
         color: highlightColorSchema.default("yellow"),
-        note: z.string().optional(),
-        contextPrefix: z.string().max(100).optional(),
-        contextSuffix: z.string().max(100).optional(),
+        contextPrefix: z.string().max(100),
+        contextSuffix: z.string().max(100),
+        version: z.number().int().optional(),
+        anchorContentHash: z.string().optional(),
         tags: z.array(z.string()).optional(),
       }),
     )
@@ -45,8 +46,11 @@ export const annotationRouter = createTRPCRouter({
       z.object({
         id: z.string(),
         color: highlightColorSchema.optional(),
-        note: z.string().max(2000).optional().nullable(),
         tags: z.array(z.string().max(50)).max(10).optional(),
+        startOffset: z.number().int().min(0).optional(),
+        endOffset: z.number().int().min(0).optional(),
+        anchorContentHash: z.string().optional(),
+        anchorStatus: z.enum(["anchored", "lost"]).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

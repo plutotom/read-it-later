@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
+import { buildArticlePath } from "~/lib/article-navigation";
 import { api } from "~/trpc/react";
 import { withViewTransition } from "~/lib/with-view-transition";
 import { useDeleteArticle } from "../_hooks/use-delete-article";
@@ -46,7 +47,9 @@ export function InboxView() {
           articles={articles ?? []}
           isLoading={isLoading}
           onArticleClick={(article) =>
-            withViewTransition(() => router.push(`/article/${article.id}`))
+            withViewTransition(() =>
+              router.push(buildArticlePath(article.id, "/")),
+            )
           }
           onArchive={handleArchive}
           onDelete={handleDelete}

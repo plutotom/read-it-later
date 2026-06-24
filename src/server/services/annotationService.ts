@@ -10,12 +10,13 @@ type Database = typeof Db;
 type Highlight = typeof highlights.$inferSelect;
 type Note = typeof notes.$inferSelect;
 
+// Order here drives the swatch order in the highlight toolbar.
 export const HIGHLIGHT_COLORS = [
-  "yellow",
   "green",
+  "yellow",
+  "purple",
   "blue",
   "pink",
-  "purple",
   "orange",
   "red",
   "gray",
@@ -44,9 +45,12 @@ export type CreateHighlightInput = {
   startOffset: number;
   endOffset: number;
   color?: HighlightColor;
-  note?: string;
-  contextPrefix?: string;
-  contextSuffix?: string;
+  // Context selectors — required for reliable re-anchoring.
+  contextPrefix: string;
+  contextSuffix: string;
+  // Anchoring metadata. Defaults applied if the client omits them.
+  version?: number;
+  anchorContentHash?: string;
   tags?: string[];
 };
 
@@ -64,9 +68,10 @@ export async function createHighlight(
       startOffset: input.startOffset,
       endOffset: input.endOffset,
       color: input.color ?? "yellow",
-      note: input.note ?? null,
-      contextPrefix: input.contextPrefix ?? null,
-      contextSuffix: input.contextSuffix ?? null,
+      contextPrefix: input.contextPrefix,
+      contextSuffix: input.contextSuffix,
+      version: input.version ?? 1,
+      anchorContentHash: input.anchorContentHash ?? null,
       tags: input.tags ?? [],
     })
     .returning();
@@ -77,8 +82,13 @@ export async function createHighlight(
 
 export type UpdateHighlightPatch = {
   color?: HighlightColor;
-  note?: string | null;
   tags?: string[];
+  // Set by the re-anchoring routine when offsets are recomputed or a highlight
+  // can no longer be located in the current content.
+  startOffset?: number;
+  endOffset?: number;
+  anchorContentHash?: string;
+  anchorStatus?: "anchored" | "lost";
 };
 
 export async function updateHighlight(
@@ -89,8 +99,14 @@ export async function updateHighlight(
 ): Promise<Highlight | undefined> {
   const updateData: Partial<typeof highlights.$inferInsert> = {};
   if (patch.color !== undefined) updateData.color = patch.color;
-  if (patch.note !== undefined) updateData.note = patch.note;
   if (patch.tags !== undefined) updateData.tags = patch.tags;
+  if (patch.startOffset !== undefined)
+    updateData.startOffset = patch.startOffset;
+  if (patch.endOffset !== undefined) updateData.endOffset = patch.endOffset;
+  if (patch.anchorContentHash !== undefined)
+    updateData.anchorContentHash = patch.anchorContentHash;
+  if (patch.anchorStatus !== undefined)
+    updateData.anchorStatus = patch.anchorStatus;
 
   if (Object.keys(updateData).length === 0) {
     return db.query.highlights.findFirst({

@@ -90,9 +90,10 @@ export const highlightCreateApiSchema = z.object({
   startOffset: z.number().int().min(0),
   endOffset: z.number().int().min(0),
   color: highlightColorSchema.optional(),
-  note: z.string().max(2000).optional(),
-  contextPrefix: z.string().max(100).optional(),
-  contextSuffix: z.string().max(100).optional(),
+  contextPrefix: z.string().max(100),
+  contextSuffix: z.string().max(100),
+  version: z.number().int().optional(),
+  anchorContentHash: z.string().optional(),
   tags: z.array(z.string().max(50)).max(10).optional(),
 });
 
@@ -101,7 +102,6 @@ export type HighlightCreateApiInput = z.infer<typeof highlightCreateApiSchema>;
 export const highlightUpdateApiSchema = z
   .object({
     color: highlightColorSchema.optional(),
-    note: z.string().max(2000).nullable().optional(),
     tags: z.array(z.string().max(50)).max(10).optional(),
   })
   .refine((d) => Object.keys(d).length > 0, {

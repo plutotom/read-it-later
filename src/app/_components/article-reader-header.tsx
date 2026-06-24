@@ -5,7 +5,8 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
+import Link from "next/link";
 import { type Article } from "~/types/article";
 import { ReadingSettings } from "./reading-settings";
 import { Button } from "~/components/ui/button";
@@ -27,6 +28,10 @@ import {
 } from "lucide-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
+import {
+  getReturnToLabel,
+  sanitizeReturnTo,
+} from "~/lib/article-navigation";
 import { withViewTransition } from "~/lib/with-view-transition";
 import { ShareDialog } from "./share-dialog";
 import { ParaToggle } from "./para-toggle";
@@ -43,6 +48,7 @@ interface ArticleReaderHeaderProps {
   hasToc?: boolean;
   isTocOpen?: boolean;
   onOpenToc?: () => void;
+  returnTo?: string;
 }
 
 export function ArticleReaderHeader({
@@ -54,7 +60,9 @@ export function ArticleReaderHeader({
   hasToc = false,
   isTocOpen = false,
   onOpenToc,
+  returnTo: returnToProp,
 }: ArticleReaderHeaderProps) {
+  const returnTo = sanitizeReturnTo(returnToProp ?? null);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const utils = api.useUtils();
@@ -78,27 +86,17 @@ export function ArticleReaderHeader({
     // waiting for the server round-trip to finish.
     onOptimisticDelete: () => {
       withViewTransition(() => {
-        router.push("/");
+        router.push(returnTo);
       });
     },
   });
 
-  // Smart back navigation: use history if available, otherwise go to inbox
-  const handleBackClick = () => {
-    const hasHistory =
-      typeof window !== "undefined" && window.history.length > 2;
-    const referrer = typeof document !== "undefined" ? document.referrer : "";
-    const isFromSameOrigin =
-      referrer &&
-      typeof window !== "undefined" &&
-      referrer.startsWith(window.location.origin);
+  const handleBackClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return;
 
+    e.preventDefault();
     withViewTransition(() => {
-      if (hasHistory && isFromSameOrigin) {
-        router.back();
-      } else {
-        router.push("/");
-      }
+      router.push(returnTo);
     });
   };
 
@@ -132,11 +130,17 @@ export function ArticleReaderHeader({
         <Button
           variant="ghost"
           size="sm"
-          onClick={handleBackClick}
+          asChild
           className="text-foreground-soft hover:bg-foreground/10 hover:text-foreground rounded-full px-2.5 text-sm"
         >
-          <ArrowLeft className="mr-1.5 h-4 w-4" />
-          Close
+          <Link
+            href={returnTo}
+            onClick={handleBackClick}
+            aria-label={getReturnToLabel(returnTo)}
+          >
+            <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
+            Close
+          </Link>
         </Button>
 
         <div className="text-muted-foreground min-w-0 px-3 text-center text-xs">

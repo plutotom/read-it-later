@@ -38,6 +38,14 @@ export const highlightColorEnum = pgEnum("highlight_color", [
   "gray",
 ]);
 
+// Whether a highlight could be re-anchored against the current article content.
+// "lost" highlights failed both offset and quote re-anchoring (e.g. the article
+// was re-extracted and the text no longer exists) and are surfaced separately.
+export const highlightAnchorStatusEnum = pgEnum("highlight_anchor_status", [
+  "anchored",
+  "lost",
+]);
+
 // Articles table
 export const articles = createTable(
   "article",
@@ -128,21 +136,36 @@ export const highlights = createTable(
       .text()
       .notNull()
       .references(() => user.id),
-    // Foreign key to article - required
-    articleId: d.uuid().notNull(),
-    // The highlighted text content
+    // Foreign key to article - required. Cascade so deleting an article removes
+    // its highlights instead of orphaning them.
+    articleId: d
+      .uuid()
+      .notNull()
+      .references(() => articles.id, { onDelete: "cascade" }),
+    // The highlighted text content (TextQuote selector — the exact quote)
     text: d.text().notNull(),
-    // Character offset where highlight starts in article content
+    // Character offset where highlight starts in the normalized anchor text
+    // (TextPosition selector — the fast path)
     startOffset: d.integer().notNull(),
-    // Character offset where highlight ends in article content
+    // Character offset where highlight ends in the normalized anchor text
     endOffset: d.integer().notNull(),
     // Highlight color from HighlightColor enum
     color: highlightColorEnum("color").notNull().default("yellow"),
-    // Optional note attached to this highlight
-    note: d.text(),
-    // Context for disambiguating duplicate text matches (optional)
+    // Surrounding text used to disambiguate/re-anchor the quote when offsets
+    // drift (TextQuote selector — prefix/suffix). Always populated by the client.
     contextPrefix: d.text(),
     contextSuffix: d.text(),
+    // Anchoring-format version, so future algorithm changes can branch on it
+    // at restore time without breaking existing highlights.
+    version: d.integer().notNull().default(1),
+    // Hash of the normalized anchor text at creation time. On load, if it still
+    // matches the current content's hash, offsets are trusted directly (no
+    // re-search); otherwise we fall back to quote/context re-anchoring.
+    anchorContentHash: d.text(),
+    // Result of the last re-anchoring attempt.
+    anchorStatus: highlightAnchorStatusEnum("anchor_status")
+      .notNull()
+      .default("anchored"),
     // Tags for organizing highlights (optional)
     tags: d.text().array(),
     createdAt: d
@@ -171,8 +194,15 @@ export const notes = createTable(
       .text()
       .notNull()
       .references(() => user.id),
-    articleId: d.uuid().notNull(),
-    highlightId: d.uuid(),
+    articleId: d
+      .uuid()
+      .notNull()
+      .references(() => articles.id, { onDelete: "cascade" }),
+    // When set, this note belongs to a highlight; deleting the highlight removes
+    // its attached notes. Null for standalone (article-level) notes.
+    highlightId: d
+      .uuid()
+      .references(() => highlights.id, { onDelete: "cascade" }),
     content: d.text().notNull(),
     position: d.jsonb(), // { x: number, y: number, page?: number }
     createdAt: d

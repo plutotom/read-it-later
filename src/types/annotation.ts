@@ -3,6 +3,8 @@
  * Represents user annotations on articles
  */
 
+export type HighlightAnchorStatus = "anchored" | "lost";
+
 export interface Highlight {
   id: string;
   articleId: string;
@@ -10,9 +12,11 @@ export interface Highlight {
   startOffset: number;
   endOffset: number;
   color: HighlightColor;
-  note: string | null;
   contextPrefix?: string | null;
   contextSuffix?: string | null;
+  version: number;
+  anchorContentHash?: string | null;
+  anchorStatus: HighlightAnchorStatus;
   tags?: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -50,19 +54,20 @@ export interface HighlightCreateInput {
   startOffset: number;
   endOffset: number;
   color: HighlightColor;
-  note?: string;
-  contextPrefix?: string;
-  contextSuffix?: string;
+  contextPrefix: string;
+  contextSuffix: string;
+  version?: number;
+  anchorContentHash?: string;
   tags?: string[];
 }
 
 export interface HighlightUpdateInput {
-  text?: string;
+  color?: HighlightColor;
+  tags?: string[];
   startOffset?: number;
   endOffset?: number;
-  color?: HighlightColor;
-  note?: string | null;
-  tags?: string[];
+  anchorContentHash?: string;
+  anchorStatus?: HighlightAnchorStatus;
 }
 
 export interface NoteCreateInput {

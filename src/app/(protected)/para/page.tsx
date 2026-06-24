@@ -15,6 +15,7 @@ import {
 } from "~/components/ui/card";
 import { AlertTriangle, ExternalLink, Loader2, Trash2, X } from "lucide-react";
 import { PARA_SIZE_WARNING_BYTES } from "~/lib/paraConstants";
+import { buildArticlePath } from "~/lib/article-navigation";
 import { toast } from "~/hooks/use-toast";
 
 function formatBytes(bytes: number): string {
@@ -283,7 +284,7 @@ export default function ParaPage() {
                       asChild
                       className="text-gray-400 hover:text-white"
                     >
-                      <Link href={`/article/${item.articleId}`}>
+                      <Link href={buildArticlePath(item.articleId, "/para")}>
                         <ExternalLink className="mr-1 h-3.5 w-3.5" />
                         Open
                       </Link>

@@ -27,7 +27,8 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(gh api *)",
       "Bash(grep -iE '\\\\.\\(js|json\\)$')",
-      "Bash(grep -iE '\\\\.js$')"
+      "Bash(grep -iE '\\\\.js$')",
+      "Bash(pnpm test *)"
     ]
   }
 }

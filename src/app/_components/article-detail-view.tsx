@@ -1,7 +1,9 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { ArticleReader } from "~/app/_components/article-reader";
 import { Alert, AlertDescription } from "~/components/ui/alert";
+import { sanitizeReturnTo } from "~/lib/article-navigation";
 import { api } from "~/trpc/react";
 import type { NotePosition } from "~/types/annotation";
 
@@ -10,6 +12,8 @@ interface ArticleDetailViewProps {
 }
 
 export function ArticleDetailView({ id }: ArticleDetailViewProps) {
+  const searchParams = useSearchParams();
+  const returnTo = sanitizeReturnTo(searchParams.get("from"));
   const { data: article, error } = api.article.get.useQuery({ id });
   const { data: notesRaw = [] } =
     api.annotation.getNotesByArticleId.useQuery({ articleId: id });
@@ -65,6 +69,7 @@ export function ArticleDetailView({ id }: ArticleDetailViewProps) {
       article={article}
       onMarkAsRead={handleMarkAsRead}
       initialNotes={notes}
+      returnTo={returnTo}
     />
   );
 }

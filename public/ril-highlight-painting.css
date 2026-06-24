@@ -1,0 +1,26 @@
+/* CSS Custom Highlight API — served statically to bypass Turbopack/LightningCSS,
+   which does not yet parse ::highlight() pseudo-elements. See use-highlight-painter. */
+::highlight(ril-hl-yellow) {
+  background-color: color-mix(in srgb, #ffd60a 38%, transparent);
+}
+::highlight(ril-hl-green) {
+  background-color: color-mix(in srgb, #34d399 36%, transparent);
+}
+::highlight(ril-hl-blue) {
+  background-color: color-mix(in srgb, #60a5fa 36%, transparent);
+}
+::highlight(ril-hl-pink) {
+  background-color: color-mix(in srgb, #f472b6 38%, transparent);
+}
+::highlight(ril-hl-purple) {
+  background-color: color-mix(in srgb, #a78bfa 38%, transparent);
+}
+::highlight(ril-hl-orange) {
+  background-color: color-mix(in srgb, #fb923c 38%, transparent);
+}
+::highlight(ril-hl-red) {
+  background-color: color-mix(in srgb, #f87171 38%, transparent);
+}
+::highlight(ril-hl-gray) {
+  background-color: color-mix(in srgb, #9ca3af 40%, transparent);
+}

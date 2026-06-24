@@ -33,9 +33,11 @@ export const highlightSchema = z
     startOffset: z.number().int().min(0),
     endOffset: z.number().int().min(0),
     color: highlightColorSchema,
-    note: z.string().max(2000).optional().nullable(),
     contextPrefix: z.string().max(100).optional().nullable(),
     contextSuffix: z.string().max(100).optional().nullable(),
+    version: z.number().int(),
+    anchorContentHash: z.string().optional().nullable(),
+    anchorStatus: z.enum(["anchored", "lost"]),
     tags: z.array(z.string().max(50)).max(10).optional(),
     createdAt: z.date(),
     updatedAt: z.date(),
@@ -56,9 +58,10 @@ export const highlightCreateSchema = z
     startOffset: z.number().int().min(0, "Start offset must be non-negative"),
     endOffset: z.number().int().min(0, "End offset must be non-negative"),
     color: highlightColorSchema.default("yellow"),
-    note: z.string().max(2000).optional(),
-    contextPrefix: z.string().max(100).optional(),
-    contextSuffix: z.string().max(100).optional(),
+    contextPrefix: z.string().max(100),
+    contextSuffix: z.string().max(100),
+    version: z.number().int().optional(),
+    anchorContentHash: z.string().optional(),
     tags: z.array(z.string().max(50)).max(10).optional(),
   })
   .refine((data) => data.endOffset > data.startOffset, {
@@ -69,11 +72,11 @@ export const highlightCreateSchema = z
 // Highlight update schema
 export const highlightUpdateSchema = z
   .object({
-    text: z.string().min(1).max(10000).optional(),
     startOffset: z.number().int().min(0).optional(),
     endOffset: z.number().int().min(0).optional(),
     color: highlightColorSchema.optional(),
-    note: z.string().max(2000).optional().nullable(),
+    anchorContentHash: z.string().optional(),
+    anchorStatus: z.enum(["anchored", "lost"]).optional(),
     tags: z.array(z.string().max(50)).max(10).optional(),
   })
   .refine(
@@ -146,7 +149,8 @@ export const batchHighlightCreateSchema = z.object({
           .min(0, "Start offset must be non-negative"),
         endOffset: z.number().int().min(0, "End offset must be non-negative"),
         color: highlightColorSchema.default("yellow"),
-        note: z.string().max(2000).optional(),
+        contextPrefix: z.string().max(100),
+        contextSuffix: z.string().max(100),
       })
       .refine((data) => data.endOffset > data.startOffset, {
         message: "End offset must be greater than start offset",

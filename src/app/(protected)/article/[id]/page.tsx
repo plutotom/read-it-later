@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { ArticleDetailView } from "~/app/_components/article-detail-view";
 import { api, HydrateClient } from "~/trpc/server";
 
@@ -19,7 +20,9 @@ export default async function ArticleDetailPage({
 
   return (
     <HydrateClient>
-      <ArticleDetailView id={id} />
+      <Suspense>
+        <ArticleDetailView id={id} />
+      </Suspense>
     </HydrateClient>
   );
 }

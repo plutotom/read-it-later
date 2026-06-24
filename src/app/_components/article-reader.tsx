@@ -16,17 +16,25 @@ import { cn } from "~/lib/utils";
 import { AudioPlayer } from "./audio-player";
 import { ArticleTableOfContents } from "./article-table-of-contents";
 import { useArticleToc, useTocOpenPreference } from "~/hooks/use-article-toc";
+import { useHighlights } from "~/hooks/use-highlights";
+import {
+  useHighlightPainter,
+  type RelocatedHighlight,
+} from "~/hooks/use-highlight-painter";
+import { HighlightToolbar } from "./highlight-toolbar";
 
 interface ArticleReaderProps {
   article: Article;
   onMarkAsRead?: () => void;
   initialNotes?: Note[];
+  returnTo?: string;
 }
 
 export function ArticleReader({
   article,
   onMarkAsRead,
   initialNotes = [],
+  returnTo,
 }: ArticleReaderProps) {
   const [fontSize, setFontSize] = useState(19);
   const [showSettings, setShowSettings] = useState(false);
@@ -66,6 +74,33 @@ export function ArticleReader({
     },
     [],
   );
+
+  // Highlights: load, paint via the CSS Custom Highlight API, and create from
+  // selection. Painting re-resolves only when the list or content changes.
+  const { highlights, createHighlight, updateHighlight } = useHighlights(
+    article.id,
+  );
+  const handleRelocated = useCallback(
+    (items: RelocatedHighlight[]) => {
+      for (const item of items) {
+        // Optimistic (unsaved) highlights can't be relocated server-side.
+        if (item.id.startsWith("temp-")) continue;
+        updateHighlight({
+          id: item.id,
+          startOffset: item.startOffset,
+          endOffset: item.endOffset,
+          anchorContentHash: item.anchorContentHash,
+        });
+      }
+    },
+    [updateHighlight],
+  );
+  useHighlightPainter({
+    contentRef,
+    highlights,
+    contentKey: `${article.id}:${article.content.length}`,
+    onRelocated: handleRelocated,
+  });
 
   const { isOpen: isTocOpen, close: closeToc, open: openToc } =
     useTocOpenPreference();
@@ -149,6 +184,7 @@ export function ArticleReader({
             hasToc={hasToc}
             isTocOpen={isTocOpen}
             onOpenToc={openToc}
+            returnTo={returnTo}
           />
 
           <div className="h-[2px] bg-background-deep">
@@ -179,6 +215,13 @@ export function ArticleReader({
             </article>
           </div>
         </div>
+
+        <HighlightToolbar
+          contentRef={contentRef}
+          onCreate={({ color, ...anchor }) =>
+            createHighlight({ articleId: article.id, color, ...anchor })
+          }
+        />
 
         {hasToc && (
           <ArticleTableOfContents

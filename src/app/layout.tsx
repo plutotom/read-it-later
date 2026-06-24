@@ -75,6 +75,10 @@ export default async function RootLayout({
       className={cn(!isLight && "dark")}
       suppressHydrationWarning
     >
+      <head>
+        {/* Static file: Turbopack/LightningCSS cannot parse ::highlight() yet. */}
+        <link rel="stylesheet" href="/ril-highlight-painting.css" />
+      </head>
       <body
         className={cn(
           geist.variable,

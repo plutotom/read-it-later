@@ -4,6 +4,10 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "~/trpc/react";
 import { withViewTransition } from "~/lib/with-view-transition";
+import {
+  buildArticlePath,
+  currentPathFrom,
+} from "~/lib/article-navigation";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -17,6 +21,7 @@ function SearchContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") ?? "";
   const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const returnTo = currentPathFrom("/search", searchParams);
 
   const { data: allArticles, isLoading, error } = api.article.getAll.useQuery();
 
@@ -141,7 +146,7 @@ function SearchContent() {
                 className="hover:bg-accent cursor-pointer transition-colors"
                 onClick={() =>
                   withViewTransition(() =>
-                    router.push(`/article/${article.id}`),
+                    router.push(buildArticlePath(article.id, returnTo)),
                   )
                 }
               >
