@@ -6,6 +6,13 @@
  * instead of running a local node process. Tool logic is shared via
  * `@read-it-later/core/mcp` — this route only handles transport + auth.
  *
+ * Routing: lives at `/api/[transport]` with `basePath: "/api"` so mcp-handler
+ * derives the Streamable HTTP endpoint as `/api/mcp` (basePath + `/mcp`). The
+ * `[transport]` segment resolves to `mcp`. Static siblings (`/api/v1`,
+ * `/api/trpc`, `/api/para`, …) take routing precedence over this dynamic
+ * segment, so it only ever catches MCP transport paths; unknown transports get
+ * a 404 from mcp-handler.
+ *
  * Auth: per-request `Authorization: Bearer ril_...` (the same API keys the REST
  * API at `/api/v1` uses). The key is forwarded to the core client, which calls
  * `/api/v1`, so scope checks + validation happen exactly as for REST clients.
@@ -40,7 +47,7 @@ function buildHandler(client: RilClient) {
       registerTools(server, client);
     },
     { serverInfo: { name: "read-it-later", version: "0.2.0" } },
-    { basePath: "/api/mcp", maxDuration: 60, disableSse: true },
+    { basePath: "/api", maxDuration: 60, disableSse: true },
   );
 }
 

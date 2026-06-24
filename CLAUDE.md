@@ -50,7 +50,7 @@ pnpm db:studio        # Drizzle Studio
 
 3. **PARA sync** (`/api/para/*`) — serves a manifest + per-article `.txt` exports so an external reader (Obsidian PARA workflow) can sync. Separate auth path (`src/server/lib/paraAuth.ts`) and the `para:read` scope.
 
-4. **Hosted MCP** (`/api/mcp`) — Streamable HTTP MCP endpoint (`src/app/api/mcp/[transport]/route.ts`, via `mcp-handler`) so MCP clients (Cursor, Claude Desktop) connect to a URL instead of running the local stdio server. Per-request `Authorization: Bearer ril_...`, same keys as the REST API. Tool registration is shared with the stdio server via `@read-it-later/core/mcp` (`registerTools`), which calls `/api/v1` through the core client — so it's another front door to the same logic, not a new code path. Stateless (no Redis); `add_article` URL extraction needs `maxDuration`/Fluid Compute on Vercel Pro.
+4. **Hosted MCP** (`/api/mcp`) — Streamable HTTP MCP endpoint (`src/app/api/[transport]/route.ts` with mcp-handler `basePath: "/api"`, so the endpoint resolves to `/api/mcp`) so MCP clients (Cursor, Claude Desktop) connect to a URL instead of running the local stdio server. Per-request `Authorization: Bearer ril_...`, same keys as the REST API. Tool registration is shared with the stdio server via `@read-it-later/core/mcp` (`registerTools`), which calls `/api/v1` through the core client — so it's another front door to the same logic, not a new code path. Stateless (no Redis); `add_article` URL extraction needs `maxDuration`/Fluid Compute on Vercel Pro.
 
 API-key scopes are defined in `src/lib/paraConstants.ts`: `ril:read`, `ril:write` (write implies read), and `para:read`. Keys are prefixed `ril_` and stored hashed (`src/server/lib/apiKey.ts`, `apiAuth.ts`).
 
