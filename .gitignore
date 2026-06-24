@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+# nested workspace package node_modules (pnpm symlinks)
+node_modules/
 /.pnp
 .pnp.js
 

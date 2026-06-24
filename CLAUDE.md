@@ -42,13 +42,15 @@ pnpm db:studio        # Drizzle Studio
 
 **Stack:** Next.js 15 (App Router, RSC) · tRPC v11 · Drizzle ORM (Postgres via `postgres` driver) · BetterAuth · Tailwind v4 + shadcn/ui · TipTap editor · nanostores for client state.
 
-### Three distinct API surfaces
+### API surfaces
 
 1. **tRPC** (`/api/trpc`) — the internal API the web app uses. Session-authenticated via BetterAuth. Routers live in `src/server/api/routers/` (`article`, `folder`, `annotation`, `tts`, `para`, `apiKey`, `post`) and are registered in `src/server/api/root.ts`. Use `protectedProcedure` for authed routes; the session lands in `ctx.session` and the db in `ctx.db` (see `src/server/api/trpc.ts`).
 
 2. **Public REST API** (`/api/v1/*`) — for external clients (e.g. the Raycast extension). Authenticated by **API key**, not session: `Authorization: Bearer ril_...`. Routes are thin wrappers around `defineRoute` from `src/server/lib/apiHandler.ts`, which handles key auth, scope checks, JSON error envelopes, and Zod validation. An OpenAPI spec is served at `/api/v1/openapi.json` (generated from `src/server/lib/openapiSpec.ts`).
 
 3. **PARA sync** (`/api/para/*`) — serves a manifest + per-article `.txt` exports so an external reader (Obsidian PARA workflow) can sync. Separate auth path (`src/server/lib/paraAuth.ts`) and the `para:read` scope.
+
+4. **Hosted MCP** (`/api/mcp`) — Streamable HTTP MCP endpoint (`src/app/api/mcp/[transport]/route.ts`, via `mcp-handler`) so MCP clients (Cursor, Claude Desktop) connect to a URL instead of running the local stdio server. Per-request `Authorization: Bearer ril_...`, same keys as the REST API. Tool registration is shared with the stdio server via `@read-it-later/core/mcp` (`registerTools`), which calls `/api/v1` through the core client — so it's another front door to the same logic, not a new code path. Stateless (no Redis); `add_article` URL extraction needs `maxDuration`/Fluid Compute on Vercel Pro.
 
 API-key scopes are defined in `src/lib/paraConstants.ts`: `ril:read`, `ril:write` (write implies read), and `para:read`. Keys are prefixed `ril_` and stored hashed (`src/server/lib/apiKey.ts`, `apiAuth.ts`).
 
@@ -71,7 +73,7 @@ All tables are created through `pgTableCreator` with a **`read-it-later_` prefix
 
 ### Companion projects (separate installs)
 
-- **`mcp-server/`** — an MCP server exposing a tool to save articles into the app via its tRPC API. Has its own `package.json`/`node_modules`; build/run from inside that directory. (this is old and is likely out of date. right now the raycast extension is new and working well)
+- **`mcp-server/`** — the **stdio** MCP server (local `node` process). Thin: it calls `registerTools` from `@read-it-later/core/mcp`, the same tools the hosted `/api/mcp` route serves. Part of the root pnpm workspace (`pnpm-workspace.yaml`), but build the shared `@read-it-later/core` package first. Prefer the hosted `/api/mcp` endpoint for most clients; the stdio server is for offline/local-dev use.
 - **`raycast-extension/`** — a Raycast client built against the public REST API. Also self-contained.
 
 These are independent — running `pnpm install` at the root does not set them up.

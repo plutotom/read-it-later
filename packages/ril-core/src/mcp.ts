@@ -1,12 +1,16 @@
-// Thin MCP tool handlers. All logic/wording lives in @read-it-later/core; these
-// just wire the shared client + prompts into the MCP SDK and shape the result.
+// Shared MCP tool registration. Wires the framework-agnostic RilClient + the
+// shared prompts/shapes into the MCP SDK. Both the standalone stdio server
+// (`mcp-server/`) and the hosted Next.js route (`/api/mcp`) import this so the
+// tool surface stays identical across transports.
+//
+// This module pulls in `@modelcontextprotocol/sdk`, so it is exposed only via
+// the `@read-it-later/core/mcp` subpath — plain API-client consumers (Raycast)
+// import `@read-it-later/core` and never load the SDK.
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ApiError, type RilClient } from "./client.js";
+import type { ArticleCreate, ArticleUpdate } from "./types.js";
 import {
-  ApiError,
-  type ArticleCreate,
-  type ArticleUpdate,
-  type RilClient,
   ADD_ARTICLE_DESCRIPTION,
   GET_ARTICLE_CONTENT_DESCRIPTION,
   LIST_TAGS_DESCRIPTION,
@@ -19,7 +23,7 @@ import {
   searchArticlesShape,
   shareArticleShape,
   updateArticleShape,
-} from "@read-it-later/core";
+} from "./prompts.js";
 
 /** Cap returned article text so a long article doesn't blow up the model context. */
 const MAX_CONTENT_CHARS = 20000;
