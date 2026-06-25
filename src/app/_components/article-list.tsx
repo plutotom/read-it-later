@@ -12,7 +12,11 @@ import { ParaBadge } from "./para-badge";
 import { SearchBar } from "./search-bar";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import { truncateText } from "~/lib/text-utils";
 import { api } from "~/trpc/react";
+
+const HERO_TITLE_MAX_CHARS = 100;
+const HERO_EXCERPT_MAX_CHARS = 180;
 
 interface ArticleListProps {
   articles: Article[];
@@ -204,14 +208,17 @@ export function ArticleList({
                         Continue reading
                       </div>
                       <h2
-                        className="mt-3 text-3xl leading-[1.05] font-medium tracking-tight text-foreground sm:text-4xl"
+                        className="mt-3 line-clamp-3 break-words text-3xl leading-[1.05] font-medium tracking-tight text-foreground sm:text-4xl"
                         style={{ fontFamily: "var(--font-app-display)" }}
                       >
-                        {heroArticle.title}
+                        {truncateText(heroArticle.title, HERO_TITLE_MAX_CHARS)}
                       </h2>
                       {heroArticle.excerpt && (
-                        <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-foreground-soft">
-                          {heroArticle.excerpt}
+                        <p className="mt-3 line-clamp-4 max-w-xl break-words text-[15px] leading-relaxed text-foreground-soft">
+                          {truncateText(
+                            heroArticle.excerpt,
+                            HERO_EXCERPT_MAX_CHARS,
+                          )}
                         </p>
                       )}
                       <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
