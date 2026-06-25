@@ -136,3 +136,11 @@ export const noteUpdateApiSchema = z
   });
 
 export type NoteUpdateApiInput = z.infer<typeof noteUpdateApiSchema>;
+
+// ---- Para exports --------------------------------------------------------
+
+export const paraExportCreateApiSchema = z.object({
+  articleId: z.string().uuid(),
+});
+
+export type ParaExportCreateApiInput = z.infer<typeof paraExportCreateApiSchema>;

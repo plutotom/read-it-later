@@ -93,6 +93,22 @@ export function createClient(config) {
             }
             return response.text();
         },
+        listParaExports: () => request("/para/exports"),
+        addToPara: (body) => request("/para/exports", { method: "POST", body: JSON.stringify(body) }),
+        removeFromParaByArticleId: async (articleId) => {
+            await request(`/para/exports?articleId=${encodeURIComponent(articleId)}`, {
+                method: "DELETE",
+            });
+        },
+        removeFromParaByExportId: async (exportId) => {
+            await request(`/para/exports/${exportId}`, { method: "DELETE" });
+        },
+        getParaArticleStatuses: (articleIds) => {
+            if (articleIds.length === 0)
+                return Promise.resolve({});
+            const query = encodeURIComponent(articleIds.join(","));
+            return request(`/para/status?articleIds=${query}`);
+        },
     };
 }
 //# sourceMappingURL=client.js.map

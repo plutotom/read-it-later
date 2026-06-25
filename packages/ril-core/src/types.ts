@@ -85,6 +85,28 @@ export interface Tag {
   [key: string]: unknown;
 }
 
+// GET /para/exports
+export interface ParaExport {
+  id: string;
+  articleId: string | null;
+  title: string;
+  filename: string;
+  bytes: number;
+  isLarge: boolean;
+  gotoPage: number | null;
+  gotoVersion: number;
+  gotoSetAt: string | null;
+  createdAt: string;
+}
+
+// POST /para/exports
+export interface ParaExportCreate {
+  articleId: string;
+}
+
+// GET /para/status
+export type ParaArticleStatuses = Record<string, boolean>;
+
 // Error envelope: { error: { code, message, details? } }
 export interface ApiErrorBody {
   error: {

@@ -40,4 +40,15 @@ export declare const SHARE_ARTICLE_DESCRIPTION = "Create (or return the existing
 export declare const shareArticleShape: {
     articleId: z.ZodString;
 };
+export declare const LIST_PARA_EXPORTS_DESCRIPTION = "List every article on the user's Para e-reader sync list. Returns export metadata (id, articleId, title, filename, bytes, isLarge). Use this to see what will sync to their device or to find an export id before removing.";
+export declare const listParaExportsShape: {};
+export declare const ADD_TO_PARA_DESCRIPTION = "Add an article to the Para e-reader sync list by article id. The article is converted to plain text and will appear on the user's device on the next sync. If the article is already on the list, its export is refreshed from the latest content.";
+export declare const addToParaShape: {
+    articleId: z.ZodString;
+};
+export declare const REMOVE_FROM_PARA_DESCRIPTION = "Remove an article from the Para e-reader sync list. Provide either exportId (from list_para_exports) or articleId (from search_articles). The device will delete the file on the next sync.";
+export declare const removeFromParaShape: {
+    exportId: z.ZodOptional<z.ZodString>;
+    articleId: z.ZodOptional<z.ZodString>;
+};
 //# sourceMappingURL=prompts.d.ts.map

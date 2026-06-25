@@ -69,6 +69,22 @@ export interface Tag {
     count?: number;
     [key: string]: unknown;
 }
+export interface ParaExport {
+    id: string;
+    articleId: string | null;
+    title: string;
+    filename: string;
+    bytes: number;
+    isLarge: boolean;
+    gotoPage: number | null;
+    gotoVersion: number;
+    gotoSetAt: string | null;
+    createdAt: string;
+}
+export interface ParaExportCreate {
+    articleId: string;
+}
+export type ParaArticleStatuses = Record<string, boolean>;
 export interface ApiErrorBody {
     error: {
         code: string;

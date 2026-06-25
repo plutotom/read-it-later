@@ -7,7 +7,7 @@
 // the `@read-it-later/core/mcp` subpath — plain API-client consumers (Raycast)
 // import `@read-it-later/core` and never load the SDK.
 import { ApiError } from "./client.js";
-import { ADD_ARTICLE_DESCRIPTION, GET_ARTICLE_CONTENT_DESCRIPTION, LIST_TAGS_DESCRIPTION, SEARCH_ARTICLES_DESCRIPTION, SHARE_ARTICLE_DESCRIPTION, UPDATE_ARTICLE_DESCRIPTION, addArticleShape, getArticleContentShape, listTagsShape, searchArticlesShape, shareArticleShape, updateArticleShape, } from "./prompts.js";
+import { ADD_ARTICLE_DESCRIPTION, ADD_TO_PARA_DESCRIPTION, GET_ARTICLE_CONTENT_DESCRIPTION, LIST_PARA_EXPORTS_DESCRIPTION, LIST_TAGS_DESCRIPTION, REMOVE_FROM_PARA_DESCRIPTION, SEARCH_ARTICLES_DESCRIPTION, SHARE_ARTICLE_DESCRIPTION, UPDATE_ARTICLE_DESCRIPTION, addArticleShape, addToParaShape, getArticleContentShape, listParaExportsShape, listTagsShape, removeFromParaShape, searchArticlesShape, shareArticleShape, updateArticleShape, } from "./prompts.js";
 /** Cap returned article text so a long article doesn't blow up the model context. */
 const MAX_CONTENT_CHARS = 20000;
 function ok(data) {
@@ -142,6 +142,41 @@ export function registerTools(server, client) {
         try {
             const result = await client.shareArticle(input.articleId);
             return ok({ shareToken: result.shareToken, shareUrl: result.shareUrl });
+        }
+        catch (error) {
+            return fail(error);
+        }
+    });
+    server.tool("list_para_exports", LIST_PARA_EXPORTS_DESCRIPTION, listParaExportsShape, async () => {
+        try {
+            const exports = await client.listParaExports();
+            return ok(exports);
+        }
+        catch (error) {
+            return fail(error);
+        }
+    });
+    server.tool("add_to_para", ADD_TO_PARA_DESCRIPTION, addToParaShape, async (input) => {
+        try {
+            const exportRow = await client.addToPara({ articleId: input.articleId });
+            return ok(exportRow);
+        }
+        catch (error) {
+            return fail(error);
+        }
+    });
+    server.tool("remove_from_para", REMOVE_FROM_PARA_DESCRIPTION, removeFromParaShape, async (input) => {
+        try {
+            if (!input.exportId && !input.articleId) {
+                return fail(new Error("Provide exportId or articleId."));
+            }
+            if (input.exportId) {
+                await client.removeFromParaByExportId(input.exportId);
+            }
+            else {
+                await client.removeFromParaByArticleId(input.articleId);
+            }
+            return ok({ success: true });
         }
         catch (error) {
             return fail(error);

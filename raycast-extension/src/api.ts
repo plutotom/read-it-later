@@ -6,6 +6,8 @@ import type {
   ArticleUpdate,
   Folder,
   Me,
+  ParaExport,
+  ParaExportCreate,
   ShareResponse,
   Tag,
   ApiErrorBody,
@@ -171,4 +173,25 @@ export async function getArticleContent(id: string, format: "text" | "html" = "t
     throw new ApiError(response.status, friendlyMessage(response.status, body), body?.error?.code);
   }
   return response.text();
+}
+
+export function listParaExports(): Promise<ParaExport[]> {
+  return request<ParaExport[]>("/para/exports");
+}
+
+export function addToPara(body: ParaExportCreate): Promise<ParaExport> {
+  return request<ParaExport>("/para/exports", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function removeFromParaByArticleId(articleId: string): Promise<void> {
+  await request<void>(`/para/exports?articleId=${encodeURIComponent(articleId)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function removeFromParaByExportId(exportId: string): Promise<void> {
+  await request<void>(`/para/exports/${exportId}`, { method: "DELETE" });
 }

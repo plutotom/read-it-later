@@ -11,6 +11,9 @@ import type {
   ApiErrorBody,
   Folder,
   Me,
+  ParaArticleStatuses,
+  ParaExport,
+  ParaExportCreate,
   ShareResponse,
   Tag,
 } from "./types.js";
@@ -88,6 +91,11 @@ export interface RilClient {
   shareArticle(id: string): Promise<ShareResponse>;
   /** Article body as plain text or HTML (text/plain | text/html response). */
   getArticleContent(id: string, format?: "text" | "html"): Promise<string>;
+  listParaExports(): Promise<ParaExport[]>;
+  addToPara(body: ParaExportCreate): Promise<ParaExport>;
+  removeFromParaByArticleId(articleId: string): Promise<void>;
+  removeFromParaByExportId(exportId: string): Promise<void>;
+  getParaArticleStatuses(articleIds: string[]): Promise<ParaArticleStatuses>;
 }
 
 export function createClient(config: ClientConfig): RilClient {
@@ -154,6 +162,27 @@ export function createClient(config: ClientConfig): RilClient {
         throw new ApiError(response.status, friendlyMessage(response.status, body), body?.error?.code);
       }
       return response.text();
+    },
+
+    listParaExports: () => request<ParaExport[]>("/para/exports"),
+
+    addToPara: (body) =>
+      request<ParaExport>("/para/exports", { method: "POST", body: JSON.stringify(body) }),
+
+    removeFromParaByArticleId: async (articleId) => {
+      await request<void>(`/para/exports?articleId=${encodeURIComponent(articleId)}`, {
+        method: "DELETE",
+      });
+    },
+
+    removeFromParaByExportId: async (exportId) => {
+      await request<void>(`/para/exports/${exportId}`, { method: "DELETE" });
+    },
+
+    getParaArticleStatuses: (articleIds) => {
+      if (articleIds.length === 0) return Promise.resolve({});
+      const query = encodeURIComponent(articleIds.join(","));
+      return request<ParaArticleStatuses>(`/para/status?articleIds=${query}`);
     },
   };
 }
