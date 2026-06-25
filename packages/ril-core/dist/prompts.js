@@ -122,4 +122,26 @@ export const shareArticleShape = {
         .string()
         .describe("The id of the article to create a public share link for."),
 };
+// ---- list_para_exports ----------------------------------------------------
+export const LIST_PARA_EXPORTS_DESCRIPTION = `List every article on the user's Para e-reader sync list. Returns export metadata (id, articleId, title, filename, bytes, isLarge). Use this to see what will sync to their device or to find an export id before removing.`;
+export const listParaExportsShape = {};
+// ---- add_to_para ----------------------------------------------------------
+export const ADD_TO_PARA_DESCRIPTION = `Add an article to the Para e-reader sync list by article id. The article is converted to plain text and will appear on the user's device on the next sync. If the article is already on the list, its export is refreshed from the latest content.`;
+export const addToParaShape = {
+    articleId: z
+        .string()
+        .describe("The id of the article to add to Para. Get this from search_articles."),
+};
+// ---- remove_from_para -----------------------------------------------------
+export const REMOVE_FROM_PARA_DESCRIPTION = `Remove an article from the Para e-reader sync list. Provide either exportId (from list_para_exports) or articleId (from search_articles). The device will delete the file on the next sync.`;
+export const removeFromParaShape = {
+    exportId: z
+        .string()
+        .optional()
+        .describe("The Para export id. Get this from list_para_exports."),
+    articleId: z
+        .string()
+        .optional()
+        .describe("The article id. Get this from search_articles."),
+};
 //# sourceMappingURL=prompts.js.map

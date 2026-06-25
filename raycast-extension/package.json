@@ -57,6 +57,21 @@
       "name": "add-article",
       "title": "Add Article",
       "description": "Save a new article. URL mode: pass `url` and the page is fetched automatically. Manual text mode: pass `title` + `content` when the user pastes an email, newsletter, or notes. For manual entries, clean up pasted material (strip email headers, signatures, promos, P.S. footers), structure the body with HTML headings and paragraphs, set `author` when known, and preserve the author's voice — don't over-summarize unless asked. Content accepts HTML or markdown."
+    },
+    {
+      "name": "list-para-exports",
+      "title": "List Para Exports",
+      "description": "List every article on the user's Para e-reader sync list. Returns export metadata (id, articleId, title, filename, bytes, isLarge). Use this to see what will sync to their device or to find an export id before removing."
+    },
+    {
+      "name": "add-to-para",
+      "title": "Add to Para",
+      "description": "Add an article to the Para e-reader sync list by article id. The article is converted to plain text and will appear on the user's device on the next sync. If the article is already on the list, its export is refreshed from the latest content."
+    },
+    {
+      "name": "remove-from-para",
+      "title": "Remove from Para",
+      "description": "Remove an article from the Para e-reader sync list. Provide either exportId (from list-para-exports) or articleId (from search-articles). The device will delete the file on the next sync."
     }
   ],
   "dependencies": {

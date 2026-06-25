@@ -47,7 +47,7 @@ export function buildOpenApiSpec(baseUrl: string) {
       title: "read-it-later API",
       version: "1.0.0",
       description:
-        "Manage your saved articles, folders, tags, highlights and notes. Authenticate with an API key: `Authorization: Bearer <key>`. Read endpoints require the `ril:read` scope; write endpoints require `ril:write`.",
+        "Manage your saved articles, folders, tags, highlights, notes, and Para e-reader sync list. Authenticate with an API key: `Authorization: Bearer <key>`. Read endpoints require the `ril:read` scope; write endpoints require `ril:write`.",
     },
     servers: [{ url: `${baseUrl.replace(/\/$/, "")}/api/v1` }],
     security: bearerAuth,
@@ -182,6 +182,39 @@ export function buildOpenApiSpec(baseUrl: string) {
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
           },
+        },
+        ParaExport: {
+          type: "object",
+          description:
+            "An article queued for Para e-reader sync. Does not include the full text payload.",
+          properties: {
+            id: { type: "string", format: "uuid" },
+            articleId: { type: ["string", "null"], format: "uuid" },
+            title: { type: "string" },
+            filename: { type: "string" },
+            bytes: { type: "integer" },
+            isLarge: {
+              type: "boolean",
+              description: "True when the export exceeds the recommended device size.",
+            },
+            gotoPage: { type: ["integer", "null"] },
+            gotoVersion: { type: "integer" },
+            gotoSetAt: { type: ["string", "null"], format: "date-time" },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
+        ParaExportCreate: {
+          type: "object",
+          required: ["articleId"],
+          properties: {
+            articleId: { type: "string", format: "uuid" },
+          },
+        },
+        ParaArticleStatuses: {
+          type: "object",
+          additionalProperties: { type: "boolean" },
+          description:
+            "Map of article id → whether the article is on the user's Para sync list.",
         },
       },
     },
@@ -415,6 +448,91 @@ export function buildOpenApiSpec(baseUrl: string) {
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/ArticleList" },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/para/exports": {
+        get: {
+          summary: "List Para sync exports",
+          operationId: "listParaExports",
+          responses: {
+            "200": {
+              description: "Para exports",
+              content: {
+                "application/json": {
+                  type: "array",
+                  items: { $ref: "#/components/schemas/ParaExport" },
+                },
+              },
+            },
+          },
+        },
+        post: {
+          summary: "Add an article to the Para sync list",
+          operationId: "addParaExport",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ParaExportCreate" },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Created or refreshed export",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ParaExport" },
+                },
+              },
+            },
+          },
+        },
+        delete: {
+          summary: "Remove an article from the Para sync list by article id",
+          operationId: "removeParaExportByArticle",
+          parameters: [
+            {
+              name: "articleId",
+              in: "query",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+          ],
+          responses: { "204": { description: "Removed" } },
+        },
+      },
+      "/para/exports/{id}": {
+        delete: {
+          summary: "Remove a Para export by export id",
+          operationId: "removeParaExport",
+          parameters: [idParam],
+          responses: { "204": { description: "Removed" } },
+        },
+      },
+      "/para/status": {
+        get: {
+          summary: "Check which articles are on the Para sync list",
+          operationId: "getParaArticleStatuses",
+          parameters: [
+            {
+              name: "articleIds",
+              in: "query",
+              required: true,
+              schema: { type: "string" },
+              description: "Comma-separated article UUIDs (max 100).",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Article id → on-Para boolean map",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ParaArticleStatuses" },
                 },
               },
             },

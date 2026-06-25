@@ -113,7 +113,7 @@ client's working directory is not the repo root.
 }
 ```
 
-Reload the MCP server in Cursor (or reload the window). You should see the six
+Reload the MCP server in Cursor (or reload the window). You should see the nine
 tools listed below.
 
 #### Claude Desktop
@@ -163,6 +163,9 @@ a local-only config file that is not checked into git.
 | `update_article`      | Set tags or change title / favorite / read / archived status. Setting tags replaces existing tags. |
 | `list_tags`           | List existing tags with counts (use before tagging to stay consistent). |
 | `create_share_link`   | Create a public read-only share link for an article. |
+| `list_para_exports`   | List articles on the Para e-reader sync list. |
+| `add_to_para`         | Add an article to the Para sync list by article id. |
+| `remove_from_para`    | Remove from the Para sync list by export id or article id. |
 
 Tool descriptions and input schemas are defined in
 `@read-it-later/core`'s `prompts.ts` — edit them there.

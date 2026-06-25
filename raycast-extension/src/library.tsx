@@ -15,13 +15,15 @@ import {
 import { useFetch } from "@raycast/utils";
 import {
   API_BASE,
+  addToPara,
   authHeaders,
   deleteArticle,
   parseJsonResponse,
+  removeFromParaByArticleId,
   shareArticle,
   updateArticle,
 } from "./api";
-import type { Article, ArticleList, ArticleUpdate } from "./types";
+import type { Article, ArticleList, ArticleUpdate, ParaExport } from "./types";
 import { ArticleDetail } from "./article-detail";
 import { AuthErrorView, useAuth } from "./use-auth";
 
@@ -57,6 +59,27 @@ export default function Command() {
     },
   );
 
+  const {
+    data: paraExports = [],
+    isLoading: isParaLoading,
+    revalidate: revalidatePara,
+  } = useFetch(`${API_BASE}/para/exports`, {
+    headers: authHeaders(),
+    parseResponse: parseJsonResponse<ParaExport[]>,
+    initialData: [],
+    execute: !authError && !isValidating,
+    failureToastOptions: { title: "Could not load Para list" },
+  });
+
+  const paraArticleIds = new Set(
+    paraExports.map((row) => row.articleId).filter((id): id is string => Boolean(id)),
+  );
+
+  const refreshAll = () => {
+    revalidate();
+    revalidatePara();
+  };
+
   if (authError) {
     return <AuthErrorView message={authError} />;
   }
@@ -65,7 +88,7 @@ export default function Command() {
 
   return (
     <List
-      isLoading={isValidating || isLoading}
+      isLoading={isValidating || isLoading || isParaLoading}
       searchText={searchText}
       onSearchTextChange={setSearchText}
       throttle
@@ -78,15 +101,31 @@ export default function Command() {
         description={searchText.trim() ? "Try a different search." : "Add an article with the Add to Library command."}
       />
       {articles.map((article) => (
-        <ArticleItem key={article.id} article={article} revalidate={revalidate} />
+        <ArticleItem
+          key={article.id}
+          article={article}
+          isOnPara={paraArticleIds.has(article.id)}
+          revalidate={refreshAll}
+        />
       ))}
     </List>
   );
 }
 
-function ArticleItem({ article, revalidate }: { article: Article; revalidate: () => void }) {
+function ArticleItem({
+  article,
+  isOnPara,
+  revalidate,
+}: {
+  article: Article;
+  isOnPara: boolean;
+  revalidate: () => void;
+}) {
   const accessories: List.Item.Accessory[] = [];
 
+  if (isOnPara) {
+    accessories.push({ icon: { source: Icon.Mobile, tintColor: Color.Green }, tooltip: "On Para list" });
+  }
   if (article.isFavorite) {
     accessories.push({ icon: { source: Icon.Star, tintColor: Color.Yellow }, tooltip: "Favorite" });
   }
@@ -107,12 +146,20 @@ function ArticleItem({ article, revalidate }: { article: Article; revalidate: ()
       subtitle={article.excerpt ?? undefined}
       accessories={accessories}
       keywords={article.tags ?? undefined}
-      actions={<ArticleActions article={article} revalidate={revalidate} />}
+      actions={<ArticleActions article={article} isOnPara={isOnPara} revalidate={revalidate} />}
     />
   );
 }
 
-function ArticleActions({ article, revalidate }: { article: Article; revalidate: () => void }) {
+function ArticleActions({
+  article,
+  isOnPara,
+  revalidate,
+}: {
+  article: Article;
+  isOnPara: boolean;
+  revalidate: () => void;
+}) {
   async function patch(update: ArticleUpdate, label: string) {
     const toast = await showToast({ style: Toast.Style.Animated, title: `${label}…` });
     try {
@@ -164,6 +211,29 @@ function ArticleActions({ article, revalidate }: { article: Article; revalidate:
     }
   }
 
+  async function togglePara() {
+    const label = isOnPara ? "Removing from Para" : "Adding to Para";
+    const toast = await showToast({ style: Toast.Style.Animated, title: `${label}…` });
+    try {
+      if (isOnPara) {
+        await removeFromParaByArticleId(article.id);
+        toast.style = Toast.Style.Success;
+        toast.title = "Removed from Para";
+        toast.message = "Your device will delete this on the next sync.";
+      } else {
+        await addToPara({ articleId: article.id });
+        toast.style = Toast.Style.Success;
+        toast.title = "Added to Para";
+        toast.message = "Syncs to your e-reader on the next sync.";
+      }
+      revalidate();
+    } catch (error) {
+      toast.style = Toast.Style.Failure;
+      toast.title = isOnPara ? "Could not remove from Para" : "Could not add to Para";
+      toast.message = error instanceof Error ? error.message : String(error);
+    }
+  }
+
   return (
     <ActionPanel>
       <ActionPanel.Section>
@@ -188,6 +258,12 @@ function ArticleActions({ article, revalidate }: { article: Article; revalidate:
       </ActionPanel.Section>
 
       <ActionPanel.Section>
+        <Action
+          icon={Icon.Mobile}
+          title={isOnPara ? "Remove from Para" : "Add to Para"}
+          onAction={togglePara}
+          shortcut={{ modifiers: ["cmd"], key: "p" }}
+        />
         <Action
           icon={article.isFavorite ? Icon.StarDisabled : Icon.Star}
           title={article.isFavorite ? "Remove Favorite" : "Add Favorite"}

@@ -51,6 +51,37 @@ export function isParaExportLarge(bytes: number): boolean {
   return bytes > PARA_SIZE_WARNING_BYTES;
 }
 
+/** Public API shape — omits heavy `txtContent` and internal hashes. */
+export type ParaExportApi = {
+  id: string;
+  articleId: string | null;
+  title: string;
+  filename: string;
+  bytes: number;
+  isLarge: boolean;
+  gotoPage: number | null;
+  gotoVersion: number;
+  gotoSetAt: Date | null;
+  createdAt: Date;
+};
+
+export function serializeParaExportForApi(
+  row: typeof paraExports.$inferSelect & { isLarge?: boolean },
+): ParaExportApi {
+  return {
+    id: row.id,
+    articleId: row.articleId,
+    title: row.title,
+    filename: row.filename,
+    bytes: row.bytes,
+    isLarge: row.isLarge ?? isParaExportLarge(row.bytes),
+    gotoPage: row.gotoPage,
+    gotoVersion: row.gotoVersion,
+    gotoSetAt: row.gotoSetAt,
+    createdAt: row.createdAt,
+  };
+}
+
 async function getTakenFilenames(
   db: Database,
   userId: string,

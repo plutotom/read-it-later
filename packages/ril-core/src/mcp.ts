@@ -12,14 +12,20 @@ import { ApiError, type RilClient } from "./client.js";
 import type { ArticleCreate, ArticleUpdate } from "./types.js";
 import {
   ADD_ARTICLE_DESCRIPTION,
+  ADD_TO_PARA_DESCRIPTION,
   GET_ARTICLE_CONTENT_DESCRIPTION,
+  LIST_PARA_EXPORTS_DESCRIPTION,
   LIST_TAGS_DESCRIPTION,
+  REMOVE_FROM_PARA_DESCRIPTION,
   SEARCH_ARTICLES_DESCRIPTION,
   SHARE_ARTICLE_DESCRIPTION,
   UPDATE_ARTICLE_DESCRIPTION,
   addArticleShape,
+  addToParaShape,
   getArticleContentShape,
+  listParaExportsShape,
   listTagsShape,
+  removeFromParaShape,
   searchArticlesShape,
   shareArticleShape,
   updateArticleShape,
@@ -187,6 +193,55 @@ export function registerTools(server: McpServer, client: RilClient): void {
       try {
         const result = await client.shareArticle(input.articleId);
         return ok({ shareToken: result.shareToken, shareUrl: result.shareUrl });
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.tool(
+    "list_para_exports",
+    LIST_PARA_EXPORTS_DESCRIPTION,
+    listParaExportsShape,
+    async () => {
+      try {
+        const exports = await client.listParaExports();
+        return ok(exports);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.tool(
+    "add_to_para",
+    ADD_TO_PARA_DESCRIPTION,
+    addToParaShape,
+    async (input) => {
+      try {
+        const exportRow = await client.addToPara({ articleId: input.articleId });
+        return ok(exportRow);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.tool(
+    "remove_from_para",
+    REMOVE_FROM_PARA_DESCRIPTION,
+    removeFromParaShape,
+    async (input) => {
+      try {
+        if (!input.exportId && !input.articleId) {
+          return fail(new Error("Provide exportId or articleId."));
+        }
+        if (input.exportId) {
+          await client.removeFromParaByExportId(input.exportId);
+        } else {
+          await client.removeFromParaByArticleId(input.articleId!);
+        }
+        return ok({ success: true });
       } catch (error) {
         return fail(error);
       }
