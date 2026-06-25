@@ -124,7 +124,7 @@ function ArticleItem({
   const accessories: List.Item.Accessory[] = [];
 
   if (isOnPara) {
-    accessories.push({ icon: { source: Icon.Tablet, tintColor: Color.Green }, tooltip: "On Para list" });
+    accessories.push({ icon: { source: Icon.Mobile, tintColor: Color.Green }, tooltip: "On Para list" });
   }
   if (article.isFavorite) {
     accessories.push({ icon: { source: Icon.Star, tintColor: Color.Yellow }, tooltip: "Favorite" });
@@ -259,7 +259,7 @@ function ArticleActions({
 
       <ActionPanel.Section>
         <Action
-          icon={Icon.Tablet}
+          icon={Icon.Mobile}
           title={isOnPara ? "Remove from Para" : "Add to Para"}
           onAction={togglePara}
           shortcut={{ modifiers: ["cmd"], key: "p" }}
