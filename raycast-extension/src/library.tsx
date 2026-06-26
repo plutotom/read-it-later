@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Action,
   ActionPanel,
@@ -24,19 +24,24 @@ import {
   updateArticle,
 } from "./api";
 import type { Article, ArticleList, ArticleUpdate, ParaExport } from "./types";
+import { getArticleOpenUrl, isManualArticleUrl } from "./article-urls";
 import { ArticleDetail } from "./article-detail";
 import { AuthErrorView, useAuth } from "./use-auth";
 
 const PAGE_SIZE = 25;
 
+type LibraryView = "inbox" | "archived";
+
 export default function Command() {
   const { isValidating, authError } = useAuth();
   const [searchText, setSearchText] = useState("");
+  const [view, setView] = useState<LibraryView>("inbox");
 
   const { isLoading, data, pagination, revalidate } = useFetch(
     (options: { page: number; cursor?: string }) => {
       const trimmed = searchText.trim();
       const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+      params.set("isArchived", view === "archived" ? "true" : "false");
       if (trimmed) params.set("q", trimmed);
       if (options.cursor) params.set("cursor", options.cursor);
       // /search when there's a query, otherwise the full /articles list.
@@ -46,13 +51,14 @@ export default function Command() {
       headers: authHeaders(),
       parseResponse: parseJsonResponse<ArticleList>,
       mapResult(result) {
+        const hasMore =
+          Boolean(result.nextCursor) && result.data.length >= PAGE_SIZE;
         return {
           data: result.data,
-          hasMore: Boolean(result.nextCursor),
-          cursor: result.nextCursor ?? undefined,
+          hasMore,
+          cursor: hasMore ? (result.nextCursor ?? undefined) : undefined,
         };
       },
-      keepPreviousData: true,
       initialData: [],
       execute: !authError && !isValidating,
       failureToastOptions: { title: "Could not load library" },
@@ -84,7 +90,15 @@ export default function Command() {
     return <AuthErrorView message={authError} />;
   }
 
-  const articles = data ?? [];
+  const articles = useMemo(() => {
+    const seen = new Set<string>();
+    return (data ?? []).filter((article) => {
+      if (seen.has(article.id)) return false;
+      seen.add(article.id);
+      return true;
+    });
+  }, [data]);
+  const isArchivedView = view === "archived";
 
   return (
     <List
@@ -94,11 +108,34 @@ export default function Command() {
       throttle
       pagination={pagination}
       searchBarPlaceholder="Search your library…"
+      searchBarAccessory={
+        <List.Dropdown
+          tooltip="View"
+          storeValue
+          defaultValue="inbox"
+          onChange={(value) => setView(value as LibraryView)}
+        >
+          <List.Dropdown.Item title="Inbox" value="inbox" icon={Icon.Bookmark} />
+          <List.Dropdown.Item title="Archived" value="archived" icon={Icon.Tray} />
+        </List.Dropdown>
+      }
     >
       <List.EmptyView
-        icon={Icon.Bookmark}
-        title={searchText.trim() ? "No matching articles" : "Your library is empty"}
-        description={searchText.trim() ? "Try a different search." : "Add an article with the Add to Library command."}
+        icon={isArchivedView ? Icon.Tray : Icon.Bookmark}
+        title={
+          searchText.trim()
+            ? "No matching articles"
+            : isArchivedView
+              ? "No archived articles"
+              : "Your library is empty"
+        }
+        description={
+          searchText.trim()
+            ? "Try a different search."
+            : isArchivedView
+              ? "Archive articles from your inbox to see them here."
+              : "Add an article with the Add to Library command."
+        }
       />
       {articles.map((article) => (
         <ArticleItem
@@ -234,10 +271,16 @@ function ArticleActions({
     }
   }
 
+  const openUrl = getArticleOpenUrl(article);
+  const isManual = isManualArticleUrl(article.url);
+
   return (
     <ActionPanel>
       <ActionPanel.Section>
-        <Action.OpenInBrowser url={article.url} title="Open Original URL" />
+        <Action.OpenInBrowser
+          url={openUrl}
+          title={isManual ? "Open on RIL" : "Open Original URL"}
+        />
         <Action.Push
           icon={Icon.Text}
           title="View Content"
@@ -252,7 +295,7 @@ function ArticleActions({
         />
         <Action.CopyToClipboard
           title="Copy URL"
-          content={article.url}
+          content={openUrl}
           shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
         />
       </ActionPanel.Section>
@@ -262,7 +305,7 @@ function ArticleActions({
           icon={Icon.Mobile}
           title={isOnPara ? "Remove from Para" : "Add to Para"}
           onAction={togglePara}
-          shortcut={{ modifiers: ["cmd"], key: "p" }}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "p" }}
         />
         <Action
           icon={article.isFavorite ? Icon.StarDisabled : Icon.Star}

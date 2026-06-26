@@ -99,9 +99,11 @@ export async function listArticles(
 
   if (opts.cursor) {
     const decoded = decodeCursor(opts.cursor);
-    if (decoded) {
-      // (createdAt, id) descending keyset pagination
-      const keyset = or(
+    if (!decoded) {
+      return { data: [], nextCursor: null };
+    }
+    // (createdAt, id) descending keyset pagination
+    const keyset = or(
         lt(articles.createdAt, decoded.createdAt),
         and(
           eq(articles.createdAt, decoded.createdAt),
@@ -109,7 +111,6 @@ export async function listArticles(
         ),
       );
       if (keyset) conditions.push(keyset);
-    }
   }
 
   const limit = opts.limit;
