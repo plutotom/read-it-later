@@ -22,6 +22,8 @@ import {
   type RelocatedHighlight,
 } from "~/hooks/use-highlight-painter";
 import { HighlightToolbar } from "./highlight-toolbar";
+import { ArticlePdfPlaceholder } from "./article-pdf-placeholder";
+import { isPdfArticle } from "~/lib/article-content-kind";
 
 interface ArticleReaderProps {
   article: Article;
@@ -60,6 +62,7 @@ export function ArticleReader({
     const meta = article.metadata as ArticleMeta | null | undefined;
     return meta?.imageUrl ?? null;
   })();
+  const isPdf = isPdfArticle(article);
 
   const handleJumpToReadingPosition = useCallback(
     (progressRatio: number) => {
@@ -207,23 +210,29 @@ export function ArticleReader({
                 </div>
               )}
 
-              <ArticleContent
-                content={article.content}
-                fontSize={fontSize}
-                contentRef={contentRef}
-              />
+              {isPdf ? (
+                <ArticlePdfPlaceholder url={article.url} title={article.title} />
+              ) : (
+                <ArticleContent
+                  content={article.content}
+                  fontSize={fontSize}
+                  contentRef={contentRef}
+                />
+              )}
             </article>
           </div>
         </div>
 
-        <HighlightToolbar
-          contentRef={contentRef}
-          onCreate={({ color, ...anchor }) =>
-            createHighlight({ articleId: article.id, color, ...anchor })
-          }
-        />
+        {!isPdf && (
+          <HighlightToolbar
+            contentRef={contentRef}
+            onCreate={({ color, ...anchor }) =>
+              createHighlight({ articleId: article.id, color, ...anchor })
+            }
+          />
+        )}
 
-        {hasToc && (
+        {hasToc && !isPdf && (
           <ArticleTableOfContents
             headings={headings}
             activeId={activeId}
@@ -233,32 +242,34 @@ export function ArticleReader({
           />
         )}
 
-        <div
-          className={cn(
-            "reader-audio-dock reader-audio-dock-bottom pointer-events-none absolute inset-x-0 z-30 px-5 sm:px-8",
-            isPlayerVisible
-              ? "reader-audio-dock--visible"
-              : "reader-audio-dock--hidden",
-          )}
-        >
+        {!isPdf && (
           <div
-            key={article.id}
             className={cn(
-              "reader-audio-dock__inner reader-audio-dock__inner--enter mx-auto max-w-[640px]",
-              isPlayerVisible ? "pointer-events-auto" : "pointer-events-none",
+              "reader-audio-dock reader-audio-dock-bottom pointer-events-none absolute inset-x-0 z-30 px-5 sm:px-8",
+              isPlayerVisible
+                ? "reader-audio-dock--visible"
+                : "reader-audio-dock--hidden",
             )}
           >
-            <AudioPlayer
-              articleId={article.id}
-              articleTitle={article.title}
-              articleUrl={article.url}
-              articleAuthor={article.author}
-              articleImageUrl={articleImageUrl}
-              onJumpToReadingPosition={handleJumpToReadingPosition}
-              onPlayingChange={handlePlayingChange}
-            />
+            <div
+              key={article.id}
+              className={cn(
+                "reader-audio-dock__inner reader-audio-dock__inner--enter mx-auto max-w-[640px]",
+                isPlayerVisible ? "pointer-events-auto" : "pointer-events-none",
+              )}
+            >
+              <AudioPlayer
+                articleId={article.id}
+                articleTitle={article.title}
+                articleUrl={article.url}
+                articleAuthor={article.author}
+                articleImageUrl={articleImageUrl}
+                onJumpToReadingPosition={handleJumpToReadingPosition}
+                onPlayingChange={handlePlayingChange}
+              />
+            </div>
           </div>
-        </div>
+        )}
     </div>
   );
 }

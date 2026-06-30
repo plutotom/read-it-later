@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { eq, and, sql } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -21,6 +22,7 @@ import {
   toWeightedCharacters,
 } from "~/lib/tts-voices";
 import { nanoid } from "nanoid";
+import { isPdfArticle, PDF_UNSUPPORTED_TTS_MESSAGE } from "~/lib/article-content-kind";
 
 /**
  * Get the current billing period in YYYY-MM format
@@ -105,6 +107,15 @@ function toArticleAudioPlaybackResponse(
   };
 }
 
+function assertArticleSupportsTts(article: { metadata?: unknown }) {
+  if (isPdfArticle(article)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: PDF_UNSUPPORTED_TTS_MESSAGE,
+    });
+  }
+}
+
 export const ttsRouter = createTRPCRouter({
   /**
    * Get audio for an article
@@ -141,6 +152,8 @@ export const ttsRouter = createTRPCRouter({
       if (!article) {
         throw new Error("Article not found");
       }
+
+      assertArticleSupportsTts(article);
 
       // Get voice to use (override > user preference > env default)
       const voiceName =
@@ -259,6 +272,8 @@ export const ttsRouter = createTRPCRouter({
       if (!article) {
         throw new Error("Article not found");
       }
+
+      assertArticleSupportsTts(article);
 
       // Get voice to use (override > user preference > env default)
       const voiceName =

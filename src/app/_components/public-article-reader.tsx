@@ -13,8 +13,10 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { PublicArticleReaderHeader } from "./public-article-reader-header";
 import { ArticleMetadata } from "./article-metadata";
 import { ArticleContent } from "./article-content";
+import { ArticlePdfPlaceholder } from "./article-pdf-placeholder";
 import { AudioPlayer } from "./audio-player";
 import { cn } from "~/lib/utils";
+import { isPdfArticle } from "~/lib/article-content-kind";
 import { ArticleTableOfContents } from "./article-table-of-contents";
 import { useArticleToc, useTocOpenPreference } from "~/hooks/use-article-toc";
 
@@ -57,6 +59,7 @@ export function PublicArticleReader({
     const meta = article.metadata as ArticleMeta | null | undefined;
     return meta?.imageUrl ?? null;
   })();
+  const isPdf = isPdfArticle(article);
 
   const handleJumpToReadingPosition = useCallback(
     (progressRatio: number) => {
@@ -135,16 +138,20 @@ export function PublicArticleReader({
         >
           <article className="mx-auto min-w-0 max-w-[640px]">
             <ArticleMetadata article={article} />
-            <ArticleContent
-              content={article.content}
-              fontSize={DEFAULT_FONT_SIZE}
-              contentRef={contentRef}
-            />
+            {isPdf ? (
+              <ArticlePdfPlaceholder url={article.url} title={article.title} />
+            ) : (
+              <ArticleContent
+                content={article.content}
+                fontSize={DEFAULT_FONT_SIZE}
+                contentRef={contentRef}
+              />
+            )}
           </article>
         </div>
       </div>
 
-      {hasToc && (
+      {hasToc && !isPdf && (
         <ArticleTableOfContents
           headings={headings}
           activeId={activeId}
@@ -154,33 +161,35 @@ export function PublicArticleReader({
         />
       )}
 
-      <div
-        className={cn(
-          "reader-audio-dock reader-audio-dock-bottom pointer-events-none absolute inset-x-0 z-30 px-5 sm:px-8",
-          isPlayerVisible
-            ? "reader-audio-dock--visible"
-            : "reader-audio-dock--hidden",
-        )}
-      >
+      {!isPdf && (
         <div
-          key={article.id}
           className={cn(
-            "reader-audio-dock__inner reader-audio-dock__inner--enter mx-auto max-w-[640px]",
-            isPlayerVisible ? "pointer-events-auto" : "pointer-events-none",
+            "reader-audio-dock reader-audio-dock-bottom pointer-events-none absolute inset-x-0 z-30 px-5 sm:px-8",
+            isPlayerVisible
+              ? "reader-audio-dock--visible"
+              : "reader-audio-dock--hidden",
           )}
         >
-          <AudioPlayer
-            articleId={article.id}
-            articleTitle={article.title}
-            articleUrl={article.url}
-            articleAuthor={article.author}
-            articleImageUrl={articleImageUrl}
-            shareToken={shareToken}
-            onJumpToReadingPosition={handleJumpToReadingPosition}
-            onPlayingChange={handlePlayingChange}
-          />
+          <div
+            key={article.id}
+            className={cn(
+              "reader-audio-dock__inner reader-audio-dock__inner--enter mx-auto max-w-[640px]",
+              isPlayerVisible ? "pointer-events-auto" : "pointer-events-none",
+            )}
+          >
+            <AudioPlayer
+              articleId={article.id}
+              articleTitle={article.title}
+              articleUrl={article.url}
+              articleAuthor={article.author}
+              articleImageUrl={articleImageUrl}
+              shareToken={shareToken}
+              onJumpToReadingPosition={handleJumpToReadingPosition}
+              onPlayingChange={handlePlayingChange}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

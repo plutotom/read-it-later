@@ -4,6 +4,8 @@ import { type Article } from "~/types/article";
 import { ListenProgress } from "./listen-progress";
 import { ArticleActionsMenu } from "./article-actions-menu";
 import { ParaBadge } from "./para-badge";
+import { PdfBadge } from "./pdf-badge";
+import { isPdfArticle } from "~/lib/article-content-kind";
 
 interface ArticleCardProps {
   article: Article;
@@ -46,6 +48,7 @@ export function ArticleCard({
 
   const domain = getDomainFromUrl(article.url);
   const initial = domain.charAt(0).toUpperCase();
+  const isPdf = isPdfArticle(article);
   const faviconPalette = [
     "var(--accent)",
     "oklch(0.68 0.12 150)",
@@ -97,6 +100,7 @@ export function ArticleCard({
                 <span>{formatReadingTime(article.readingTime)}</span>
               </>
             )}
+            {isPdf && <PdfBadge />}
             {isOnPara && <ParaBadge />}
             {listenProgress !== undefined && (
               <>

@@ -13,6 +13,7 @@ import {
   removeParaExportByArticleId,
   removeParaExportById,
   setParaGotoPage,
+  UnsupportedParaContentError,
 } from "~/server/services/paraExportService";
 
 export const paraRouter = createTRPCRouter({
@@ -53,7 +54,13 @@ export const paraRouter = createTRPCRouter({
           input.articleId,
         );
         return exportRow;
-      } catch {
+      } catch (error) {
+        if (error instanceof UnsupportedParaContentError) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: error.message,
+          });
+        }
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Article not found",

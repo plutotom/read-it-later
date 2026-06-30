@@ -6,6 +6,12 @@ import { api } from "~/trpc/react";
 import { Switch } from "~/components/ui/switch";
 import { Label } from "~/components/ui/label";
 import { ToastAction } from "~/components/ui/toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 import { toast } from "~/hooks/use-toast";
 import { cn } from "~/lib/utils";
 
@@ -16,6 +22,8 @@ interface ParaToggleProps {
   isOnPara?: boolean;
   className?: string;
   variant?: "row" | "menu";
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 function showAddedToast(articleTitle?: string) {
@@ -47,6 +55,8 @@ export function ParaToggle({
   isOnPara: isOnParaProp,
   className,
   variant = "row",
+  disabled = false,
+  disabledReason,
 }: ParaToggleProps) {
   const utils = api.useUtils();
 
@@ -95,6 +105,7 @@ export function ParaToggle({
   const showOnListState = isOnPara && !isPending;
 
   const handleChange = (checked: boolean) => {
+    if (disabled) return;
     if (checked) {
       add.mutate({ articleId });
     } else {
@@ -102,19 +113,25 @@ export function ParaToggle({
     }
   };
 
+  const disabledTooltip =
+    disabledReason ?? "This item can't be synced to Para.";
+
   if (variant === "menu") {
-    return (
+    const menuButton = (
       <button
         type="button"
         className={cn(
-          "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+          "relative flex w-full select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
+          disabled
+            ? "cursor-not-allowed text-muted-foreground opacity-60"
+            : "cursor-pointer hover:bg-accent hover:text-accent-foreground",
           className,
         )}
         onClick={(e) => {
           e.stopPropagation();
-          if (!isPending) handleChange(!isOnPara);
+          if (!disabled && !isPending) handleChange(!isOnPara);
         }}
-        disabled={(isOnParaProp === undefined && isLoading) || isPending}
+        disabled={disabled || (isOnParaProp === undefined && isLoading) || isPending}
       >
         {showOnListState ? (
           <Check className="mr-2 h-4 w-4 text-emerald-400" />
@@ -127,11 +144,28 @@ export function ParaToggle({
         )}
       </button>
     );
+
+    if (!disabled) return menuButton;
+
+    return (
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>{menuButton}</TooltipTrigger>
+          <TooltipContent side="left" className="max-w-xs">
+            {disabledTooltip}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
   }
 
-  return (
+  const rowContent = (
     <div
-      className={cn("flex items-center justify-between gap-3", className)}
+      className={cn(
+        "flex items-center justify-between gap-3",
+        disabled && "opacity-60",
+        className,
+      )}
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -141,13 +175,22 @@ export function ParaToggle({
           <Tablet className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
         <div className="min-w-0">
-          <Label htmlFor={`para-${articleId}`} className="text-sm text-white">
+          <Label
+            htmlFor={`para-${articleId}`}
+            className={cn("text-sm", disabled ? "text-muted-foreground" : "text-white")}
+          >
             {showOnListState ? "On Para list" : "Add to Para"}
           </Label>
-          {showOnListState && (
-            <p className="truncate text-xs text-emerald-400/90">
-              Syncs to your e-reader
+          {disabled ? (
+            <p className="truncate text-xs text-muted-foreground">
+              Not available for PDFs
             </p>
+          ) : (
+            showOnListState && (
+              <p className="truncate text-xs text-emerald-400/90">
+                Syncs to your e-reader
+              </p>
+            )
           )}
         </div>
       </div>
@@ -158,9 +201,24 @@ export function ParaToggle({
           id={`para-${articleId}`}
           checked={isOnPara}
           onCheckedChange={handleChange}
-          disabled={isPending}
+          disabled={disabled || isPending}
         />
       )}
     </div>
+  );
+
+  if (!disabled) return rowContent;
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="w-full">{rowContent}</div>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs">
+          {disabledTooltip}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

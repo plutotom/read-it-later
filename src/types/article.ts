@@ -25,6 +25,8 @@ export interface Article {
   shareToken: string | null;
 }
 
+export type ArticleContentKind = "html" | "pdf" | "text";
+
 export interface ArticleMetadata {
   siteName?: string;
   siteUrl?: string;
@@ -32,6 +34,8 @@ export interface ArticleMetadata {
   imageUrl?: string;
   language?: string;
   category?: string;
+  /** How the article body should be rendered. Defaults to html when absent. */
+  contentKind?: ArticleContentKind;
 }
 
 export interface ArticleCreateInput {

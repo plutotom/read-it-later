@@ -13,6 +13,7 @@ import {
   listParaExports,
   removeParaExportByArticleId,
   serializeParaExportForApi,
+  UnsupportedParaContentError,
 } from "~/server/services/paraExportService";
 
 export const GET = defineRoute(RIL_READ_SCOPE, async (ctx) => {
@@ -25,7 +26,10 @@ export const POST = defineRoute(RIL_WRITE_SCOPE, async (ctx) => {
   try {
     const row = await createParaExport(db, ctx.userId, articleId);
     return created(serializeParaExportForApi(row));
-  } catch {
+  } catch (error) {
+    if (error instanceof UnsupportedParaContentError) {
+      throw new ApiError(400, "unsupported_content", error.message);
+    }
     throw new ApiError(404, "not_found", "Article not found");
   }
 });
