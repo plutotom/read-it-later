@@ -21,6 +21,10 @@ import {
 } from "lucide-react";
 import { ParaToggle } from "./para-toggle";
 import { cn } from "~/lib/utils";
+import {
+  isPdfArticle,
+  PDF_UNSUPPORTED_PARA_MESSAGE,
+} from "~/lib/article-content-kind";
 
 interface ArticleActionsMenuProps {
   article: Article;
@@ -98,6 +102,8 @@ export function ArticleActionsMenu({
             articleTitle={article.title}
             isOnPara={isOnPara}
             variant="menu"
+            disabled={isPdfArticle(article)}
+            disabledReason={PDF_UNSUPPORTED_PARA_MESSAGE}
           />
 
           {article.isArchived ? (
