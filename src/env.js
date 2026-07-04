@@ -31,6 +31,7 @@ export const env = createEnv({
     // Kindle delivery (Resend)
     RESEND_API_KEY: z.string().optional(),
     DELIVERY_FROM_DOMAIN: z.string().optional(),
+    DELIVERY_FROM_EMAIL: z.string().optional(),
     DELIVERY_FROM_NAME: z.string().default("Read It Later"),
   },
 
@@ -65,6 +66,7 @@ export const env = createEnv({
     // Kindle delivery
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     DELIVERY_FROM_DOMAIN: process.env.DELIVERY_FROM_DOMAIN,
+    DELIVERY_FROM_EMAIL: process.env.DELIVERY_FROM_EMAIL,
     DELIVERY_FROM_NAME: process.env.DELIVERY_FROM_NAME,
   },
   /**

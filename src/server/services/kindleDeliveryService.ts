@@ -37,6 +37,10 @@ function getDeliveryDomain(): string {
     return env.DELIVERY_FROM_DOMAIN;
   }
 
+  if (process.env.VERCEL_URL) {
+    return process.env.VERCEL_URL;
+  }
+
   try {
     return new URL(env.AUTH_URL).hostname;
   } catch {
