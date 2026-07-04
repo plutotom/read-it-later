@@ -255,6 +255,40 @@ export const paraExports = createTable(
   ],
 );
 
+// Kindle delivery log — push sends to user's @kindle.com address
+export const kindleDeliveries = createTable(
+  "kindle_delivery",
+  (d) => ({
+    id: d.uuid().primaryKey().defaultRandom(),
+    userId: d
+      .text()
+      .notNull()
+      .references(() => user.id),
+    articleId: d
+      .uuid()
+      .references(() => articles.id, { onDelete: "set null" }),
+    kindleEmail: d.text().notNull(),
+    senderEmail: d.text().notNull(),
+    format: d.text().notNull().default("html"),
+    filename: d.text().notNull(),
+    bytes: d.integer().notNull(),
+    contentHash: d.text().notNull(),
+    status: d.text().notNull().default("pending"),
+    errorMessage: d.text(),
+    externalId: d.text(),
+    sentAt: d.timestamp({ withTimezone: true }),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  }),
+  (t) => [
+    index("kindle_delivery_user_idx").on(t.userId),
+    index("kindle_delivery_article_idx").on(t.articleId),
+    index("kindle_delivery_created_at_idx").on(t.createdAt),
+  ],
+);
+
 // General-purpose API keys (device sync, future integrations)
 export const apiKeys = createTable(
   "api_key",
@@ -331,6 +365,18 @@ export const articlesRelations = relations(articles, ({ one, many }) => ({
   notes: many(notes),
   audio: one(articleAudio),
   paraExports: many(paraExports),
+  kindleDeliveries: many(kindleDeliveries),
+}));
+
+export const kindleDeliveriesRelations = relations(kindleDeliveries, ({ one }) => ({
+  user: one(user, {
+    fields: [kindleDeliveries.userId],
+    references: [user.id],
+  }),
+  article: one(articles, {
+    fields: [kindleDeliveries.articleId],
+    references: [articles.id],
+  }),
 }));
 
 export const paraExportsRelations = relations(paraExports, ({ one }) => ({

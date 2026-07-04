@@ -5,6 +5,7 @@ import { annotationRouter } from "~/server/api/routers/annotation";
 import { ttsRouter } from "~/server/api/routers/tts";
 import { paraRouter } from "~/server/api/routers/para";
 import { apiKeyRouter } from "~/server/api/routers/apiKey";
+import { kindleRouter } from "~/server/api/routers/kindle";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -20,6 +21,7 @@ export const appRouter = createTRPCRouter({
   tts: ttsRouter,
   para: paraRouter,
   apiKey: apiKeyRouter,
+  kindle: kindleRouter,
 });
 
 // export type definition of API

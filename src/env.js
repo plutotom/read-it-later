@@ -28,6 +28,10 @@ export const env = createEnv({
     TTS_VOICE_LANGUAGE: z.string().default("en-US"),
     // Vercel Blob
     BLOB_READ_WRITE_TOKEN: z.string().optional(),
+    // Kindle delivery (Resend)
+    RESEND_API_KEY: z.string().optional(),
+    DELIVERY_FROM_DOMAIN: z.string().optional(),
+    DELIVERY_FROM_NAME: z.string().default("Read It Later"),
   },
 
   /**
@@ -58,6 +62,10 @@ export const env = createEnv({
     TTS_VOICE_LANGUAGE: process.env.TTS_VOICE_LANGUAGE,
     // Vercel Blob
     BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
+    // Kindle delivery
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    DELIVERY_FROM_DOMAIN: process.env.DELIVERY_FROM_DOMAIN,
+    DELIVERY_FROM_NAME: process.env.DELIVERY_FROM_NAME,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

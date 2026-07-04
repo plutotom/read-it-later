@@ -35,6 +35,7 @@ import {
 import { withViewTransition } from "~/lib/with-view-transition";
 import { ShareDialog } from "./share-dialog";
 import { ParaToggle } from "./para-toggle";
+import { SendToKindleButton } from "./send-to-kindle-button";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { useDeleteArticle } from "../_hooks/use-delete-article";
 import { cn } from "~/lib/utils";
@@ -225,6 +226,13 @@ export function ArticleReaderHeader({
                 disabled={isPdfArticle(article)}
                 disabledReason={PDF_UNSUPPORTED_PARA_MESSAGE}
               />
+              <SendToKindleButton
+                articleId={article.id}
+                articleTitle={article.title}
+                variant="menu"
+                disabled={isPdfArticle(article)}
+                disabledReason={PDF_UNSUPPORTED_PARA_MESSAGE}
+              />
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onSelect={() => setDeleteConfirmOpen(true)}
@@ -250,6 +258,17 @@ export function ArticleReaderHeader({
               <ParaToggle
                 articleId={article.id}
                 articleTitle={article.title}
+                className="px-1 py-2"
+                disabled={isPdfArticle(article)}
+                disabledReason={PDF_UNSUPPORTED_PARA_MESSAGE}
+              />
+            </div>
+
+            <div className="border-rule border-t pt-3">
+              <SendToKindleButton
+                articleId={article.id}
+                articleTitle={article.title}
+                variant="row"
                 className="px-1 py-2"
                 disabled={isPdfArticle(article)}
                 disabledReason={PDF_UNSUPPORTED_PARA_MESSAGE}

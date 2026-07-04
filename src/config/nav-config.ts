@@ -1,4 +1,4 @@
-import { Home, FolderArchive, Tablet, type LucideIcon } from "lucide-react";
+import { Home, FolderArchive, Tablet, BookOpen, type LucideIcon } from "lucide-react";
 
 /**
  * Shared navigation configuration
@@ -38,6 +38,12 @@ export const mainNavItems: NavItem[] = [
     url: "/para",
     icon: Tablet,
     description: "E-reader sync queue",
+  },
+  {
+    title: "Kindle",
+    url: "/kindle",
+    icon: BookOpen,
+    description: "Send articles to Kindle",
   },
 ];
 

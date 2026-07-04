@@ -20,6 +20,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { ParaToggle } from "./para-toggle";
+import { SendToKindleButton } from "./send-to-kindle-button";
 import { cn } from "~/lib/utils";
 import {
   isPdfArticle,
@@ -101,6 +102,14 @@ export function ArticleActionsMenu({
             articleId={article.id}
             articleTitle={article.title}
             isOnPara={isOnPara}
+            variant="menu"
+            disabled={isPdfArticle(article)}
+            disabledReason={PDF_UNSUPPORTED_PARA_MESSAGE}
+          />
+
+          <SendToKindleButton
+            articleId={article.id}
+            articleTitle={article.title}
             variant="menu"
             disabled={isPdfArticle(article)}
             disabledReason={PDF_UNSUPPORTED_PARA_MESSAGE}
