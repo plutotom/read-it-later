@@ -144,3 +144,18 @@ export const paraExportCreateApiSchema = z.object({
 });
 
 export type ParaExportCreateApiInput = z.infer<typeof paraExportCreateApiSchema>;
+
+// ---- Kindle delivery -----------------------------------------------------
+
+export const kindleDeliveryCreateApiSchema = z.object({
+  articleId: z.string().uuid(),
+  force: z.boolean().optional(),
+});
+
+export const kindleDeliverySendApiSchema = z.object({
+  force: z.boolean().optional(),
+});
+
+export type KindleDeliveryCreateApiInput = z.infer<
+  typeof kindleDeliveryCreateApiSchema
+>;

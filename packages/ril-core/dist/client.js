@@ -109,6 +109,21 @@ export function createClient(config) {
             const query = encodeURIComponent(articleIds.join(","));
             return request(`/para/status?articleIds=${query}`);
         },
+        listKindleDeliveries: () => request("/kindle/deliveries"),
+        sendToKindle: (body) => request("/kindle/deliveries", {
+            method: "POST",
+            body: JSON.stringify(body),
+        }),
+        sendArticleToKindle: (articleId, force) => request(`/articles/${articleId}/kindle`, {
+            method: "POST",
+            body: JSON.stringify(force ? { force } : {}),
+        }),
+        getKindleArticleStatuses: (articleIds) => {
+            if (articleIds.length === 0)
+                return Promise.resolve({});
+            const query = encodeURIComponent(articleIds.join(","));
+            return request(`/kindle/status?articleIds=${query}`);
+        },
     };
 }
 //# sourceMappingURL=client.js.map

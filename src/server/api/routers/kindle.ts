@@ -7,6 +7,7 @@ import {
   getKindleSetup,
   KindleNotConfiguredError,
   listKindleDeliveries,
+  retryKindleDelivery,
   saveKindleEmail,
   sendArticleToKindle,
   sendKindleTestDocument,
@@ -107,4 +108,22 @@ export const kindleRouter = createTRPCRouter({
   listDeliveries: protectedProcedure.query(async ({ ctx }) => {
     return listKindleDeliveries(ctx.db, ctx.session.user.id);
   }),
+
+  retry: protectedProcedure
+    .input(z.object({ deliveryId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await retryKindleDelivery(
+          ctx.db,
+          ctx.session.user.id,
+          input.deliveryId,
+        );
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            error instanceof Error ? error.message : "Failed to retry delivery",
+        });
+      }
+    }),
 });

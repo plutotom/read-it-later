@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookOpen, Check, Loader2 } from "lucide-react";
 import { api } from "~/trpc/react";
@@ -143,29 +142,43 @@ export function SendToKindleButton({
   }
 
   return (
-    <button
-      type="button"
+    <div
       className={cn(
-        "text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-xs transition-colors",
-        disabled && "cursor-not-allowed opacity-60",
+        "flex w-full items-center justify-between gap-3",
+        disabled && "opacity-60",
         className,
       )}
-      onClick={handleClick}
-      disabled={disabled || isPending}
+      onClick={(e) => e.stopPropagation()}
     >
-      {isPending ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-      ) : isSent ? (
-        <Check className="h-3.5 w-3.5 text-emerald-400" />
-      ) : (
-        <BookOpen className="h-3.5 w-3.5" />
-      )}
-      {label}
-      {!isConfigured ? (
-        <Link href="/kindle" className="sr-only">
-          Set up Kindle
-        </Link>
-      ) : null}
-    </button>
+      <button
+        type="button"
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-2 text-left",
+          disabled ? "cursor-not-allowed" : "cursor-pointer",
+        )}
+        onClick={handleClick}
+        disabled={disabled || isPending}
+      >
+        {isPending ? (
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+        ) : isSent ? (
+          <Check className="h-4 w-4 shrink-0 text-emerald-400" />
+        ) : (
+          <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
+        )}
+        <div className="min-w-0">
+          <p className="text-sm text-foreground">{label}</p>
+          {isSent ? (
+            <p className="truncate text-xs text-emerald-400/90">
+              Delivered to your Kindle
+            </p>
+          ) : !isConfigured ? (
+            <p className="truncate text-xs text-muted-foreground">
+              Set up your Kindle email first
+            </p>
+          ) : null}
+        </div>
+      </button>
+    </div>
   );
 }

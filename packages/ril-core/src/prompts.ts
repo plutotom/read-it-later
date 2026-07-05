@@ -185,3 +185,23 @@ export const removeFromParaShape = {
     .optional()
     .describe("The article id. Get this from search_articles."),
 };
+
+// ---- send_to_kindle -------------------------------------------------------
+
+export const SEND_TO_KINDLE_DESCRIPTION = `Send an article to the user's Kindle via email. Requires the user to have completed Send to Kindle setup in the web app (Kindle email + Amazon approved sender). Converts the article to HTML and emails it as an attachment. Use force: true to resend even if an identical delivery already succeeded.`;
+
+export const sendToKindleShape = {
+  articleId: z
+    .string()
+    .describe("The article id. Get this from search_articles."),
+  force: z
+    .boolean()
+    .optional()
+    .describe("Resend even if this article was already sent with the same content."),
+};
+
+// ---- list_kindle_deliveries -----------------------------------------------
+
+export const LIST_KINDLE_DELIVERIES_DESCRIPTION = `List recent Send to Kindle delivery attempts. Returns status (sent, failed, pending), article title, and timestamps. Use this to check whether an article reached the user's Kindle or to debug failed sends.`;
+
+export const listKindleDeliveriesShape = {};

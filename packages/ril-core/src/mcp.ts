@@ -15,8 +15,10 @@ import {
   ADD_TO_PARA_DESCRIPTION,
   GET_ARTICLE_CONTENT_DESCRIPTION,
   LIST_PARA_EXPORTS_DESCRIPTION,
+  LIST_KINDLE_DELIVERIES_DESCRIPTION,
   LIST_TAGS_DESCRIPTION,
   REMOVE_FROM_PARA_DESCRIPTION,
+  SEND_TO_KINDLE_DESCRIPTION,
   SEARCH_ARTICLES_DESCRIPTION,
   SHARE_ARTICLE_DESCRIPTION,
   UPDATE_ARTICLE_DESCRIPTION,
@@ -24,8 +26,10 @@ import {
   addToParaShape,
   getArticleContentShape,
   listParaExportsShape,
+  listKindleDeliveriesShape,
   listTagsShape,
   removeFromParaShape,
+  sendToKindleShape,
   searchArticlesShape,
   shareArticleShape,
   updateArticleShape,
@@ -242,6 +246,37 @@ export function registerTools(server: McpServer, client: RilClient): void {
           await client.removeFromParaByArticleId(input.articleId!);
         }
         return ok({ success: true });
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.tool(
+    "send_to_kindle",
+    SEND_TO_KINDLE_DESCRIPTION,
+    sendToKindleShape,
+    async (input) => {
+      try {
+        const delivery = await client.sendToKindle({
+          articleId: input.articleId,
+          force: input.force,
+        });
+        return ok(delivery);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.tool(
+    "list_kindle_deliveries",
+    LIST_KINDLE_DELIVERIES_DESCRIPTION,
+    listKindleDeliveriesShape,
+    async () => {
+      try {
+        const deliveries = await client.listKindleDeliveries();
+        return ok(deliveries);
       } catch (error) {
         return fail(error);
       }

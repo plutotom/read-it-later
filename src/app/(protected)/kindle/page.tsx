@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Loader2,
   MoreVertical,
+  RotateCcw,
 } from "lucide-react";
 import { api } from "~/trpc/react";
 import { Layout } from "~/app/_components/layout";
@@ -34,6 +35,13 @@ import {
   AMAZON_MANAGE_CONTENT_URL,
 } from "~/lib/kindleConstants";
 import { cn } from "~/lib/utils";
+import { buildArticlePath } from "~/lib/article-navigation";
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
 
 function StepNumber({ children }: { children: number }) {
   return (
@@ -89,6 +97,10 @@ export default function KindleSetupPage() {
   const router = useRouter();
   const utils = api.useUtils();
   const { data: setup, isLoading } = api.kindle.getSetup.useQuery();
+  const { data: deliveries = [], isLoading: deliveriesLoading } =
+    api.kindle.listDeliveries.useQuery(undefined, {
+      enabled: !isLoading,
+    });
   const [emailInput, setEmailInput] = useState("");
   const [isEditingEmail, setIsEditingEmail] = useState(false);
 
@@ -135,6 +147,24 @@ export default function KindleSetupPage() {
       toast({
         variant: "destructive",
         title: "Test send failed",
+        description: error.message,
+      });
+    },
+  });
+
+  const retry = api.kindle.retry.useMutation({
+    onSuccess: () => {
+      void utils.kindle.listDeliveries.invalidate();
+      void utils.kindle.getArticleStatuses.invalidate();
+      toast({
+        title: "Retrying delivery",
+        description: "Your article is being sent to Kindle again.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Retry failed",
         description: error.message,
       });
     },
@@ -315,6 +345,99 @@ export default function KindleSetupPage() {
                   <Link href="/">Back to library</Link>
                 </Button>
               </div>
+            ) : null}
+
+            {setup?.isConnected ? (
+              <Card className="border-rule shadow-[var(--shadow-soft)]">
+                <CardHeader>
+                  <CardTitle className="text-base font-semibold">
+                    Recent deliveries
+                  </CardTitle>
+                  <CardDescription>
+                    Articles emailed to your Kindle. Delivery usually takes a few
+                    minutes.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {deliveriesLoading ? (
+                    <div className="text-muted-foreground flex justify-center py-6">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    </div>
+                  ) : deliveries.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">
+                      No deliveries yet. Send an article from your library to get
+                      started.
+                    </p>
+                  ) : (
+                    <ul className="divide-rule divide-y">
+                      {deliveries.map((delivery) => (
+                        <li
+                          key={delivery.id}
+                          className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                        >
+                          <div className="min-w-0">
+                            {delivery.articleId ? (
+                              <Link
+                                href={buildArticlePath(delivery.articleId, "/kindle")}
+                                className="line-clamp-2 text-sm font-medium hover:underline"
+                              >
+                                {delivery.articleTitle ?? "Untitled article"}
+                              </Link>
+                            ) : (
+                              <p className="text-sm font-medium">
+                                {delivery.articleTitle ?? "Deleted article"}
+                              </p>
+                            )}
+                            <p className="text-muted-foreground mt-1 text-xs">
+                              {delivery.status === "sent" && delivery.sentAt
+                                ? `Sent ${new Date(delivery.sentAt).toLocaleString()}`
+                                : delivery.status === "failed"
+                                  ? `Failed ${new Date(delivery.createdAt).toLocaleString()}`
+                                  : `Queued ${new Date(delivery.createdAt).toLocaleString()}`}
+                              {" · "}
+                              {formatBytes(delivery.bytes)}
+                            </p>
+                            {delivery.errorMessage ? (
+                              <p className="mt-1 text-xs text-red-400">
+                                {delivery.errorMessage}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span
+                              className={cn(
+                                "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                                delivery.status === "sent" &&
+                                  "bg-emerald-500/10 text-emerald-400",
+                                delivery.status === "failed" &&
+                                  "bg-red-500/10 text-red-400",
+                                delivery.status === "pending" &&
+                                  "bg-amber-500/10 text-amber-400",
+                              )}
+                            >
+                              {delivery.status}
+                            </span>
+                            {delivery.status === "failed" ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                disabled={retry.isPending}
+                                onClick={() =>
+                                  retry.mutate({ deliveryId: delivery.id })
+                                }
+                                aria-label="Retry delivery"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
             ) : null}
           </div>
         )}

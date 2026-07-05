@@ -51,4 +51,11 @@ export declare const removeFromParaShape: {
     exportId: z.ZodOptional<z.ZodString>;
     articleId: z.ZodOptional<z.ZodString>;
 };
+export declare const SEND_TO_KINDLE_DESCRIPTION = "Send an article to the user's Kindle via email. Requires the user to have completed Send to Kindle setup in the web app (Kindle email + Amazon approved sender). Converts the article to HTML and emails it as an attachment. Use force: true to resend even if an identical delivery already succeeded.";
+export declare const sendToKindleShape: {
+    articleId: z.ZodString;
+    force: z.ZodOptional<z.ZodBoolean>;
+};
+export declare const LIST_KINDLE_DELIVERIES_DESCRIPTION = "List recent Send to Kindle delivery attempts. Returns status (sent, failed, pending), article title, and timestamps. Use this to check whether an article reached the user's Kindle or to debug failed sends.";
+export declare const listKindleDeliveriesShape: {};
 //# sourceMappingURL=prompts.d.ts.map

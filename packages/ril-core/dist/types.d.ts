@@ -85,6 +85,22 @@ export interface ParaExportCreate {
     articleId: string;
 }
 export type ParaArticleStatuses = Record<string, boolean>;
+export interface KindleDelivery {
+    id: string;
+    articleId: string | null;
+    articleTitle: string | null;
+    status: "pending" | "sent" | "failed" | string;
+    filename: string;
+    bytes: number;
+    sentAt: string | null;
+    createdAt: string;
+    errorMessage: string | null;
+}
+export interface KindleDeliveryCreate {
+    articleId: string;
+    force?: boolean;
+}
+export type KindleArticleStatuses = Record<string, "sent" | "failed" | "pending" | false>;
 export interface ApiErrorBody {
     error: {
         code: string;

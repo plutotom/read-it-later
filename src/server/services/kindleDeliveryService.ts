@@ -37,15 +37,30 @@ function getDeliveryDomain(): string {
     return env.DELIVERY_FROM_DOMAIN;
   }
 
-  if (process.env.VERCEL_URL) {
-    return process.env.VERCEL_URL;
+  try {
+    const host = new URL(env.AUTH_URL).hostname;
+    if (!host.endsWith(".vercel.app")) {
+      return host;
+    }
+  } catch {
+    // fall through
   }
 
-  try {
-    return new URL(env.AUTH_URL).hostname;
-  } catch {
-    return "read-it-later.app";
+  return "read-it-later.app";
+}
+
+function buildFromAddress(setup: {
+  fromDisplayName: string;
+  senderEmail: string;
+}): string {
+  const configured = env.DELIVERY_FROM_EMAIL?.trim();
+  if (configured) {
+    return configured.includes("<")
+      ? configured
+      : `${setup.fromDisplayName} <${configured}>`;
   }
+
+  return `${setup.fromDisplayName} <${setup.senderEmail}>`;
 }
 
 function getFromDisplayName(): string {
@@ -198,11 +213,30 @@ export async function clearKindleEmail(db: Database, userId: string) {
 export type KindleDeliveryApi = {
   id: string;
   articleId: string | null;
+  articleTitle: string | null;
   status: string;
+  filename: string;
+  bytes: number;
   sentAt: Date | null;
   createdAt: Date;
   errorMessage: string | null;
 };
+
+export function serializeKindleDeliveryForApi(
+  row: typeof kindleDeliveries.$inferSelect & { articleTitle?: string | null },
+): KindleDeliveryApi {
+  return {
+    id: row.id,
+    articleId: row.articleId,
+    articleTitle: row.articleTitle ?? null,
+    status: row.status,
+    filename: row.filename,
+    bytes: row.bytes,
+    sentAt: row.sentAt,
+    createdAt: row.createdAt,
+    errorMessage: row.errorMessage,
+  };
+}
 
 export async function listKindleDeliveries(
   db: Database,
@@ -213,16 +247,19 @@ export async function listKindleDeliveries(
     where: eq(kindleDeliveries.userId, userId),
     orderBy: [desc(kindleDeliveries.createdAt)],
     limit,
+    with: {
+      article: {
+        columns: { title: true },
+      },
+    },
   });
 
-  return rows.map((row) => ({
-    id: row.id,
-    articleId: row.articleId,
-    status: row.status,
-    sentAt: row.sentAt,
-    createdAt: row.createdAt,
-    errorMessage: row.errorMessage,
-  }));
+  return rows.map((row) =>
+    serializeKindleDeliveryForApi({
+      ...row,
+      articleTitle: row.article?.title ?? null,
+    }),
+  );
 }
 
 export async function getKindleArticleStatuses(
@@ -315,7 +352,7 @@ export async function sendArticleToKindle(
   }
 
   const filename = sanitizeDeliveryFilename(article.title);
-  const fromAddress = `${setup.fromDisplayName} <${setup.senderEmail}>`;
+  const fromAddress = buildFromAddress(setup);
 
   const [delivery] = await db
     .insert(kindleDeliveries)
@@ -390,7 +427,7 @@ export async function sendKindleTestDocument(db: Database, userId: string) {
       "<p>If you can read this on your Kindle, your Send to Kindle setup is working.</p><p>You can now send articles from your library.</p>",
   }).html;
 
-  const fromAddress = `${setup.fromDisplayName} <${setup.senderEmail}>`;
+  const fromAddress = buildFromAddress(setup);
 
   return sendDocumentEmail({
     from: fromAddress,
@@ -402,4 +439,27 @@ export async function sendKindleTestDocument(db: Database, userId: string) {
       contentType: "text/html",
     },
   });
+}
+
+export async function retryKindleDelivery(
+  db: Database,
+  userId: string,
+  deliveryId: string,
+) {
+  const row = await db.query.kindleDeliveries.findFirst({
+    where: and(
+      eq(kindleDeliveries.id, deliveryId),
+      eq(kindleDeliveries.userId, userId),
+    ),
+  });
+
+  if (!row?.articleId) {
+    throw new Error("Delivery not found");
+  }
+
+  if (row.status !== "failed") {
+    throw new Error("Only failed deliveries can be retried");
+  }
+
+  return sendArticleToKindle(db, userId, row.articleId, { force: true });
 }

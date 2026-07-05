@@ -14,6 +14,9 @@ import type {
   ParaArticleStatuses,
   ParaExport,
   ParaExportCreate,
+  KindleArticleStatuses,
+  KindleDelivery,
+  KindleDeliveryCreate,
   ShareResponse,
   Tag,
 } from "./types.js";
@@ -96,6 +99,10 @@ export interface RilClient {
   removeFromParaByArticleId(articleId: string): Promise<void>;
   removeFromParaByExportId(exportId: string): Promise<void>;
   getParaArticleStatuses(articleIds: string[]): Promise<ParaArticleStatuses>;
+  listKindleDeliveries(): Promise<KindleDelivery[]>;
+  sendToKindle(body: KindleDeliveryCreate): Promise<KindleDelivery>;
+  sendArticleToKindle(articleId: string, force?: boolean): Promise<KindleDelivery>;
+  getKindleArticleStatuses(articleIds: string[]): Promise<KindleArticleStatuses>;
 }
 
 export function createClient(config: ClientConfig): RilClient {
@@ -183,6 +190,26 @@ export function createClient(config: ClientConfig): RilClient {
       if (articleIds.length === 0) return Promise.resolve({});
       const query = encodeURIComponent(articleIds.join(","));
       return request<ParaArticleStatuses>(`/para/status?articleIds=${query}`);
+    },
+
+    listKindleDeliveries: () => request<KindleDelivery[]>("/kindle/deliveries"),
+
+    sendToKindle: (body) =>
+      request<KindleDelivery>("/kindle/deliveries", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+
+    sendArticleToKindle: (articleId, force) =>
+      request<KindleDelivery>(`/articles/${articleId}/kindle`, {
+        method: "POST",
+        body: JSON.stringify(force ? { force } : {}),
+      }),
+
+    getKindleArticleStatuses: (articleIds) => {
+      if (articleIds.length === 0) return Promise.resolve({});
+      const query = encodeURIComponent(articleIds.join(","));
+      return request<KindleArticleStatuses>(`/kindle/status?articleIds=${query}`);
     },
   };
 }

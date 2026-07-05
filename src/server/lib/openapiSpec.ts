@@ -47,7 +47,7 @@ export function buildOpenApiSpec(baseUrl: string) {
       title: "read-it-later API",
       version: "1.0.0",
       description:
-        "Manage your saved articles, folders, tags, highlights, notes, and Para e-reader sync list. Authenticate with an API key: `Authorization: Bearer <key>`. Read endpoints require the `ril:read` scope; write endpoints require `ril:write`.",
+        "Manage your saved articles, folders, tags, highlights, notes, Para e-reader sync, and Send to Kindle delivery. Authenticate with an API key: `Authorization: Bearer <key>`. Read endpoints require the `ril:read` scope; write endpoints require `ril:write`.",
     },
     servers: [{ url: `${baseUrl.replace(/\/$/, "")}/api/v1` }],
     security: bearerAuth,
@@ -215,6 +215,53 @@ export function buildOpenApiSpec(baseUrl: string) {
           additionalProperties: { type: "boolean" },
           description:
             "Map of article id → whether the article is on the user's Para sync list.",
+        },
+        KindleDelivery: {
+          type: "object",
+          description: "A Send to Kindle delivery attempt for an article.",
+          properties: {
+            id: { type: "string", format: "uuid" },
+            articleId: { type: ["string", "null"], format: "uuid" },
+            articleTitle: { type: ["string", "null"] },
+            status: {
+              type: "string",
+              enum: ["pending", "sent", "failed"],
+            },
+            filename: { type: "string" },
+            bytes: { type: "integer" },
+            sentAt: { type: ["string", "null"], format: "date-time" },
+            createdAt: { type: "string", format: "date-time" },
+            errorMessage: { type: ["string", "null"] },
+          },
+        },
+        KindleDeliveryCreate: {
+          type: "object",
+          required: ["articleId"],
+          properties: {
+            articleId: { type: "string", format: "uuid" },
+            force: {
+              type: "boolean",
+              description: "Resend even if an identical delivery already succeeded.",
+            },
+          },
+        },
+        KindleDeliverySend: {
+          type: "object",
+          properties: {
+            force: {
+              type: "boolean",
+              description: "Resend even if an identical delivery already succeeded.",
+            },
+          },
+        },
+        KindleArticleStatuses: {
+          type: "object",
+          additionalProperties: {
+            type: "string",
+            enum: ["sent", "failed", "pending", "false"],
+          },
+          description:
+            "Map of article id → latest Kindle delivery status, or false if never sent.",
         },
       },
     },
@@ -536,6 +583,97 @@ export function buildOpenApiSpec(baseUrl: string) {
                 },
               },
             },
+          },
+        },
+      },
+      "/kindle/deliveries": {
+        get: {
+          summary: "List Kindle delivery history",
+          operationId: "listKindleDeliveries",
+          responses: {
+            "200": {
+              description: "Recent Kindle deliveries",
+              content: {
+                "application/json": {
+                  type: "array",
+                  items: { $ref: "#/components/schemas/KindleDelivery" },
+                },
+              },
+            },
+          },
+        },
+        post: {
+          summary: "Send an article to the user's configured Kindle email",
+          operationId: "sendToKindle",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/KindleDeliveryCreate" },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Delivery queued or completed",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/KindleDelivery" },
+                },
+              },
+            },
+            "412": { description: "Kindle email not configured in the web app" },
+          },
+        },
+      },
+      "/kindle/status": {
+        get: {
+          summary: "Check Kindle delivery status for articles",
+          operationId: "getKindleArticleStatuses",
+          parameters: [
+            {
+              name: "articleIds",
+              in: "query",
+              required: true,
+              schema: { type: "string" },
+              description: "Comma-separated article UUIDs (max 100).",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Article id → delivery status map",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/KindleArticleStatuses" },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/articles/{id}/kindle": {
+        post: {
+          summary: "Send this article to Kindle",
+          operationId: "sendArticleToKindle",
+          parameters: [idParam],
+          requestBody: {
+            required: false,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/KindleDeliverySend" },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Delivery queued or completed",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/KindleDelivery" },
+                },
+              },
+            },
+            "412": { description: "Kindle email not configured in the web app" },
           },
         },
       },

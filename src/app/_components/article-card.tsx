@@ -4,6 +4,7 @@ import { type Article } from "~/types/article";
 import { ListenProgress } from "./listen-progress";
 import { ArticleActionsMenu } from "./article-actions-menu";
 import { ParaBadge } from "./para-badge";
+import { KindleBadge } from "./kindle-badge";
 import { PdfBadge } from "./pdf-badge";
 import { isPdfArticle } from "~/lib/article-content-kind";
 
@@ -17,6 +18,7 @@ interface ArticleCardProps {
   onMoveToFolder?: (folderId: string | null) => void;
   showActions?: boolean;
   isOnPara?: boolean;
+  kindleStatus?: "sent" | "failed" | "pending" | false;
   /** Listen progress as a fraction (0-1), undefined if no audio */
   listenProgress?: number;
 }
@@ -31,6 +33,7 @@ export function ArticleCard({
   onMoveToFolder: _onMoveToFolder,
   showActions = true,
   isOnPara = false,
+  kindleStatus = false,
   listenProgress,
 }: ArticleCardProps) {
   const formatReadingTime = (minutes: number) => {
@@ -102,6 +105,9 @@ export function ArticleCard({
             )}
             {isPdf && <PdfBadge />}
             {isOnPara && <ParaBadge />}
+            {kindleStatus === "sent" && <KindleBadge status="sent" />}
+            {kindleStatus === "failed" && <KindleBadge status="failed" />}
+            {kindleStatus === "pending" && <KindleBadge status="pending" />}
             {listenProgress !== undefined && (
               <>
                 <span>·</span>

@@ -107,6 +107,31 @@ export interface ParaExportCreate {
 // GET /para/status
 export type ParaArticleStatuses = Record<string, boolean>;
 
+// GET /kindle/deliveries
+export interface KindleDelivery {
+  id: string;
+  articleId: string | null;
+  articleTitle: string | null;
+  status: "pending" | "sent" | "failed" | string;
+  filename: string;
+  bytes: number;
+  sentAt: string | null;
+  createdAt: string;
+  errorMessage: string | null;
+}
+
+// POST /kindle/deliveries
+export interface KindleDeliveryCreate {
+  articleId: string;
+  force?: boolean;
+}
+
+// GET /kindle/status
+export type KindleArticleStatuses = Record<
+  string,
+  "sent" | "failed" | "pending" | false
+>;
+
 // Error envelope: { error: { code, message, details? } }
 export interface ApiErrorBody {
   error: {

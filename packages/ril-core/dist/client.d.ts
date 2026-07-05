@@ -1,4 +1,4 @@
-import type { Article, ArticleCreate, ArticleList, ArticleUpdate, ApiErrorBody, Folder, Me, ParaArticleStatuses, ParaExport, ParaExportCreate, ShareResponse, Tag } from "./types.js";
+import type { Article, ArticleCreate, ArticleList, ArticleUpdate, ApiErrorBody, Folder, Me, ParaArticleStatuses, ParaExport, ParaExportCreate, KindleArticleStatuses, KindleDelivery, KindleDeliveryCreate, ShareResponse, Tag } from "./types.js";
 /** Default hosted instance. Includes the `/api/v1` prefix. */
 export declare const DEFAULT_BASE_URL = "https://ril.plutotom.com/api/v1";
 /** A typed error carrying the API's { error: { code, message } } envelope. */
@@ -44,6 +44,10 @@ export interface RilClient {
     removeFromParaByArticleId(articleId: string): Promise<void>;
     removeFromParaByExportId(exportId: string): Promise<void>;
     getParaArticleStatuses(articleIds: string[]): Promise<ParaArticleStatuses>;
+    listKindleDeliveries(): Promise<KindleDelivery[]>;
+    sendToKindle(body: KindleDeliveryCreate): Promise<KindleDelivery>;
+    sendArticleToKindle(articleId: string, force?: boolean): Promise<KindleDelivery>;
+    getKindleArticleStatuses(articleIds: string[]): Promise<KindleArticleStatuses>;
 }
 export declare function createClient(config: ClientConfig): RilClient;
 //# sourceMappingURL=client.d.ts.map

@@ -9,6 +9,7 @@ import { type Article } from "~/types/article";
 import { ArticleCard } from "./article-card";
 import { ArticleActionsMenu } from "./article-actions-menu";
 import { ParaBadge } from "./para-badge";
+import { KindleBadge } from "./kindle-badge";
 import { SearchBar } from "./search-bar";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
@@ -94,6 +95,11 @@ export function ArticleList({
   );
 
   const { data: paraStatuses = {} } = api.para.getArticleStatuses.useQuery(
+    { articleIds },
+    { enabled: articleIds.length > 0 },
+  );
+
+  const { data: kindleStatuses = {} } = api.kindle.getArticleStatuses.useQuery(
     { articleIds },
     { enabled: articleIds.length > 0 },
   );
@@ -232,6 +238,12 @@ export function ArticleList({
                         {paraStatuses[heroArticle.id] && (
                           <ParaBadge size="md" />
                         )}
+                        {kindleStatuses[heroArticle.id] === "sent" && (
+                          <KindleBadge size="md" status="sent" />
+                        )}
+                        {kindleStatuses[heroArticle.id] === "failed" && (
+                          <KindleBadge size="md" status="failed" />
+                        )}
                       </div>
                       <div className="mt-6 h-[3px] overflow-hidden rounded-full bg-background-deep">
                         <div
@@ -266,6 +278,7 @@ export function ArticleList({
                     key={article.id}
                     article={article}
                     isOnPara={paraStatuses[article.id] ?? false}
+                    kindleStatus={kindleStatuses[article.id] ?? false}
                     onClick={() => onArticleClick?.(article)}
                     onPrefetch={() => prefetchArticle(article.id)}
                     onArchive={() => onArchive?.(article.id)}
