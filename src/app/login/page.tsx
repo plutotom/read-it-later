@@ -1,7 +1,9 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -11,10 +13,16 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { authClient, useSession } from "~/lib/auth-client";
+import {
+  getOAuthCallbackErrorMessage,
+  getSignInErrorMessage,
+} from "~/lib/auth-errors";
 
 export default function LoginPage() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
+  const [signInError, setSignInError] = useState<string | null>(null);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
     if (session?.user) {
@@ -23,11 +31,33 @@ export default function LoginPage() {
     }
   }, [session, router]);
 
+  useEffect(() => {
+    const callbackError = getOAuthCallbackErrorMessage(
+      new URLSearchParams(window.location.search),
+    );
+    if (callbackError) {
+      setSignInError(callbackError);
+    }
+  }, []);
+
   const handleDiscordSignIn = async () => {
-    await authClient.signIn.social({
-      provider: "discord",
-      callbackURL: "/",
-    });
+    setSignInError(null);
+    setIsSigningIn(true);
+
+    try {
+      const result = await authClient.signIn.social({
+        provider: "discord",
+        callbackURL: "/",
+      });
+
+      if (result.error) {
+        setSignInError(getSignInErrorMessage(result.error));
+      }
+    } catch (error) {
+      setSignInError(getSignInErrorMessage(error));
+    } finally {
+      setIsSigningIn(false);
+    }
   };
 
   if (isPending) {
@@ -39,7 +69,7 @@ export default function LoginPage() {
   }
 
   if (session?.user) {
-    return null; // Will redirect via useEffect
+    return null;
   }
 
   return (
@@ -51,14 +81,28 @@ export default function LoginPage() {
             Sign in with Discord to access your saved articles
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {signInError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{signInError}</AlertDescription>
+            </Alert>
+          ) : null}
+
           <Button
             onClick={handleDiscordSignIn}
             className="w-full"
             size="lg"
             variant="default"
+            disabled={isSigningIn}
           >
-            Sign in with Discord
+            {isSigningIn ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Connecting to Discord...
+              </>
+            ) : (
+              "Sign in with Discord"
+            )}
           </Button>
         </CardContent>
       </Card>
