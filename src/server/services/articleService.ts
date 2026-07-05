@@ -13,6 +13,8 @@ import { articles, paraExports } from "~/server/db/schema";
 import { normalizeManualArticleContent } from "~/server/services/articleContentNormalizer";
 import { ArticleExtractor } from "~/server/services/articleExtractor";
 import { refreshExportFromArticle } from "~/server/services/paraExportService";
+import { isPdfArticle } from "~/lib/article-content-kind";
+import type { ArticleMetadata } from "~/types/article";
 import {
   countArticleWords,
   readingTimeFromWordCount,
@@ -272,6 +274,79 @@ export async function updateArticle(
     if (exportRow) {
       await refreshExportFromArticle(db, exportRow, updated);
     }
+  }
+
+  return updated;
+}
+
+export async function reExtractArticle(
+  db: Database,
+  userId: string,
+  articleId: string,
+): Promise<Article> {
+  const article = await getArticle(db, userId, articleId);
+  if (!article) {
+    throw new Error("Article not found");
+  }
+  if (!isPdfArticle(article)) {
+    throw new Error("Re-extraction is only supported for PDF articles");
+  }
+
+  const response = await fetch(article.url, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (compatible; ReadItLater/1.0; +https://github.com/mozilla/readability)",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch PDF: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  const body = await response.arrayBuffer();
+  const contentType = response.headers.get("content-type");
+  const extracted = await ArticleExtractor.extractPdfFromBuffer(
+    article.url,
+    body,
+    contentType,
+  );
+
+  const existingMeta =
+    article.metadata && typeof article.metadata === "object"
+      ? (article.metadata as ArticleMetadata)
+      : {};
+
+  const [updated] = await db
+    .update(articles)
+    .set({
+      title: extracted.title,
+      content: extracted.content,
+      excerpt: extracted.excerpt ?? null,
+      author: extracted.author ?? null,
+      wordCount: extracted.wordCount ?? null,
+      readingTime: extracted.readingTime ?? null,
+      metadata: {
+        ...existingMeta,
+        ...extracted.metadata,
+      },
+    })
+    .where(and(eq(articles.id, articleId), eq(articles.userId, userId)))
+    .returning();
+
+  if (!updated) {
+    throw new Error("Failed to update article");
+  }
+
+  const exportRow = await db.query.paraExports.findFirst({
+    where: and(
+      eq(paraExports.articleId, updated.id),
+      eq(paraExports.userId, userId),
+    ),
+  });
+  if (exportRow) {
+    await refreshExportFromArticle(db, exportRow, updated);
   }
 
   return updated;

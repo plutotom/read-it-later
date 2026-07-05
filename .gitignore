@@ -50,3 +50,6 @@ JSON.json
 # Serwist generated files
 public/sw*
 public/swe-worker*
+
+# PDF.js assets (copied on postinstall via scripts/copy-pdfjs-assets.mjs)
+public/pdfjs/

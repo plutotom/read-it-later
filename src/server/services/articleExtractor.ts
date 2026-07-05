@@ -13,7 +13,15 @@ import {
   detectPdfResponse,
   titleFromPdfUrl,
 } from "~/lib/pdf-detection";
-import type { ArticleExtractionResult } from "~/types/article";
+import {
+  DocumentExtractionError,
+  extractDocument,
+} from "~/server/services/documentExtractService";
+import type {
+  ArticleExtractionResult,
+  ArticleMetadata,
+  DocumentExtractionStatus,
+} from "~/types/article";
 
 export class ArticleExtractor {
   /**
@@ -22,7 +30,7 @@ export class ArticleExtractor {
   static async extractFromUrl(url: string): Promise<ArticleExtractionResult> {
     try {
       // Validate URL
-      const urlObj = new URL(url);
+      new URL(url);
 
       const response = await fetch(url, {
         headers: {
@@ -41,7 +49,7 @@ export class ArticleExtractor {
       const contentType = response.headers.get("content-type");
 
       if (detectPdfResponse(url, contentType, body)) {
-        return this.getPdfExtractionData(url);
+        return await this.getPdfExtractionData(url, body, contentType);
       }
 
       const html = new TextDecoder("utf-8", { fatal: false }).decode(body);
@@ -340,28 +348,93 @@ export class ArticleExtractor {
   }
 
   /**
-   * Placeholder extraction for direct PDF links.
-   * The reader shows a dedicated PDF state instead of parsed content.
+   * Extract text and metadata from a PDF buffer.
    */
-  private static getPdfExtractionData(url: string): ArticleExtractionResult {
-    const urlObj = new URL(url);
-    const title = this.cleanText(titleFromPdfUrl(url));
+  static async extractPdfFromBuffer(
+    url: string,
+    buffer: ArrayBuffer,
+    contentType: string | null,
+  ): Promise<ArticleExtractionResult> {
+    return this.getPdfExtractionData(url, buffer, contentType);
+  }
 
-    return {
-      title,
-      content: "",
-      excerpt: "PDF document",
-      author: undefined,
-      publishedAt: undefined,
-      wordCount: 0,
-      readingTime: 0,
-      metadata: {
-        siteName: urlObj.hostname,
-        siteUrl: urlObj.origin,
-        description: "PDF document — open the original link to view.",
-        contentKind: "pdf",
-      },
+  /**
+   * Extract readable text from a direct PDF link for search, TTS, and PARA.
+   */
+  private static async getPdfExtractionData(
+    url: string,
+    buffer: ArrayBuffer,
+    contentType: string | null,
+  ): Promise<ArticleExtractionResult> {
+    const urlObj = new URL(url);
+    const fallbackTitle = this.cleanText(titleFromPdfUrl(url));
+    const baseMetadata: ArticleMetadata = {
+      siteName: urlObj.hostname,
+      siteUrl: urlObj.origin,
+      contentKind: "pdf",
+      mimeType: contentType ?? "application/pdf",
+      byteSize: buffer.byteLength,
     };
+
+    try {
+      const extracted = await extractDocument(Buffer.from(buffer), "pdf");
+      const wordCount = countArticleWords(extracted.plainText);
+      const readingTime = extracted.hasTextLayer
+        ? readingTimeFromWordCount(wordCount, { minMinutes: 1 })
+        : 0;
+      const extractionStatus: DocumentExtractionStatus = extracted.hasTextLayer
+        ? "complete"
+        : "skipped";
+
+      const title = extracted.title
+        ? this.cleanText(extracted.title)
+        : fallbackTitle;
+      const excerpt = extracted.hasTextLayer
+        ? extracted.plainText.trim().slice(0, 200) || "PDF document"
+        : "PDF document — no text layer detected.";
+
+      return {
+        title,
+        content: extracted.plainText,
+        excerpt,
+        author: extracted.author,
+        publishedAt: undefined,
+        wordCount,
+        readingTime,
+        metadata: {
+          ...baseMetadata,
+          description: extracted.hasTextLayer
+            ? excerpt
+            : "PDF document — open in the viewer below.",
+          language: extracted.language,
+          extractionStatus,
+          extractedAt: new Date().toISOString(),
+          pageCount: extracted.pageCount,
+        },
+      };
+    } catch (error) {
+      const extractionError =
+        error instanceof DocumentExtractionError
+          ? error.message
+          : "Text extraction failed for this PDF.";
+
+      return {
+        title: fallbackTitle,
+        content: "",
+        excerpt: "PDF document",
+        author: undefined,
+        publishedAt: undefined,
+        wordCount: 0,
+        readingTime: 0,
+        metadata: {
+          ...baseMetadata,
+          description: "PDF document — text extraction failed.",
+          extractionStatus: "failed",
+          extractionError,
+          extractedAt: new Date().toISOString(),
+        },
+      };
+    }
   }
 
   /**

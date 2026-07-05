@@ -22,8 +22,13 @@ import {
   type RelocatedHighlight,
 } from "~/hooks/use-highlight-painter";
 import { HighlightToolbar } from "./highlight-toolbar";
-import { ArticlePdfPlaceholder } from "./article-pdf-placeholder";
-import { isPdfArticle } from "~/lib/article-content-kind";
+import { PdfViewer } from "./pdf-viewer-dynamic";
+import {
+  documentNeedsExtractionWarning,
+  hasExtractedText,
+  isPdfArticle,
+} from "~/lib/article-content-kind";
+import { DocumentExtractionBanner } from "./document-extraction-banner";
 
 interface ArticleReaderProps {
   article: Article;
@@ -47,6 +52,7 @@ export function ArticleReader({
   const lastScrollTopRef = useRef(0);
   const hideScrollAccumulatorRef = useRef(0);
   const [progress, setProgress] = useState(0);
+  const [pdfProgress, setPdfProgress] = useState(0);
   const [isPlayerVisible, setIsPlayerVisible] = useState(true);
   const isAudioPlayingRef = useRef(false);
 
@@ -63,6 +69,8 @@ export function ArticleReader({
     return meta?.imageUrl ?? null;
   })();
   const isPdf = isPdfArticle(article);
+  const showDocumentAudio = !isPdf || hasExtractedText(article);
+  const showExtractionWarning = isPdf && documentNeedsExtractionWarning(article);
 
   const handleJumpToReadingPosition = useCallback(
     (progressRatio: number) => {
@@ -139,11 +147,12 @@ export function ArticleReader({
     hideScrollAccumulatorRef.current = 0;
     isAudioPlayingRef.current = false;
     setIsPlayerVisible(true);
+    setPdfProgress(0);
   }, [article.id]);
 
   useEffect(() => {
     const el = scrollerRef.current;
-    if (!el) return;
+    if (!el || isPdf) return;
 
     const onScroll = () => {
       const scrollTop = el.scrollTop;
@@ -172,7 +181,9 @@ export function ArticleReader({
     onScroll();
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, [article.id]);
+  }, [article.id, isPdf]);
+
+  const readingProgress = isPdf ? pdfProgress : progress;
 
   return (
     <div className="relative flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)]">
@@ -193,31 +204,64 @@ export function ArticleReader({
           <div className="h-[2px] bg-background-deep">
             <div
               className="h-full bg-accent transition-[width] duration-150 ease-out"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${readingProgress}%` }}
             />
           </div>
 
           <div
-            ref={scrollerRef}
-            className="min-h-0 min-w-0 flex-1 scroll-pt-24 overflow-x-hidden overflow-y-auto px-5 pt-8 pb-36 sm:px-8 sm:pt-12 sm:pb-40"
+            ref={isPdf ? undefined : scrollerRef}
+            className={cn(
+              "min-h-0 min-w-0 flex-1 px-5 pb-36 pt-8 sm:px-8 sm:pt-12 sm:pb-40",
+              isPdf
+                ? "flex flex-col overflow-hidden"
+                : "scroll-pt-24 overflow-x-hidden overflow-y-auto",
+            )}
           >
-            <article className="mx-auto min-w-0 max-w-[640px]">
-              <ArticleMetadata article={article} />
-
-              {initialNotes.length > 0 && (
-                <div className="mb-8 rounded-2xl border border-rule bg-surface p-4 shadow-[var(--shadow-soft)]">
-                  <StandaloneNotes notes={initialNotes} />
-                </div>
+            <article
+              className={cn(
+                "mx-auto min-w-0",
+                isPdf
+                  ? "flex max-w-4xl min-h-0 flex-1 flex-col"
+                  : "max-w-[640px]",
               )}
-
+            >
               {isPdf ? (
-                <ArticlePdfPlaceholder url={article.url} title={article.title} />
-              ) : (
-                <ArticleContent
-                  content={article.content}
-                  fontSize={fontSize}
-                  contentRef={contentRef}
+                <PdfViewer
+                  className="min-h-0 flex-1"
+                  streamUrl={`/api/documents/${article.id}/stream`}
+                  originalUrl={article.url}
+                  title={article.title}
+                  onProgressChange={setPdfProgress}
+                  header={
+                    <>
+                      {showExtractionWarning && (
+                        <DocumentExtractionBanner article={article} />
+                      )}
+                      <ArticleMetadata article={article} />
+                      {initialNotes.length > 0 && (
+                        <div className="mt-8 rounded-2xl border border-rule bg-surface p-4 shadow-[var(--shadow-soft)]">
+                          <StandaloneNotes notes={initialNotes} />
+                        </div>
+                      )}
+                    </>
+                  }
                 />
+              ) : (
+                <>
+                  <ArticleMetadata article={article} />
+
+                  {initialNotes.length > 0 && (
+                    <div className="mb-8 rounded-2xl border border-rule bg-surface p-4 shadow-[var(--shadow-soft)]">
+                      <StandaloneNotes notes={initialNotes} />
+                    </div>
+                  )}
+
+                  <ArticleContent
+                    content={article.content}
+                    fontSize={fontSize}
+                    contentRef={contentRef}
+                  />
+                </>
               )}
             </article>
           </div>
@@ -242,7 +286,7 @@ export function ArticleReader({
           />
         )}
 
-        {!isPdf && (
+        {showDocumentAudio && (
           <div
             className={cn(
               "reader-audio-dock reader-audio-dock-bottom pointer-events-none absolute inset-x-0 z-30 px-5 sm:px-8",

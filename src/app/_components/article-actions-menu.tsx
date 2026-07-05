@@ -22,8 +22,9 @@ import {
 import { ParaToggle } from "./para-toggle";
 import { cn } from "~/lib/utils";
 import {
+  hasExtractedText,
   isPdfArticle,
-  PDF_UNSUPPORTED_PARA_MESSAGE,
+  DOCUMENT_UNSUPPORTED_PARA_MESSAGE,
 } from "~/lib/article-content-kind";
 
 interface ArticleActionsMenuProps {
@@ -102,8 +103,8 @@ export function ArticleActionsMenu({
             articleTitle={article.title}
             isOnPara={isOnPara}
             variant="menu"
-            disabled={isPdfArticle(article)}
-            disabledReason={PDF_UNSUPPORTED_PARA_MESSAGE}
+            disabled={isPdfArticle(article) && !hasExtractedText(article)}
+            disabledReason={DOCUMENT_UNSUPPORTED_PARA_MESSAGE}
           />
 
           {article.isArchived ? (

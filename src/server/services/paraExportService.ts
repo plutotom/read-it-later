@@ -6,13 +6,17 @@ import {
   sanitizeTxtFilename,
 } from "~/server/lib/paraFilename";
 import { PARA_SIZE_WARNING_BYTES } from "~/lib/paraConstants";
-import { isPdfArticle, PDF_UNSUPPORTED_PARA_MESSAGE } from "~/lib/article-content-kind";
+import {
+  isDocumentArticle,
+  hasExtractedText,
+  DOCUMENT_UNSUPPORTED_PARA_MESSAGE,
+} from "~/lib/article-content-kind";
 import { buildParaTxtFromArticle } from "~/server/services/paraTextConverter";
 
 type Database = typeof Db;
 
 export class UnsupportedParaContentError extends Error {
-  constructor(message = PDF_UNSUPPORTED_PARA_MESSAGE) {
+  constructor(message = DOCUMENT_UNSUPPORTED_PARA_MESSAGE) {
     super(message);
     this.name = "UnsupportedParaContentError";
   }
@@ -113,7 +117,7 @@ export async function refreshExportFromArticle(
   exportRow: typeof paraExports.$inferSelect,
   article: typeof articles.$inferSelect,
 ): Promise<typeof paraExports.$inferSelect> {
-  if (isPdfArticle(article)) {
+  if (isDocumentArticle(article) && !hasExtractedText(article)) {
     return exportRow;
   }
 
@@ -177,7 +181,7 @@ export async function createParaExport(
     throw new Error("Article not found");
   }
 
-  if (isPdfArticle(article)) {
+  if (isDocumentArticle(article) && !hasExtractedText(article)) {
     throw new UnsupportedParaContentError();
   }
 

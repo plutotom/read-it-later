@@ -25,7 +25,14 @@ export interface Article {
   shareToken: string | null;
 }
 
-export type ArticleContentKind = "html" | "pdf" | "text";
+export type ArticleContentKind = "html" | "pdf" | "epub" | "text";
+
+export type DocumentExtractionStatus =
+  | "pending"
+  | "processing"
+  | "complete"
+  | "failed"
+  | "skipped";
 
 export interface ArticleMetadata {
   siteName?: string;
@@ -36,6 +43,34 @@ export interface ArticleMetadata {
   category?: string;
   /** How the article body should be rendered. Defaults to html when absent. */
   contentKind?: ArticleContentKind;
+
+  // Document storage (Phase 3+)
+  blobUrl?: string;
+  blobPath?: string;
+  mimeType?: string;
+  byteSize?: number;
+  originalFilename?: string;
+
+  // Extraction
+  extractionStatus?: DocumentExtractionStatus;
+  extractionError?: string;
+  extractedAt?: string;
+
+  // PDF-specific
+  pageCount?: number;
+
+  // EPUB-specific (Phase 3)
+  epubIdentifier?: string;
+  chapterCount?: number;
+  toc?: Array<{ title: string; href: string }>;
+
+  // Reading progress (client-synced)
+  readingPosition?: {
+    type: "pdf" | "epub";
+    page?: number;
+    cfi?: string;
+    percent?: number;
+  };
 }
 
 export interface ArticleCreateInput {

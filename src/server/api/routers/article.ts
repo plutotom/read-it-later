@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { eq } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import {
   createTRPCRouter,
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
 import { articles } from "~/server/db/schema";
-import { articleCreateFromTextSchema } from "~/schemas/article";
+import { articleCreateFromTextSchema, articleReExtractSchema } from "~/schemas/article";
 import {
   createArticleFromText,
   createArticleFromUrl,
@@ -14,6 +15,7 @@ import {
   generateShareLink,
   getArticle,
   listArticles,
+  reExtractArticle,
   updateArticle,
 } from "~/server/services/articleService";
 
@@ -54,6 +56,25 @@ export const articleRouter = createTRPCRouter({
     .input(articleCreateFromTextSchema)
     .mutation(async ({ ctx, input }) => {
       return createArticleFromText(ctx.db, ctx.session.user.id, input);
+    }),
+
+  reExtract: protectedProcedure
+    .input(articleReExtractSchema)
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await reExtractArticle(
+          ctx.db,
+          ctx.session.user.id,
+          input.articleId,
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Re-extraction failed";
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message,
+        });
+      }
     }),
 
   updateMetadata: protectedProcedure

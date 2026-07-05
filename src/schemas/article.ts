@@ -5,6 +5,11 @@
 
 import { z } from "zod";
 
+// Article re-extraction schema
+export const articleReExtractSchema = z.object({
+  articleId: z.string().uuid(),
+});
+
 // Base article schema
 export const articleSchema = z.object({
   id: z.string().uuid(),
@@ -32,6 +37,15 @@ export const articleSchema = z.object({
       imageUrl: z.string().url().optional(),
       language: z.string().length(2).optional(),
       category: z.string().max(100).optional(),
+      contentKind: z.enum(["html", "pdf", "epub", "text"]).optional(),
+      extractionStatus: z
+        .enum(["pending", "processing", "complete", "failed", "skipped"])
+        .optional(),
+      extractionError: z.string().max(1000).optional(),
+      extractedAt: z.string().datetime().optional(),
+      pageCount: z.number().int().min(0).optional(),
+      mimeType: z.string().max(200).optional(),
+      byteSize: z.number().int().min(0).optional(),
     })
     .optional(),
 });
@@ -74,6 +88,15 @@ export const articleUpdateSchema = z.object({
       imageUrl: z.string().url().optional(),
       language: z.string().length(2).optional(),
       category: z.string().max(100).optional(),
+      contentKind: z.enum(["html", "pdf", "epub", "text"]).optional(),
+      extractionStatus: z
+        .enum(["pending", "processing", "complete", "failed", "skipped"])
+        .optional(),
+      extractionError: z.string().max(1000).optional(),
+      extractedAt: z.string().datetime().optional(),
+      pageCount: z.number().int().min(0).optional(),
+      mimeType: z.string().max(200).optional(),
+      byteSize: z.number().int().min(0).optional(),
     })
     .optional(),
 });
@@ -116,6 +139,15 @@ export const articleExtractionResultSchema = z.object({
       imageUrl: z.string().url().optional(),
       language: z.string().length(2).optional(),
       category: z.string().max(100).optional(),
+      contentKind: z.enum(["html", "pdf", "epub", "text"]).optional(),
+      extractionStatus: z
+        .enum(["pending", "processing", "complete", "failed", "skipped"])
+        .optional(),
+      extractionError: z.string().max(1000).optional(),
+      extractedAt: z.string().datetime().optional(),
+      pageCount: z.number().int().min(0).optional(),
+      mimeType: z.string().max(200).optional(),
+      byteSize: z.number().int().min(0).optional(),
     })
     .optional(),
   wordCount: z.number().int().min(0),
@@ -123,6 +155,7 @@ export const articleExtractionResultSchema = z.object({
 });
 
 // Type exports for use in other files
+export type ArticleReExtractInput = z.infer<typeof articleReExtractSchema>;
 export type ArticleInput = z.infer<typeof articleSchema>;
 export type ArticleCreateInput = z.infer<typeof articleCreateSchema>;
 export type ArticleCreateFromTextInput = z.infer<

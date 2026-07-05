@@ -22,7 +22,7 @@ import {
   toWeightedCharacters,
 } from "~/lib/tts-voices";
 import { nanoid } from "nanoid";
-import { isPdfArticle, PDF_UNSUPPORTED_TTS_MESSAGE } from "~/lib/article-content-kind";
+import { isDocumentArticle, hasExtractedText, DOCUMENT_UNSUPPORTED_TTS_MESSAGE } from "~/lib/article-content-kind";
 
 /**
  * Get the current billing period in YYYY-MM format
@@ -107,11 +107,14 @@ function toArticleAudioPlaybackResponse(
   };
 }
 
-function assertArticleSupportsTts(article: { metadata?: unknown }) {
-  if (isPdfArticle(article)) {
+function assertArticleSupportsTts(article: {
+  content: string;
+  metadata?: unknown;
+}) {
+  if (isDocumentArticle(article) && !hasExtractedText(article)) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: PDF_UNSUPPORTED_TTS_MESSAGE,
+      message: DOCUMENT_UNSUPPORTED_TTS_MESSAGE,
     });
   }
 }
