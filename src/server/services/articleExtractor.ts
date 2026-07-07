@@ -9,6 +9,10 @@ import {
   countArticleWords,
   readingTimeFromWordCount,
 } from "~/server/lib/articleWordCount";
+import {
+  detectPdfResponse,
+  titleFromPdfUrl,
+} from "~/lib/pdf-detection";
 import type { ArticleExtractionResult } from "~/types/article";
 
 export class ArticleExtractor {
@@ -20,7 +24,6 @@ export class ArticleExtractor {
       // Validate URL
       const urlObj = new URL(url);
 
-      // Fetch the HTML content
       const response = await fetch(url, {
         headers: {
           "User-Agent":
@@ -34,7 +37,14 @@ export class ArticleExtractor {
         );
       }
 
-      const html = await response.text();
+      const body = await response.arrayBuffer();
+      const contentType = response.headers.get("content-type");
+
+      if (detectPdfResponse(url, contentType, body)) {
+        return this.getPdfExtractionData(url);
+      }
+
+      const html = new TextDecoder("utf-8", { fatal: false }).decode(body);
       const extracted = this.parseWithReadability(html, url);
 
       return extracted;
@@ -327,6 +337,31 @@ export class ArticleExtractor {
         .replace(/>\s+</g, "><")
         .trim()
     );
+  }
+
+  /**
+   * Placeholder extraction for direct PDF links.
+   * The reader shows a dedicated PDF state instead of parsed content.
+   */
+  private static getPdfExtractionData(url: string): ArticleExtractionResult {
+    const urlObj = new URL(url);
+    const title = this.cleanText(titleFromPdfUrl(url));
+
+    return {
+      title,
+      content: "",
+      excerpt: "PDF document",
+      author: undefined,
+      publishedAt: undefined,
+      wordCount: 0,
+      readingTime: 0,
+      metadata: {
+        siteName: urlObj.hostname,
+        siteUrl: urlObj.origin,
+        description: "PDF document — open the original link to view.",
+        contentKind: "pdf",
+      },
+    };
   }
 
   /**

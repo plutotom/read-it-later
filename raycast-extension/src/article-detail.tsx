@@ -1,6 +1,7 @@
 import { Action, ActionPanel, Detail, Icon } from "@raycast/api";
 import { usePromise } from "@raycast/utils";
 import { getArticleContent } from "./api";
+import { getArticleOpenUrl, isManualArticleUrl } from "./article-urls";
 import type { Article } from "./types";
 
 function formatReadingTime(article: Article): string | undefined {
@@ -18,6 +19,8 @@ export function ArticleDetail({ article }: { article: Article }) {
   const markdown = `# ${article.title}\n\n${body}`;
 
   const readingTime = formatReadingTime(article);
+  const openUrl = getArticleOpenUrl(article);
+  const isManual = isManualArticleUrl(article.url);
 
   return (
     <Detail
@@ -41,13 +44,20 @@ export function ArticleDetail({ article }: { article: Article }) {
             </Detail.Metadata.TagList>
           ) : null}
           <Detail.Metadata.Separator />
-          <Detail.Metadata.Link title="Original" target={article.url} text={article.url} />
+          <Detail.Metadata.Link
+            title={isManual ? "On RIL" : "Original"}
+            target={openUrl}
+            text={openUrl}
+          />
         </Detail.Metadata>
       }
       actions={
         <ActionPanel>
-          <Action.OpenInBrowser url={article.url} title="Open Original URL" />
-          <Action.CopyToClipboard content={article.url} title="Copy URL" />
+          <Action.OpenInBrowser
+            url={openUrl}
+            title={isManual ? "Open on RIL" : "Open Original URL"}
+          />
+          <Action.CopyToClipboard content={openUrl} title="Copy URL" />
         </ActionPanel>
       }
     />

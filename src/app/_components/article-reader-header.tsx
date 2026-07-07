@@ -38,6 +38,10 @@ import { ParaToggle } from "./para-toggle";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { useDeleteArticle } from "../_hooks/use-delete-article";
 import { cn } from "~/lib/utils";
+import {
+  isPdfArticle,
+  PDF_UNSUPPORTED_PARA_MESSAGE,
+} from "~/lib/article-content-kind";
 
 interface ArticleReaderHeaderProps {
   article: Article;
@@ -120,9 +124,11 @@ export function ArticleReaderHeader({
     }
   })();
 
-  const readingTime = article.readingTime
-    ? `${article.readingTime} min`
-    : "Saved";
+  const readingTime = isPdfArticle(article)
+    ? "PDF"
+    : article.readingTime
+      ? `${article.readingTime} min`
+      : "Saved";
 
   return (
     <div className="bg-background/90 border-rule sticky top-0 z-20 border-b backdrop-blur-xl">
@@ -216,6 +222,8 @@ export function ArticleReaderHeader({
                 articleId={article.id}
                 articleTitle={article.title}
                 variant="menu"
+                disabled={isPdfArticle(article)}
+                disabledReason={PDF_UNSUPPORTED_PARA_MESSAGE}
               />
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -243,6 +251,8 @@ export function ArticleReaderHeader({
                 articleId={article.id}
                 articleTitle={article.title}
                 className="px-1 py-2"
+                disabled={isPdfArticle(article)}
+                disabledReason={PDF_UNSUPPORTED_PARA_MESSAGE}
               />
             </div>
           </div>
