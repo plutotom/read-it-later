@@ -50,3 +50,5 @@ JSON.json
 # Serwist generated files
 public/sw*
 public/swe-worker*
+
+/public/pdfjs/*
