@@ -1,7 +1,7 @@
 "use client";
 
 import { type Article } from "~/types/article";
-import { useContext, useState } from "react";
+import { useContext, useState, type PointerEvent } from "react";
 import { GeneralContext } from "../(protected)/contexts/general-context";
 import { Button } from "~/components/ui/button";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
@@ -49,11 +49,18 @@ export function ArticleActionsMenu({
   className,
 }: ArticleActionsMenuProps) {
   const { setMetadataEditArticle } = useContext(GeneralContext);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  // Radix closes the menu on pointer-up; without this, the click can fall through
+  // to the article row underneath and navigate/open the article.
+  const preventMenuClickThrough = (event: PointerEvent) => {
+    event.preventDefault();
+  };
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -65,6 +72,7 @@ export function ArticleActionsMenu({
               className,
             )}
             onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             aria-label="Article actions"
           >
             <MoreVertical className="h-4 w-4" />
@@ -72,6 +80,7 @@ export function ArticleActionsMenu({
         </DropdownMenuTrigger>
         <DropdownMenuContent align={align} className="w-48">
           <DropdownMenuItem
+            onPointerDown={preventMenuClickThrough}
             onClick={(e) => {
               e.stopPropagation();
               window.open(article.url, "_blank");
@@ -84,6 +93,7 @@ export function ArticleActionsMenu({
           <DropdownMenuSeparator />
 
           <DropdownMenuItem
+            onPointerDown={preventMenuClickThrough}
             onClick={(e) => {
               e.stopPropagation();
               setMetadataEditArticle({
@@ -108,6 +118,7 @@ export function ArticleActionsMenu({
 
           {article.isArchived ? (
             <DropdownMenuItem
+              onPointerDown={preventMenuClickThrough}
               onClick={(e) => {
                 e.stopPropagation();
                 onUnarchive?.();
@@ -118,6 +129,7 @@ export function ArticleActionsMenu({
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem
+              onPointerDown={preventMenuClickThrough}
               onClick={(e) => {
                 e.stopPropagation();
                 onArchive?.();
@@ -129,7 +141,12 @@ export function ArticleActionsMenu({
           )}
 
           <DropdownMenuItem
-            onSelect={() => setDeleteConfirmOpen(true)}
+            onPointerDown={preventMenuClickThrough}
+            onSelect={(event) => {
+              event.preventDefault();
+              setMenuOpen(false);
+              setDeleteConfirmOpen(true);
+            }}
             className="text-red-400 focus:bg-red-900/30 focus:text-red-400"
           >
             <Trash2 className="mr-2 h-4 w-4" />
