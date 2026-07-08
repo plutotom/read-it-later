@@ -9,10 +9,8 @@ import {
   countArticleWords,
   readingTimeFromWordCount,
 } from "~/server/lib/articleWordCount";
-import {
-  detectPdfResponse,
-  titleFromPdfUrl,
-} from "~/lib/pdf-detection";
+import { detectPdfResponse, titleFromPdfUrl } from "~/lib/pdf-detection";
+import { normalizeArticleUrl } from "~/lib/article-url";
 import {
   DocumentExtractionError,
   extractDocument,
@@ -28,11 +26,13 @@ export class ArticleExtractor {
    * Extract article content from a URL using Mozilla Readability
    */
   static async extractFromUrl(url: string): Promise<ArticleExtractionResult> {
+    const normalizedUrl = normalizeArticleUrl(url);
+
     try {
       // Validate URL
-      new URL(url);
+      new URL(normalizedUrl);
 
-      const response = await fetch(url, {
+      const response = await fetch(normalizedUrl, {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (compatible; ReadItLater/1.0; +https://github.com/mozilla/readability)",
@@ -48,19 +48,23 @@ export class ArticleExtractor {
       const body = await response.arrayBuffer();
       const contentType = response.headers.get("content-type");
 
-      if (detectPdfResponse(url, contentType, body)) {
-        return await this.getPdfExtractionData(url, body, contentType);
+      if (detectPdfResponse(normalizedUrl, contentType, body)) {
+        return await this.getPdfExtractionData(
+          normalizedUrl,
+          body,
+          contentType,
+        );
       }
 
       const html = new TextDecoder("utf-8", { fatal: false }).decode(body);
-      const extracted = this.parseWithReadability(html, url);
+      const extracted = this.parseWithReadability(html, normalizedUrl);
 
       return extracted;
     } catch (error) {
       console.error("Error extracting article:", error);
 
       // Return fallback data on error
-      return this.getFallbackData(url);
+      return this.getFallbackData(normalizedUrl);
     }
   }
 
@@ -178,7 +182,10 @@ export class ArticleExtractor {
 
     // Basic metadata extraction
     const titleMatch = /<title[^>]*>([^<]+)<\/title>/i.exec(html);
-    const ogTitleMatch = /<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i.exec(html);
+    const ogTitleMatch =
+      /<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i.exec(
+        html,
+      );
     const title =
       ogTitleMatch?.[1] ?? titleMatch?.[1] ?? `Article from ${urlObj.hostname}`;
 
@@ -220,15 +227,31 @@ export class ArticleExtractor {
    * Extract metadata from HTML
    */
   private static extractMetadata(html: string, urlObj: URL) {
-    const descMatch = /<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i.exec(html);
-    const ogDescMatch = /<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i.exec(html);
-    const authorMatch = /<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i.exec(html);
-    const siteNameMatch = /<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i.exec(html);
-    const imageMatch = /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i.exec(html);
+    const descMatch =
+      /<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i.exec(
+        html,
+      );
+    const ogDescMatch =
+      /<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i.exec(
+        html,
+      );
+    const authorMatch =
+      /<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i.exec(html);
+    const siteNameMatch =
+      /<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i.exec(
+        html,
+      );
+    const imageMatch =
+      /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i.exec(
+        html,
+      );
     const languageMatch = /<html[^>]*lang=["']([^"']+)["']/i.exec(html);
 
     let publishedAt: Date | undefined;
-    const dateMatch = /<meta[^>]*property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i.exec(html);
+    const dateMatch =
+      /<meta[^>]*property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i.exec(
+        html,
+      );
     if (dateMatch?.[1]) {
       publishedAt = new Date(dateMatch[1]);
     }

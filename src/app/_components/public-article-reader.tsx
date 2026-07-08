@@ -51,8 +51,11 @@ export function PublicArticleReader({
       hideScrollAccumulatorRef.current = 0;
     }
   }, []);
-  const { isOpen: isTocOpen, close: closeToc, open: openToc } =
-    useTocOpenPreference();
+  const {
+    isOpen: isTocOpen,
+    close: closeToc,
+    open: openToc,
+  } = useTocOpenPreference();
   const tocContentKey = `${article.id}:${DEFAULT_FONT_SIZE}:${article.content.length}`;
   const { headings, activeId, scrollToHeading, hasToc } = useArticleToc({
     contentRef,
@@ -65,21 +68,19 @@ export function PublicArticleReader({
     return meta?.imageUrl ?? null;
   })();
   const isPdf = isPdfArticle(article);
-  const showExtractionWarning = isPdf && documentNeedsExtractionWarning(article);
+  const showExtractionWarning =
+    isPdf && documentNeedsExtractionWarning(article);
 
-  const handleJumpToReadingPosition = useCallback(
-    (progressRatio: number) => {
-      const scroller = scrollerRef.current;
-      if (!scroller) return;
-      const maxScroll = scroller.scrollHeight - scroller.clientHeight;
-      if (maxScroll <= 0) return;
-      scroller.scrollTo({
-        top: maxScroll * Math.min(1, Math.max(0, progressRatio)),
-        behavior: "smooth",
-      });
-    },
-    [],
-  );
+  const handleJumpToReadingPosition = useCallback((progressRatio: number) => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+    if (maxScroll <= 0) return;
+    scroller.scrollTo({
+      top: maxScroll * Math.min(1, Math.max(0, progressRatio)),
+      behavior: "smooth",
+    });
+  }, []);
 
   useEffect(() => {
     lastScrollTopRef.current = 0;
@@ -125,8 +126,8 @@ export function PublicArticleReader({
   const readingProgress = isPdf ? pdfProgress : progress;
 
   return (
-    <div className="relative flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)]">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden m-slide-in">
+    <div className="bg-background relative flex h-dvh max-h-dvh w-full flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)]">
+      <div className="m-slide-in flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <PublicArticleReaderHeader
           article={article}
           hasToc={hasToc}
@@ -134,9 +135,9 @@ export function PublicArticleReader({
           onOpenToc={openToc}
         />
 
-        <div className="h-[2px] bg-background-deep">
+        <div className="bg-background-deep h-[2px]">
           <div
-            className="h-full bg-accent transition-[width] duration-150 ease-out"
+            className="bg-accent h-full transition-[width] duration-150 ease-out"
             style={{ width: `${readingProgress}%` }}
           />
         </div>
@@ -144,17 +145,17 @@ export function PublicArticleReader({
         <div
           ref={isPdf ? undefined : scrollerRef}
           className={cn(
-            "min-h-0 min-w-0 flex-1 px-5 pb-36 pt-8 sm:px-8 sm:pt-12 sm:pb-40",
+            "min-h-0 min-w-0 flex-1 pt-8 pb-36 sm:pt-12 sm:pb-40",
             isPdf
-              ? "flex flex-col overflow-hidden"
-              : "scroll-pt-24 overflow-x-hidden overflow-y-auto",
+              ? "flex flex-col overflow-hidden px-3 sm:px-6"
+              : "scroll-pt-24 overflow-x-hidden overflow-y-auto px-5 sm:px-8",
           )}
         >
           <article
             className={cn(
-              "mx-auto min-w-0",
+              "mx-auto w-full min-w-0",
               isPdf
-                ? "flex max-w-4xl min-h-0 flex-1 flex-col"
+                ? "flex min-h-0 max-w-7xl flex-1 flex-col"
                 : "max-w-[640px]",
             )}
           >
@@ -164,6 +165,8 @@ export function PublicArticleReader({
                 streamUrl={`/api/documents/${article.id}/stream?shareToken=${encodeURIComponent(shareToken)}`}
                 originalUrl={article.url}
                 title={article.title}
+                extractedText={article.content}
+                readingPositionKey={article.id}
                 onProgressChange={setPdfProgress}
                 header={
                   <>

@@ -13,6 +13,7 @@ import { articles, paraExports } from "~/server/db/schema";
 import { normalizeManualArticleContent } from "~/server/services/articleContentNormalizer";
 import { ArticleExtractor } from "~/server/services/articleExtractor";
 import { refreshExportFromArticle } from "~/server/services/paraExportService";
+import { normalizeArticleUrl } from "~/lib/article-url";
 import { isPdfArticle } from "~/lib/article-content-kind";
 import type { ArticleMetadata } from "~/types/article";
 import {
@@ -106,13 +107,13 @@ export async function listArticles(
     }
     // (createdAt, id) descending keyset pagination
     const keyset = or(
-        lt(articles.createdAt, decoded.createdAt),
-        and(
-          eq(articles.createdAt, decoded.createdAt),
-          lt(articles.id, decoded.id),
-        ),
-      );
-      if (keyset) conditions.push(keyset);
+      lt(articles.createdAt, decoded.createdAt),
+      and(
+        eq(articles.createdAt, decoded.createdAt),
+        lt(articles.id, decoded.id),
+      ),
+    );
+    if (keyset) conditions.push(keyset);
   }
 
   const limit = opts.limit;
@@ -151,13 +152,14 @@ export async function createArticleFromUrl(
   userId: string,
   input: ArticleCreateInput,
 ): Promise<Article> {
-  const extracted = await ArticleExtractor.extractFromUrl(input.url);
+  const url = normalizeArticleUrl(input.url);
+  const extracted = await ArticleExtractor.extractFromUrl(url);
 
   const [created] = await db
     .insert(articles)
     .values({
       userId,
-      url: input.url,
+      url,
       title: extracted.title,
       content: extracted.content,
       excerpt: extracted.excerpt ?? null,
@@ -183,7 +185,9 @@ export async function createArticleFromText(
   const placeholderUrl = `text://manual-${Date.now()}-${Math.random()
     .toString(36)
     .slice(2, 11)}`;
-  const articleUrl = input.url ?? placeholderUrl;
+  const articleUrl = input.url
+    ? normalizeArticleUrl(input.url)
+    : placeholderUrl;
   const htmlContent = normalizeManualArticleContent(input.content);
 
   const dom = new JSDOM(htmlContent);
@@ -194,8 +198,7 @@ export async function createArticleFromText(
 
   const firstParagraph = document.querySelector("p");
   const excerpt =
-    firstParagraph?.textContent?.trim() ??
-    plainText.substring(0, 200).trim();
+    firstParagraph?.textContent?.trim() ?? plainText.substring(0, 200).trim();
 
   const [created] = await db
     .insert(articles)
@@ -243,7 +246,7 @@ export async function updateArticle(
 ): Promise<Article | undefined> {
   const updateData: Partial<typeof articles.$inferInsert> = {};
   if (patch.title !== undefined) updateData.title = patch.title;
-  if (patch.url !== undefined) updateData.url = patch.url;
+  if (patch.url !== undefined) updateData.url = normalizeArticleUrl(patch.url);
   if (patch.folderId !== undefined) updateData.folderId = patch.folderId;
   if (patch.tags !== undefined) updateData.tags = patch.tags;
   if (patch.isFavorite !== undefined) updateData.isFavorite = patch.isFavorite;
@@ -292,7 +295,8 @@ export async function reExtractArticle(
     throw new Error("Re-extraction is only supported for PDF articles");
   }
 
-  const response = await fetch(article.url, {
+  const url = normalizeArticleUrl(article.url);
+  const response = await fetch(url, {
     headers: {
       "User-Agent":
         "Mozilla/5.0 (compatible; ReadItLater/1.0; +https://github.com/mozilla/readability)",
@@ -308,7 +312,7 @@ export async function reExtractArticle(
   const body = await response.arrayBuffer();
   const contentType = response.headers.get("content-type");
   const extracted = await ArticleExtractor.extractPdfFromBuffer(
-    article.url,
+    url,
     body,
     contentType,
   );
@@ -322,6 +326,7 @@ export async function reExtractArticle(
     .update(articles)
     .set({
       title: extracted.title,
+      url,
       content: extracted.content,
       excerpt: extracted.excerpt ?? null,
       author: extracted.author ?? null,
