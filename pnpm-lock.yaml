@@ -140,15 +140,12 @@ importers:
       react-dom:
         specifier: ^19.2.1
         version: 19.2.1(react@19.2.1)
-<<<<<<< HEAD
-      resend:
-        specifier: ^6.17.1
-        version: 6.17.1
-=======
       react-pdf:
         specifier: ^10.4.1
         version: 10.4.1(@types/react@19.2.7)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
->>>>>>> main
+      resend:
+        specifier: ^6.17.1
+        version: 6.17.1
       server-only:
         specifier: ^0.0.1
         version: 0.0.1

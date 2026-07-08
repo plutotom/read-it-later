@@ -43,6 +43,7 @@ import {
   hasExtractedText,
   isPdfArticle,
   DOCUMENT_UNSUPPORTED_PARA_MESSAGE,
+  PDF_UNSUPPORTED_PARA_MESSAGE,
 } from "~/lib/article-content-kind";
 
 interface ArticleReaderHeaderProps {
