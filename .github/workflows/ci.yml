@@ -1,0 +1,51 @@
+name: ci
+
+# Validation backstop: every PR into main must be green before it can merge.
+# This is what lets an AI agent push a branch and have its work checked
+# automatically, independent of whether the agent remembered to run anything.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      # Build validates the app compiles. Env-var validation is skipped here so
+      # CI doesn't need real secrets; runtime env is validated on the actual
+      # Vercel deployment instead.
+      - name: Build
+        run: pnpm build
+        env:
+          SKIP_ENV_VALIDATION: "1"

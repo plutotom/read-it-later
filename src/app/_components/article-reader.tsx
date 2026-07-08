@@ -5,7 +5,10 @@
 
 "use client";
 
-import { type Article, type ArticleMetadata as ArticleMeta } from "~/types/article";
+import {
+  type Article,
+  type ArticleMetadata as ArticleMeta,
+} from "~/types/article";
 import { type Note } from "~/types/annotation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ArticleReaderHeader } from "./article-reader-header";
@@ -22,8 +25,13 @@ import {
   type RelocatedHighlight,
 } from "~/hooks/use-highlight-painter";
 import { HighlightToolbar } from "./highlight-toolbar";
-import { ArticlePdfPlaceholder } from "./article-pdf-placeholder";
-import { isPdfArticle } from "~/lib/article-content-kind";
+import { PdfViewer } from "./pdf-viewer-dynamic";
+import {
+  documentNeedsExtractionWarning,
+  hasExtractedText,
+  isPdfArticle,
+} from "~/lib/article-content-kind";
+import { DocumentExtractionBanner } from "./document-extraction-banner";
 
 interface ArticleReaderProps {
   article: Article;
@@ -47,6 +55,7 @@ export function ArticleReader({
   const lastScrollTopRef = useRef(0);
   const hideScrollAccumulatorRef = useRef(0);
   const [progress, setProgress] = useState(0);
+  const [pdfProgress, setPdfProgress] = useState(0);
   const [isPlayerVisible, setIsPlayerVisible] = useState(true);
   const isAudioPlayingRef = useRef(false);
 
@@ -63,20 +72,20 @@ export function ArticleReader({
     return meta?.imageUrl ?? null;
   })();
   const isPdf = isPdfArticle(article);
+  const showDocumentAudio = !isPdf || hasExtractedText(article);
+  const showExtractionWarning =
+    isPdf && documentNeedsExtractionWarning(article);
 
-  const handleJumpToReadingPosition = useCallback(
-    (progressRatio: number) => {
-      const scroller = scrollerRef.current;
-      if (!scroller) return;
-      const maxScroll = scroller.scrollHeight - scroller.clientHeight;
-      if (maxScroll <= 0) return;
-      scroller.scrollTo({
-        top: maxScroll * Math.min(1, Math.max(0, progressRatio)),
-        behavior: "smooth",
-      });
-    },
-    [],
-  );
+  const handleJumpToReadingPosition = useCallback((progressRatio: number) => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+    if (maxScroll <= 0) return;
+    scroller.scrollTo({
+      top: maxScroll * Math.min(1, Math.max(0, progressRatio)),
+      behavior: "smooth",
+    });
+  }, []);
 
   // Highlights: load, paint via the CSS Custom Highlight API, and create from
   // selection. Painting re-resolves only when the list or content changes.
@@ -105,8 +114,11 @@ export function ArticleReader({
     onRelocated: handleRelocated,
   });
 
-  const { isOpen: isTocOpen, close: closeToc, open: openToc } =
-    useTocOpenPreference();
+  const {
+    isOpen: isTocOpen,
+    close: closeToc,
+    open: openToc,
+  } = useTocOpenPreference();
   const tocContentKey = `${article.id}:${fontSize}:${article.content.length}`;
   const { headings, activeId, scrollToHeading, hasToc } = useArticleToc({
     contentRef,
@@ -139,11 +151,12 @@ export function ArticleReader({
     hideScrollAccumulatorRef.current = 0;
     isAudioPlayingRef.current = false;
     setIsPlayerVisible(true);
+    setPdfProgress(0);
   }, [article.id]);
 
   useEffect(() => {
     const el = scrollerRef.current;
-    if (!el) return;
+    if (!el || isPdf) return;
 
     const onScroll = () => {
       const scrollTop = el.scrollTop;
@@ -172,104 +185,141 @@ export function ArticleReader({
     onScroll();
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, [article.id]);
+  }, [article.id, isPdf]);
+
+  const readingProgress = isPdf ? pdfProgress : progress;
 
   return (
-    <div className="relative flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)]">
-        {/* m-slide-in uses transform; keep fixed/absolute docks outside it (iOS Safari) */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden m-slide-in">
-          <ArticleReaderHeader
-            article={article}
-            showSettings={showSettings}
-            onToggleSettings={() => setShowSettings(!showSettings)}
-            fontSize={fontSize}
-            onFontSizeChange={setFontSize}
-            hasToc={hasToc}
-            isTocOpen={isTocOpen}
-            onOpenToc={openToc}
-            returnTo={returnTo}
-          />
+    <div className="bg-background relative flex h-dvh max-h-dvh w-full flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)]">
+      {/* m-slide-in uses transform; keep fixed/absolute docks outside it (iOS Safari) */}
+      <div className="m-slide-in flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <ArticleReaderHeader
+          article={article}
+          showSettings={showSettings}
+          onToggleSettings={() => setShowSettings(!showSettings)}
+          fontSize={fontSize}
+          onFontSizeChange={setFontSize}
+          hasToc={hasToc}
+          isTocOpen={isTocOpen}
+          onOpenToc={openToc}
+          returnTo={returnTo}
+        />
 
-          <div className="h-[2px] bg-background-deep">
-            <div
-              className="h-full bg-accent transition-[width] duration-150 ease-out"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-
+        <div className="bg-background-deep h-[2px]">
           <div
-            ref={scrollerRef}
-            className="min-h-0 min-w-0 flex-1 scroll-pt-24 overflow-x-hidden overflow-y-auto px-5 pt-8 pb-36 sm:px-8 sm:pt-12 sm:pb-40"
+            className="bg-accent h-full transition-[width] duration-150 ease-out"
+            style={{ width: `${readingProgress}%` }}
+          />
+        </div>
+
+        <div
+          ref={isPdf ? undefined : scrollerRef}
+          className={cn(
+            "min-h-0 min-w-0 flex-1 pt-8 pb-36 sm:pt-12 sm:pb-40",
+            isPdf
+              ? "flex flex-col overflow-hidden px-3 sm:px-6"
+              : "scroll-pt-24 overflow-x-hidden overflow-y-auto px-5 sm:px-8",
+          )}
+        >
+          <article
+            className={cn(
+              "mx-auto w-full min-w-0",
+              isPdf
+                ? "flex min-h-0 max-w-7xl flex-1 flex-col"
+                : "max-w-[640px]",
+            )}
           >
-            <article className="mx-auto min-w-0 max-w-[640px]">
-              <ArticleMetadata article={article} />
+            {isPdf ? (
+              <PdfViewer
+                className="min-h-0 flex-1"
+                streamUrl={`/api/documents/${article.id}/stream`}
+                originalUrl={article.url}
+                title={article.title}
+                extractedText={article.content}
+                readingPositionKey={article.id}
+                onProgressChange={setPdfProgress}
+                header={
+                  <>
+                    {showExtractionWarning && (
+                      <DocumentExtractionBanner article={article} />
+                    )}
+                    <ArticleMetadata article={article} />
+                    {initialNotes.length > 0 && (
+                      <div className="border-rule bg-surface mt-8 rounded-2xl border p-4 shadow-[var(--shadow-soft)]">
+                        <StandaloneNotes notes={initialNotes} />
+                      </div>
+                    )}
+                  </>
+                }
+              />
+            ) : (
+              <>
+                <ArticleMetadata article={article} />
 
-              {initialNotes.length > 0 && (
-                <div className="mb-8 rounded-2xl border border-rule bg-surface p-4 shadow-[var(--shadow-soft)]">
-                  <StandaloneNotes notes={initialNotes} />
-                </div>
-              )}
+                {initialNotes.length > 0 && (
+                  <div className="border-rule bg-surface mb-8 rounded-2xl border p-4 shadow-[var(--shadow-soft)]">
+                    <StandaloneNotes notes={initialNotes} />
+                  </div>
+                )}
 
-              {isPdf ? (
-                <ArticlePdfPlaceholder url={article.url} title={article.title} />
-              ) : (
                 <ArticleContent
                   content={article.content}
                   fontSize={fontSize}
                   contentRef={contentRef}
                 />
-              )}
-            </article>
-          </div>
+              </>
+            )}
+          </article>
         </div>
+      </div>
 
-        {!isPdf && (
-          <HighlightToolbar
-            contentRef={contentRef}
-            onCreate={({ color, ...anchor }) =>
-              createHighlight({ articleId: article.id, color, ...anchor })
-            }
-          />
-        )}
+      {!isPdf && (
+        <HighlightToolbar
+          contentRef={contentRef}
+          onCreate={({ color, ...anchor }) =>
+            createHighlight({ articleId: article.id, color, ...anchor })
+          }
+        />
+      )}
 
-        {hasToc && !isPdf && (
-          <ArticleTableOfContents
-            headings={headings}
-            activeId={activeId}
-            isOpen={isTocOpen}
-            onClose={closeToc}
-            onNavigate={scrollToHeading}
-          />
-        )}
+      {hasToc && !isPdf && (
+        <ArticleTableOfContents
+          headings={headings}
+          activeId={activeId}
+          isOpen={isTocOpen}
+          onClose={closeToc}
+          onNavigate={scrollToHeading}
+        />
+      )}
 
-        {!isPdf && (
+      {showDocumentAudio && (
+        <div
+          className={cn(
+            "reader-audio-dock reader-audio-dock-bottom pointer-events-none absolute inset-x-0 z-30 px-5 sm:px-8",
+            isPlayerVisible
+              ? "reader-audio-dock--visible"
+              : "reader-audio-dock--hidden",
+          )}
+        >
           <div
+            key={article.id}
             className={cn(
-              "reader-audio-dock reader-audio-dock-bottom pointer-events-none absolute inset-x-0 z-30 px-5 sm:px-8",
-              isPlayerVisible
-                ? "reader-audio-dock--visible"
-                : "reader-audio-dock--hidden",
+              "reader-audio-dock__inner reader-audio-dock__inner--enter mx-auto max-w-[640px]",
+              isPlayerVisible ? "pointer-events-auto" : "pointer-events-none",
             )}
           >
-            <div
-              key={article.id}
-              className={cn(
-                "reader-audio-dock__inner reader-audio-dock__inner--enter mx-auto max-w-[640px]",
-                isPlayerVisible ? "pointer-events-auto" : "pointer-events-none",
-              )}
-            >
-              <AudioPlayer
-                articleId={article.id}
-                articleTitle={article.title}
-                articleUrl={article.url}
-                articleAuthor={article.author}
-                articleImageUrl={articleImageUrl}
-                onJumpToReadingPosition={handleJumpToReadingPosition}
-                onPlayingChange={handlePlayingChange}
-              />
-            </div>
+            <AudioPlayer
+              articleId={article.id}
+              articleTitle={article.title}
+              articleUrl={article.url}
+              articleAuthor={article.author}
+              articleImageUrl={articleImageUrl}
+              onJumpToReadingPosition={handleJumpToReadingPosition}
+              onPlayingChange={handlePlayingChange}
+            />
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
 }

@@ -10,11 +10,19 @@ import { ArticleCard } from "./article-card";
 import { ArticleActionsMenu } from "./article-actions-menu";
 import { ParaBadge } from "./para-badge";
 import { KindleBadge } from "./kindle-badge";
+import { PdfBadge } from "./pdf-badge";
 import { SearchBar } from "./search-bar";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useRouter } from "next/navigation";
 import { truncateText } from "~/lib/text-utils";
 import { api } from "~/trpc/react";
+import { isPdfArticle } from "~/lib/article-content-kind";
 
 const HERO_TITLE_MAX_CHARS = 100;
 const HERO_EXCERPT_MAX_CHARS = 180;
@@ -85,9 +93,14 @@ export function ArticleList({
     searchQuery.trim().length === 0 && filteredArticles.length > 0
       ? filteredArticles[0]
       : null;
-  const listArticles = heroArticle ? filteredArticles.slice(1) : filteredArticles;
+  const listArticles = heroArticle
+    ? filteredArticles.slice(1)
+    : filteredArticles;
   const visibleArticles = listArticles.slice(0, visibleCount);
-  const remainingCount = Math.max(0, listArticles.length - visibleArticles.length);
+  const remainingCount = Math.max(
+    0,
+    listArticles.length - visibleArticles.length,
+  );
 
   const articleIds = useMemo(
     () => filteredArticles.map((article) => article.id),
@@ -130,11 +143,11 @@ export function ArticleList({
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
-            className="animate-pulse rounded-2xl border border-rule bg-surface px-5 py-5"
+            className="border-rule bg-surface animate-pulse rounded-2xl border px-5 py-5"
           >
-            <div className="mb-3 h-5 w-3/4 rounded bg-background-deep"></div>
-            <div className="mb-2 h-3 w-full rounded bg-background-deep"></div>
-            <div className="h-3 w-2/3 rounded bg-background-deep"></div>
+            <div className="bg-background-deep mb-3 h-5 w-3/4 rounded"></div>
+            <div className="bg-background-deep mb-2 h-3 w-full rounded"></div>
+            <div className="bg-background-deep h-3 w-2/3 rounded"></div>
           </div>
         ))}
       </div>
@@ -144,7 +157,7 @@ export function ArticleList({
   return (
     <div className="flex h-full w-full flex-col gap-4">
       {showSearch && (
-        <div className="sticky top-14 z-20 -mx-4 border-b border-rule bg-background/90 px-4 py-3 backdrop-blur-xl sm:top-14 sm:mx-0 sm:rounded-t-2xl">
+        <div className="border-rule bg-background/90 sticky top-14 z-20 -mx-4 border-b px-4 py-3 backdrop-blur-xl sm:top-14 sm:mx-0 sm:rounded-t-2xl">
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
@@ -156,7 +169,7 @@ export function ArticleList({
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="rounded-full border border-rule bg-surface px-3 py-1.5 text-sm text-foreground outline-none transition focus:ring-2 focus:ring-ring/30"
+                className="border-rule bg-surface text-foreground focus:ring-ring/30 rounded-full border px-3 py-1.5 text-sm transition outline-none focus:ring-2"
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -169,10 +182,10 @@ export function ArticleList({
 
       <div className="flex-1 overflow-y-auto pb-8">
         {filteredArticles.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-rule bg-surface p-8 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-background-deep">
+          <div className="border-rule bg-surface flex h-full flex-col items-center justify-center rounded-2xl border p-8 text-center">
+            <div className="bg-background-deep mb-4 flex h-16 w-16 items-center justify-center rounded-full">
               <svg
-                className="h-8 w-8 text-muted-foreground"
+                className="text-muted-foreground h-8 w-8"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -186,12 +199,12 @@ export function ArticleList({
               </svg>
             </div>
             <h3
-              className="mb-2 text-2xl font-medium tracking-tight text-foreground"
+              className="text-foreground mb-2 text-2xl font-medium tracking-tight"
               style={{ fontFamily: "var(--font-app-display)" }}
             >
               {searchQuery ? "No articles found" : "No articles yet"}
             </h3>
-            <p className="max-w-sm text-sm leading-relaxed text-foreground-soft">
+            <p className="text-foreground-soft max-w-sm text-sm leading-relaxed">
               {searchQuery
                 ? "Try adjusting your search terms or filters"
                 : "Start by adding your first article to read later"}
@@ -200,7 +213,7 @@ export function ArticleList({
         ) : (
           <div className="space-y-4">
             {heroArticle && (
-              <div className="group relative overflow-hidden rounded-2xl border border-rule bg-surface transition hover:-translate-y-0.5 hover:shadow-soft">
+              <div className="group border-rule bg-surface hover:shadow-soft relative overflow-hidden rounded-2xl border transition hover:-translate-y-0.5">
                 <button
                   type="button"
                   onClick={() => onArticleClick?.(heroArticle)}
@@ -210,24 +223,24 @@ export function ArticleList({
                 >
                   <div className="grid min-h-[240px] grid-cols-1 sm:grid-cols-[1.2fr_0.8fr]">
                     <div className="p-5 sm:p-7">
-                      <div className="text-xs tracking-[0.18em] text-muted-foreground uppercase">
+                      <div className="text-muted-foreground text-xs tracking-[0.18em] uppercase">
                         Continue reading
                       </div>
                       <h2
-                        className="mt-3 line-clamp-3 break-words text-3xl leading-[1.05] font-medium tracking-tight text-foreground sm:text-4xl"
+                        className="text-foreground mt-3 line-clamp-3 text-3xl leading-[1.05] font-medium tracking-tight break-words sm:text-4xl"
                         style={{ fontFamily: "var(--font-app-display)" }}
                       >
                         {truncateText(heroArticle.title, HERO_TITLE_MAX_CHARS)}
                       </h2>
                       {heroArticle.excerpt && (
-                        <p className="mt-3 line-clamp-4 max-w-xl break-words text-[15px] leading-relaxed text-foreground-soft">
+                        <p className="text-foreground-soft mt-3 line-clamp-4 max-w-xl text-[15px] leading-relaxed break-words">
                           {truncateText(
                             heroArticle.excerpt,
                             HERO_EXCERPT_MAX_CHARS,
                           )}
                         </p>
                       )}
-                      <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <div className="text-muted-foreground mt-5 flex flex-wrap items-center gap-2 text-xs">
                         <span>{getDomainFromUrl(heroArticle.url)}</span>
                         {heroArticle.readingTime && (
                           <>
@@ -235,6 +248,7 @@ export function ArticleList({
                             <span>{heroArticle.readingTime} min</span>
                           </>
                         )}
+                        {isPdfArticle(heroArticle) && <PdfBadge size="md" />}
                         {paraStatuses[heroArticle.id] && (
                           <ParaBadge size="md" />
                         )}
@@ -245,9 +259,9 @@ export function ArticleList({
                           <KindleBadge size="md" status="failed" />
                         )}
                       </div>
-                      <div className="mt-6 h-[3px] overflow-hidden rounded-full bg-background-deep">
+                      <div className="bg-background-deep mt-6 h-[3px] overflow-hidden rounded-full">
                         <div
-                          className="m-progress-fill h-full rounded-full bg-accent"
+                          className="m-progress-fill bg-accent h-full rounded-full"
                           style={{ "--p": "46%" } as CSSProperties}
                         />
                       </div>
@@ -265,14 +279,14 @@ export function ArticleList({
                     onUnarchive={() => onUnarchive?.(heroArticle.id)}
                     onDelete={() => onDelete?.(heroArticle.id)}
                     alwaysVisible
-                    className="bg-surface/80 text-foreground backdrop-blur-sm hover:bg-surface"
+                    className="bg-surface/80 text-foreground hover:bg-surface backdrop-blur-sm"
                   />
                 </div>
               </div>
             )}
 
-            <div className="overflow-hidden rounded-2xl border border-rule bg-surface">
-              <div className="divide-y divide-rule">
+            <div className="border-rule bg-surface overflow-hidden rounded-2xl border">
+              <div className="divide-rule divide-y">
                 {visibleArticles.map((article) => (
                   <ArticleCard
                     key={article.id}
@@ -297,11 +311,11 @@ export function ArticleList({
                 <button
                   type="button"
                   onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
-                  className="rounded-full border border-rule bg-surface px-4 py-2 text-sm font-medium text-foreground-soft shadow-soft transition hover:-translate-y-0.5 hover:bg-background-deep hover:text-foreground"
+                  className="border-rule bg-surface text-foreground-soft shadow-soft hover:bg-background-deep hover:text-foreground rounded-full border px-4 py-2 text-sm font-medium transition hover:-translate-y-0.5"
                   style={{ fontFamily: "var(--font-app-sans)" }}
                 >
                   Load 10 more
-                  <span className="ml-2 text-xs text-muted-foreground">
+                  <span className="text-muted-foreground ml-2 text-xs">
                     {remainingCount} left
                   </span>
                 </button>

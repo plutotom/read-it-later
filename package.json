@@ -22,7 +22,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "copy-pdfjs-assets": "node scripts/copy-pdfjs-assets.mjs",
+    "postinstall": "node scripts/copy-pdfjs-assets.mjs"
   },
   "dependencies": {
     "@extractus/article-extractor": "^8.0.20",
@@ -68,10 +70,12 @@
     "postgres": "^3.4.7",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "react-pdf": "^10.4.1",
     "resend": "^6.17.1",
     "server-only": "^0.0.1",
     "superjson": "^2.2.6",
     "tailwind-merge": "^3.4.0",
+    "unpdf": "^1.6.2",
     "zod": "^4.1.13"
   },
   "devDependencies": {

@@ -9,22 +9,30 @@ import {
   countArticleWords,
   readingTimeFromWordCount,
 } from "~/server/lib/articleWordCount";
+import { detectPdfResponse, titleFromPdfUrl } from "~/lib/pdf-detection";
+import { normalizeArticleUrl } from "~/lib/article-url";
 import {
-  detectPdfResponse,
-  titleFromPdfUrl,
-} from "~/lib/pdf-detection";
-import type { ArticleExtractionResult } from "~/types/article";
+  DocumentExtractionError,
+  extractDocument,
+} from "~/server/services/documentExtractService";
+import type {
+  ArticleExtractionResult,
+  ArticleMetadata,
+  DocumentExtractionStatus,
+} from "~/types/article";
 
 export class ArticleExtractor {
   /**
    * Extract article content from a URL using Mozilla Readability
    */
   static async extractFromUrl(url: string): Promise<ArticleExtractionResult> {
+    const normalizedUrl = normalizeArticleUrl(url);
+
     try {
       // Validate URL
-      const urlObj = new URL(url);
+      new URL(normalizedUrl);
 
-      const response = await fetch(url, {
+      const response = await fetch(normalizedUrl, {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (compatible; ReadItLater/1.0; +https://github.com/mozilla/readability)",
@@ -40,19 +48,23 @@ export class ArticleExtractor {
       const body = await response.arrayBuffer();
       const contentType = response.headers.get("content-type");
 
-      if (detectPdfResponse(url, contentType, body)) {
-        return this.getPdfExtractionData(url);
+      if (detectPdfResponse(normalizedUrl, contentType, body)) {
+        return await this.getPdfExtractionData(
+          normalizedUrl,
+          body,
+          contentType,
+        );
       }
 
       const html = new TextDecoder("utf-8", { fatal: false }).decode(body);
-      const extracted = this.parseWithReadability(html, url);
+      const extracted = this.parseWithReadability(html, normalizedUrl);
 
       return extracted;
     } catch (error) {
       console.error("Error extracting article:", error);
 
       // Return fallback data on error
-      return this.getFallbackData(url);
+      return this.getFallbackData(normalizedUrl);
     }
   }
 
@@ -170,7 +182,10 @@ export class ArticleExtractor {
 
     // Basic metadata extraction
     const titleMatch = /<title[^>]*>([^<]+)<\/title>/i.exec(html);
-    const ogTitleMatch = /<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i.exec(html);
+    const ogTitleMatch =
+      /<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i.exec(
+        html,
+      );
     const title =
       ogTitleMatch?.[1] ?? titleMatch?.[1] ?? `Article from ${urlObj.hostname}`;
 
@@ -212,15 +227,31 @@ export class ArticleExtractor {
    * Extract metadata from HTML
    */
   private static extractMetadata(html: string, urlObj: URL) {
-    const descMatch = /<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i.exec(html);
-    const ogDescMatch = /<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i.exec(html);
-    const authorMatch = /<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i.exec(html);
-    const siteNameMatch = /<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i.exec(html);
-    const imageMatch = /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i.exec(html);
+    const descMatch =
+      /<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i.exec(
+        html,
+      );
+    const ogDescMatch =
+      /<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i.exec(
+        html,
+      );
+    const authorMatch =
+      /<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i.exec(html);
+    const siteNameMatch =
+      /<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i.exec(
+        html,
+      );
+    const imageMatch =
+      /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i.exec(
+        html,
+      );
     const languageMatch = /<html[^>]*lang=["']([^"']+)["']/i.exec(html);
 
     let publishedAt: Date | undefined;
-    const dateMatch = /<meta[^>]*property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i.exec(html);
+    const dateMatch =
+      /<meta[^>]*property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i.exec(
+        html,
+      );
     if (dateMatch?.[1]) {
       publishedAt = new Date(dateMatch[1]);
     }
@@ -340,28 +371,93 @@ export class ArticleExtractor {
   }
 
   /**
-   * Placeholder extraction for direct PDF links.
-   * The reader shows a dedicated PDF state instead of parsed content.
+   * Extract text and metadata from a PDF buffer.
    */
-  private static getPdfExtractionData(url: string): ArticleExtractionResult {
-    const urlObj = new URL(url);
-    const title = this.cleanText(titleFromPdfUrl(url));
+  static async extractPdfFromBuffer(
+    url: string,
+    buffer: ArrayBuffer,
+    contentType: string | null,
+  ): Promise<ArticleExtractionResult> {
+    return this.getPdfExtractionData(url, buffer, contentType);
+  }
 
-    return {
-      title,
-      content: "",
-      excerpt: "PDF document",
-      author: undefined,
-      publishedAt: undefined,
-      wordCount: 0,
-      readingTime: 0,
-      metadata: {
-        siteName: urlObj.hostname,
-        siteUrl: urlObj.origin,
-        description: "PDF document — open the original link to view.",
-        contentKind: "pdf",
-      },
+  /**
+   * Extract readable text from a direct PDF link for search, TTS, and PARA.
+   */
+  private static async getPdfExtractionData(
+    url: string,
+    buffer: ArrayBuffer,
+    contentType: string | null,
+  ): Promise<ArticleExtractionResult> {
+    const urlObj = new URL(url);
+    const fallbackTitle = this.cleanText(titleFromPdfUrl(url));
+    const baseMetadata: ArticleMetadata = {
+      siteName: urlObj.hostname,
+      siteUrl: urlObj.origin,
+      contentKind: "pdf",
+      mimeType: contentType ?? "application/pdf",
+      byteSize: buffer.byteLength,
     };
+
+    try {
+      const extracted = await extractDocument(Buffer.from(buffer), "pdf");
+      const wordCount = countArticleWords(extracted.plainText);
+      const readingTime = extracted.hasTextLayer
+        ? readingTimeFromWordCount(wordCount, { minMinutes: 1 })
+        : 0;
+      const extractionStatus: DocumentExtractionStatus = extracted.hasTextLayer
+        ? "complete"
+        : "skipped";
+
+      const title = extracted.title
+        ? this.cleanText(extracted.title)
+        : fallbackTitle;
+      const excerpt = extracted.hasTextLayer
+        ? extracted.plainText.trim().slice(0, 200) || "PDF document"
+        : "PDF document — no text layer detected.";
+
+      return {
+        title,
+        content: extracted.plainText,
+        excerpt,
+        author: extracted.author,
+        publishedAt: undefined,
+        wordCount,
+        readingTime,
+        metadata: {
+          ...baseMetadata,
+          description: extracted.hasTextLayer
+            ? excerpt
+            : "PDF document — open in the viewer below.",
+          language: extracted.language,
+          extractionStatus,
+          extractedAt: new Date().toISOString(),
+          pageCount: extracted.pageCount,
+        },
+      };
+    } catch (error) {
+      const extractionError =
+        error instanceof DocumentExtractionError
+          ? error.message
+          : "Text extraction failed for this PDF.";
+
+      return {
+        title: fallbackTitle,
+        content: "",
+        excerpt: "PDF document",
+        author: undefined,
+        publishedAt: undefined,
+        wordCount: 0,
+        readingTime: 0,
+        metadata: {
+          ...baseMetadata,
+          description: "PDF document — text extraction failed.",
+          extractionStatus: "failed",
+          extractionError,
+          extractedAt: new Date().toISOString(),
+        },
+      };
+    }
   }
 
   /**

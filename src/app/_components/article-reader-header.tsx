@@ -40,8 +40,9 @@ import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { useDeleteArticle } from "../_hooks/use-delete-article";
 import { cn } from "~/lib/utils";
 import {
+  hasExtractedText,
   isPdfArticle,
-  PDF_UNSUPPORTED_PARA_MESSAGE,
+  DOCUMENT_UNSUPPORTED_PARA_MESSAGE,
 } from "~/lib/article-content-kind";
 
 interface ArticleReaderHeaderProps {
@@ -125,7 +126,10 @@ export function ArticleReaderHeader({
     }
   })();
 
-  const readingTime = isPdfArticle(article)
+  const isPdfWithoutText =
+    isPdfArticle(article) && !hasExtractedText(article);
+
+  const readingTime = isPdfWithoutText
     ? "PDF"
     : article.readingTime
       ? `${article.readingTime} min`
@@ -223,8 +227,8 @@ export function ArticleReaderHeader({
                 articleId={article.id}
                 articleTitle={article.title}
                 variant="menu"
-                disabled={isPdfArticle(article)}
-                disabledReason={PDF_UNSUPPORTED_PARA_MESSAGE}
+                disabled={isPdfWithoutText}
+                disabledReason={DOCUMENT_UNSUPPORTED_PARA_MESSAGE}
               />
               <SendToKindleButton
                 articleId={article.id}
@@ -259,8 +263,8 @@ export function ArticleReaderHeader({
                 articleId={article.id}
                 articleTitle={article.title}
                 className="px-1 py-2"
-                disabled={isPdfArticle(article)}
-                disabledReason={PDF_UNSUPPORTED_PARA_MESSAGE}
+                disabled={isPdfWithoutText}
+                disabledReason={DOCUMENT_UNSUPPORTED_PARA_MESSAGE}
               />
             </div>
 

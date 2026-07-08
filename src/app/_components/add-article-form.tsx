@@ -21,6 +21,7 @@ import {
 import { RichTextInput } from "./rich-text-input";
 import { FileText, Link } from "lucide-react";
 import { cn } from "~/lib/utils";
+import { normalizeArticleUrl } from "~/lib/article-url";
 
 type AddArticleFormVariant = "add" | "metadata";
 
@@ -94,7 +95,7 @@ export function AddArticleForm({
 
   const validateUrl = (urlString: string) => {
     try {
-      new URL(urlString);
+      new URL(normalizeArticleUrl(urlString));
       return true;
     } catch {
       return false;
@@ -149,9 +150,11 @@ export function AddArticleForm({
         .map((tag) => tag.trim())
         .filter((tag) => tag.length > 0);
 
+      const normalizedUrl = normalizeArticleUrl(url);
+
       if (isMetadataMode) {
         await onSubmit({
-          url: url.trim(),
+          url: normalizedUrl,
           title: title.trim(),
           folderId: folderId || undefined,
           tags: tags.length > 0 ? tags : undefined,
@@ -167,11 +170,11 @@ export function AddArticleForm({
           publishedAt: new Date(),
           folderId: folderId || undefined,
           tags: tags.length > 0 ? tags : undefined,
-          url: url.trim() || undefined,
+          url: normalizedUrl || undefined,
         });
       } else {
         await onSubmit({
-          url: url.trim(),
+          url: normalizedUrl,
           folderId: folderId || undefined,
           tags: tags.length > 0 ? tags : undefined,
         });
@@ -198,8 +201,9 @@ export function AddArticleForm({
 
   const handleUrlPaste = async (e: React.ClipboardEvent) => {
     const pastedText = e.clipboardData.getData("text");
-    if (validateUrl(pastedText)) {
-      setUrl(pastedText);
+    const normalizedUrl = normalizeArticleUrl(pastedText);
+    if (validateUrl(normalizedUrl)) {
+      setUrl(normalizedUrl);
       setErrors({});
     }
   };
@@ -232,14 +236,15 @@ export function AddArticleForm({
 
       // Read from clipboard
       const clipboardText = await navigator.clipboard.readText();
+      const normalizedUrl = normalizeArticleUrl(clipboardText);
 
       // Validate URL
-      if (!validateUrl(clipboardText)) {
+      if (!validateUrl(normalizedUrl)) {
         throw new Error("Invalid URL in clipboard");
       }
 
       // Set URL and auto-submit
-      setUrl(clipboardText);
+      setUrl(normalizedUrl);
 
       // Parse tags
       const tags = tagsInput
@@ -248,7 +253,7 @@ export function AddArticleForm({
         .filter((tag) => tag.length > 0);
 
       await onSubmit({
-        url: clipboardText,
+        url: normalizedUrl,
         folderId: folderId || undefined,
         tags: tags.length > 0 ? tags : undefined,
       });
@@ -341,52 +346,47 @@ export function AddArticleForm({
           </Alert>
         )}
 
-        <div className="space-y-3 border-t border-rule pt-4">
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button
-              type="submit"
-              disabled={isSubmitDisabled}
-              className="h-11 w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90 sm:w-auto"
-            >
-              {isLoading ? (
-                <>
-                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  {loadingLabel}
-                </>
-              ) : (
-                <>
-                  <svg
-                    className="mr-2 h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                    />
-                  </svg>
-                  {primaryLabel}
-                </>
-              )}
-            </Button>
-          </div>
-
+        <div className="border-rule flex flex-col gap-3 border-t pt-4 sm:flex-row sm:justify-end">
           {onCancel && (
-            <div className="flex justify-center sm:justify-start">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onCancel}
-                disabled={isLoading || isPasting}
-                className="w-full sm:w-auto"
-              >
-                Cancel
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isLoading || isPasting}
+              className="border-rule bg-surface text-foreground-soft hover:bg-background-deep hover:text-foreground h-11 w-full rounded-full sm:w-auto"
+            >
+              Cancel
+            </Button>
           )}
+          <Button
+            type="submit"
+            disabled={isSubmitDisabled}
+            className="bg-accent text-accent-foreground hover:bg-accent/90 h-11 w-full rounded-full sm:min-w-[9.5rem] sm:w-auto"
+          >
+            {isLoading ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                {loadingLabel}
+              </>
+            ) : (
+              <>
+                <svg
+                  className="mr-2 h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
+                </svg>
+                {primaryLabel}
+              </>
+            )}
+          </Button>
         </div>
       </form>
     );
@@ -394,7 +394,7 @@ export function AddArticleForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="rounded-2xl border border-rule bg-background-deep p-3">
+      <div className="border-rule bg-background-deep rounded-2xl border p-3">
         <Button
           type="button"
           onClick={handlePasteAndSave}
@@ -448,12 +448,13 @@ export function AddArticleForm({
           )}
         </Button>
 
-        <p className="mt-2 text-center text-xs leading-relaxed text-muted-foreground">
-          Fastest on mobile: grab the current clipboard link and save in one tap.
+        <p className="text-muted-foreground mt-2 text-center text-xs leading-relaxed">
+          Fastest on mobile: grab the current clipboard link and save in one
+          tap.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 rounded-full border border-rule bg-background-deep p-1">
+      <div className="border-rule bg-background-deep grid grid-cols-2 gap-2 rounded-full border p-1">
         <Button
           type="button"
           variant="ghost"
@@ -463,7 +464,7 @@ export function AddArticleForm({
             "h-10 rounded-full text-sm",
             !isTextMode
               ? "bg-surface text-foreground shadow-soft hover:bg-surface"
-              : "text-foreground-soft hover:bg-transparent hover:text-foreground",
+              : "text-foreground-soft hover:text-foreground hover:bg-transparent",
           )}
         >
           <Link className="mr-2 h-4 w-4" />
@@ -478,7 +479,7 @@ export function AddArticleForm({
             "h-10 rounded-full text-sm",
             isTextMode
               ? "bg-surface text-foreground shadow-soft hover:bg-surface"
-              : "text-foreground-soft hover:bg-transparent hover:text-foreground",
+              : "text-foreground-soft hover:text-foreground hover:bg-transparent",
           )}
         >
           <FileText className="mr-2 h-4 w-4" />
@@ -522,17 +523,17 @@ export function AddArticleForm({
           </div>
 
           {(!!detectedMetadata.title || !!detectedMetadata.author) && (
-            <div className="rounded-2xl border border-rule bg-background-deep p-3">
-              <p className="mb-2 text-sm font-medium text-foreground">
+            <div className="border-rule bg-background-deep rounded-2xl border p-3">
+              <p className="text-foreground mb-2 text-sm font-medium">
                 Detected metadata:
               </p>
               {detectedMetadata.title && (
-                <p className="text-sm text-foreground-soft">
+                <p className="text-foreground-soft text-sm">
                   <strong>Title:</strong> {detectedMetadata.title}
                 </p>
               )}
               {detectedMetadata.author && (
-                <p className="text-sm text-foreground-soft">
+                <p className="text-foreground-soft text-sm">
                   <strong>Author:</strong> {detectedMetadata.author}
                 </p>
               )}
@@ -593,7 +594,7 @@ export function AddArticleForm({
               className={cn(inputClassName, errors.url && "border-red-500")}
             />
             {errors.url && <p className="text-sm text-red-600">{errors.url}</p>}
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Optional: include a source URL for this rich text article.
             </p>
           </div>
@@ -631,53 +632,47 @@ export function AddArticleForm({
         </Alert>
       )}
 
-      <div className="space-y-3 border-t border-rule pt-4">
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button
-            type="submit"
-            disabled={isSubmitDisabled}
-            className="h-11 w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90 sm:w-auto"
-          >
-            {isLoading ? (
-              <>
-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                {loadingLabel}
-              </>
-            ) : (
-              <>
-                <svg
-                  className="mr-2 h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                  />
-                </svg>
-                {primaryLabel}
-              </>
-            )}
-          </Button>
-
-        </div>
-
+      <div className="border-rule flex flex-col gap-3 border-t pt-4 sm:flex-row sm:justify-end">
         {onCancel && (
-          <div className="flex justify-center sm:justify-start">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={isLoading || isPasting}
-              className="h-11 w-full rounded-full border-rule bg-surface text-foreground-soft hover:bg-background-deep hover:text-foreground sm:w-auto"
-            >
-              Cancel
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={isLoading || isPasting}
+            className="border-rule bg-surface text-foreground-soft hover:bg-background-deep hover:text-foreground h-11 w-full rounded-full sm:w-auto"
+          >
+            Cancel
+          </Button>
         )}
+        <Button
+          type="submit"
+          disabled={isSubmitDisabled}
+          className="bg-accent text-accent-foreground hover:bg-accent/90 h-11 w-full rounded-full sm:min-w-[9.5rem] sm:w-auto"
+        >
+          {isLoading ? (
+            <>
+              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              {loadingLabel}
+            </>
+          ) : (
+            <>
+              <svg
+                className="mr-2 h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+              {primaryLabel}
+            </>
+          )}
+        </Button>
       </div>
     </form>
   );

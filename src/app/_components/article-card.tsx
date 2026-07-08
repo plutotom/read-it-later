@@ -117,7 +117,11 @@ export function ArticleCard({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-start">
+        <div
+          className="flex shrink-0 items-start"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           {showActions && (
             <ArticleActionsMenu
               article={article}

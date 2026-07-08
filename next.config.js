@@ -39,6 +39,10 @@ const config = {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
           },
+          {
+            key: "Content-Security-Policy",
+            value: "worker-src blob: 'self'",
+          },
         ],
       },
     ];
