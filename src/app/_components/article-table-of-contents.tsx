@@ -44,9 +44,7 @@ export function ArticleTableOfContents({
         "top-[calc(env(safe-area-inset-top,0px)+4.25rem)] bottom-28",
         "left-5 sm:left-8",
         "transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none",
-        isOpen
-          ? "translate-x-0 opacity-100"
-          : "-translate-x-3 opacity-0",
+        isOpen ? "translate-x-0 opacity-100" : "-translate-x-3 opacity-0",
       )}
       aria-label="Table of contents"
       aria-hidden={!isOpen}
@@ -62,7 +60,7 @@ export function ArticleTableOfContents({
           <button
             type="button"
             onClick={onClose}
-            className="article-toc__close -ml-1 rounded-full p-1.5 text-muted-foreground transition-colors duration-150 hover:text-foreground"
+            className="article-toc__close text-muted-foreground hover:text-foreground -ml-1 rounded-full p-1.5 transition-colors duration-150"
             aria-label="Close table of contents"
           >
             <X className="h-4 w-4" strokeWidth={1.5} />
@@ -70,7 +68,7 @@ export function ArticleTableOfContents({
         </div>
 
         <p
-          className="mb-8 text-[15px] font-medium tracking-tight text-foreground"
+          className="text-foreground mb-8 text-[15px] font-medium tracking-tight"
           style={{ fontFamily: "var(--font-app-display)" }}
         >
           Contents
@@ -93,7 +91,7 @@ export function ArticleTableOfContents({
                       "article-toc__link block w-full text-left text-[14px] leading-snug transition-[color,opacity] duration-150",
                       "hover:text-foreground",
                       isActive
-                        ? "font-medium text-foreground"
+                        ? "text-foreground font-medium"
                         : "text-muted-foreground/80",
                     )}
                     style={{ fontFamily: "var(--font-app-display)" }}

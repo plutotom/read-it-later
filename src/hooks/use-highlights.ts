@@ -9,7 +9,8 @@ import { useMemo } from "react";
 import { api } from "~/trpc/react";
 import type { RouterInputs, RouterOutputs } from "~/trpc/react";
 
-export type HighlightRow = RouterOutputs["annotation"]["getHighlightsByArticleId"][number];
+export type HighlightRow =
+  RouterOutputs["annotation"]["getHighlightsByArticleId"][number];
 type CreateInput = RouterInputs["annotation"]["createHighlight"];
 type UpdateInput = RouterInputs["annotation"]["updateHighlight"];
 

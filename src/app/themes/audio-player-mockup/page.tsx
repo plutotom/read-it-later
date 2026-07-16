@@ -73,9 +73,14 @@ export default function AudioPlayerMockupPage() {
           <h1 className="mt-2 text-2xl font-semibold tracking-tight">
             Expanded audio player — visual mockups
           </h1>
-          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed" style={{ color: p.inkSoft }}>
-            Mobile-first preview. Tap the <strong style={{ color: p.ink }}>center of the mini bar</strong> (not play or speed) to open the sheet.
-            Switch variants below the phone to compare layouts — nothing is wired to real audio yet.
+          <p
+            className="mt-2 max-w-2xl text-[15px] leading-relaxed"
+            style={{ color: p.inkSoft }}
+          >
+            Mobile-first preview. Tap the{" "}
+            <strong style={{ color: p.ink }}>center of the mini bar</strong>{" "}
+            (not play or speed) to open the sheet. Switch variants below the
+            phone to compare layouts — nothing is wired to real audio yet.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2">
@@ -100,7 +105,10 @@ export default function AudioPlayerMockupPage() {
           </p>
 
           <div className="mt-4 flex flex-wrap gap-3 text-[12px]">
-            <label className="flex items-center gap-2" style={{ color: p.inkSoft }}>
+            <label
+              className="flex items-center gap-2"
+              style={{ color: p.inkSoft }}
+            >
               <input
                 type="checkbox"
                 checked={playerMode === "playing"}
@@ -137,7 +145,7 @@ export default function AudioPlayerMockupPage() {
           {/* Article scroll area */}
           <div className="relative h-[calc(100%-11rem)] overflow-y-auto px-6 pb-4">
             <p
-              className="text-[11px] font-medium uppercase tracking-widest"
+              className="text-[11px] font-medium tracking-widest uppercase"
               style={{ color: p.inkMute }}
             >
               {article.domain}
@@ -148,16 +156,21 @@ export default function AudioPlayerMockupPage() {
             >
               {article.title}
             </h2>
-            <div className="mt-6 space-y-4 font-serif text-[17px] leading-[1.65]" style={{ color: p.inkSoft }}>
-              {(article.body ?? [article.excerpt]).slice(0, 5).map((para, i) => (
-                <p key={i}>{para}</p>
-              ))}
+            <div
+              className="mt-6 space-y-4 font-serif text-[17px] leading-[1.65]"
+              style={{ color: p.inkSoft }}
+            >
+              {(article.body ?? [article.excerpt])
+                .slice(0, 5)
+                .map((para, i) => (
+                  <p key={i}>{para}</p>
+                ))}
             </div>
           </div>
 
           {/* Mini player dock */}
           <div
-            className="absolute inset-x-0 bottom-0 z-20 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2"
+            className="absolute inset-x-0 bottom-0 z-20 px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]"
             style={{
               background: `linear-gradient(transparent, ${p.paper} 40%)`,
             }}

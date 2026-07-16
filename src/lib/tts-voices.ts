@@ -22,15 +22,27 @@ export interface TTSVoiceOption {
 /**
  * Voice tier display info
  */
-export const VOICE_TIER_INFO: Record<VoiceTier, { label: string; description: string }> = {
-  standard: { label: "Standard", description: "Basic quality, most affordable" },
-  wavenet: { label: "WaveNet", description: "Neural network, natural sounding" },
+export const VOICE_TIER_INFO: Record<
+  VoiceTier,
+  { label: string; description: string }
+> = {
+  standard: {
+    label: "Standard",
+    description: "Basic quality, most affordable",
+  },
+  wavenet: {
+    label: "WaveNet",
+    description: "Neural network, natural sounding",
+  },
   neural2: { label: "Neural2", description: "Latest AI, most natural" },
   chirp3: {
     label: "Chirp 3 HD",
     description: "Natural narration with pause markup",
   },
-  studio: { label: "Studio", description: "Highest quality, professional narration" },
+  studio: {
+    label: "Studio",
+    description: "Highest quality, professional narration",
+  },
 };
 
 /**
@@ -106,35 +118,196 @@ export const TTS_VOICE_OPTIONS: TTSVoiceOption[] = [
   },
 
   // Standard voices (1x price)
-  { name: "en-US-Standard-A", label: "Alex", description: "Male, US", gender: "male", tier: "standard", priceMultiplier: 1 },
-  { name: "en-US-Standard-B", label: "Brian", description: "Male, US", gender: "male", tier: "standard", priceMultiplier: 1 },
-  { name: "en-US-Standard-C", label: "Carol", description: "Female, US", gender: "female", tier: "standard", priceMultiplier: 1 },
-  { name: "en-US-Standard-D", label: "David", description: "Male, US", gender: "male", tier: "standard", priceMultiplier: 1 },
-  { name: "en-US-Standard-E", label: "Emma", description: "Female, US", gender: "female", tier: "standard", priceMultiplier: 1 },
-  { name: "en-US-Standard-F", label: "Fiona", description: "Female, US", gender: "female", tier: "standard", priceMultiplier: 1 },
-  
+  {
+    name: "en-US-Standard-A",
+    label: "Alex",
+    description: "Male, US",
+    gender: "male",
+    tier: "standard",
+    priceMultiplier: 1,
+  },
+  {
+    name: "en-US-Standard-B",
+    label: "Brian",
+    description: "Male, US",
+    gender: "male",
+    tier: "standard",
+    priceMultiplier: 1,
+  },
+  {
+    name: "en-US-Standard-C",
+    label: "Carol",
+    description: "Female, US",
+    gender: "female",
+    tier: "standard",
+    priceMultiplier: 1,
+  },
+  {
+    name: "en-US-Standard-D",
+    label: "David",
+    description: "Male, US",
+    gender: "male",
+    tier: "standard",
+    priceMultiplier: 1,
+  },
+  {
+    name: "en-US-Standard-E",
+    label: "Emma",
+    description: "Female, US",
+    gender: "female",
+    tier: "standard",
+    priceMultiplier: 1,
+  },
+  {
+    name: "en-US-Standard-F",
+    label: "Fiona",
+    description: "Female, US",
+    gender: "female",
+    tier: "standard",
+    priceMultiplier: 1,
+  },
+
   // WaveNet voices (4x price, better quality)
-  { name: "en-US-Wavenet-A", label: "Ava", description: "Male, US", gender: "male", tier: "wavenet", priceMultiplier: 4 },
-  { name: "en-US-Wavenet-B", label: "Blake", description: "Male, US", gender: "male", tier: "wavenet", priceMultiplier: 4 },
-  { name: "en-US-Wavenet-C", label: "Chloe", description: "Female, US", gender: "female", tier: "wavenet", priceMultiplier: 4 },
-  { name: "en-US-Wavenet-D", label: "Dylan", description: "Male, US", gender: "male", tier: "wavenet", priceMultiplier: 4 },
-  { name: "en-US-Wavenet-E", label: "Ella", description: "Female, US", gender: "female", tier: "wavenet", priceMultiplier: 4 },
-  { name: "en-US-Wavenet-F", label: "Faith", description: "Female, US", gender: "female", tier: "wavenet", priceMultiplier: 4 },
-  
+  {
+    name: "en-US-Wavenet-A",
+    label: "Ava",
+    description: "Male, US",
+    gender: "male",
+    tier: "wavenet",
+    priceMultiplier: 4,
+  },
+  {
+    name: "en-US-Wavenet-B",
+    label: "Blake",
+    description: "Male, US",
+    gender: "male",
+    tier: "wavenet",
+    priceMultiplier: 4,
+  },
+  {
+    name: "en-US-Wavenet-C",
+    label: "Chloe",
+    description: "Female, US",
+    gender: "female",
+    tier: "wavenet",
+    priceMultiplier: 4,
+  },
+  {
+    name: "en-US-Wavenet-D",
+    label: "Dylan",
+    description: "Male, US",
+    gender: "male",
+    tier: "wavenet",
+    priceMultiplier: 4,
+  },
+  {
+    name: "en-US-Wavenet-E",
+    label: "Ella",
+    description: "Female, US",
+    gender: "female",
+    tier: "wavenet",
+    priceMultiplier: 4,
+  },
+  {
+    name: "en-US-Wavenet-F",
+    label: "Faith",
+    description: "Female, US",
+    gender: "female",
+    tier: "wavenet",
+    priceMultiplier: 4,
+  },
+
   // Neural2 voices (4x price, best quality)
-  { name: "en-US-Neural2-A", label: "Aurora", description: "Male, US", gender: "male", tier: "neural2", priceMultiplier: 4 },
-  { name: "en-US-Neural2-C", label: "Claire", description: "Female, US", gender: "female", tier: "neural2", priceMultiplier: 4 },
-  { name: "en-US-Neural2-D", label: "Derek", description: "Male, US", gender: "male", tier: "neural2", priceMultiplier: 4 },
-  { name: "en-US-Neural2-E", label: "Eva", description: "Female, US", gender: "female", tier: "neural2", priceMultiplier: 4 },
-  { name: "en-US-Neural2-F", label: "Freya", description: "Female, US", gender: "female", tier: "neural2", priceMultiplier: 4 },
-  { name: "en-US-Neural2-G", label: "Grace", description: "Female, US", gender: "female", tier: "neural2", priceMultiplier: 4 },
-  { name: "en-US-Neural2-H", label: "Harper", description: "Female, US", gender: "female", tier: "neural2", priceMultiplier: 4 },
-  { name: "en-US-Neural2-I", label: "Isaac", description: "Male, US", gender: "male", tier: "neural2", priceMultiplier: 4 },
-  { name: "en-US-Neural2-J", label: "Jade", description: "Male, US", gender: "male", tier: "neural2", priceMultiplier: 4 },
+  {
+    name: "en-US-Neural2-A",
+    label: "Aurora",
+    description: "Male, US",
+    gender: "male",
+    tier: "neural2",
+    priceMultiplier: 4,
+  },
+  {
+    name: "en-US-Neural2-C",
+    label: "Claire",
+    description: "Female, US",
+    gender: "female",
+    tier: "neural2",
+    priceMultiplier: 4,
+  },
+  {
+    name: "en-US-Neural2-D",
+    label: "Derek",
+    description: "Male, US",
+    gender: "male",
+    tier: "neural2",
+    priceMultiplier: 4,
+  },
+  {
+    name: "en-US-Neural2-E",
+    label: "Eva",
+    description: "Female, US",
+    gender: "female",
+    tier: "neural2",
+    priceMultiplier: 4,
+  },
+  {
+    name: "en-US-Neural2-F",
+    label: "Freya",
+    description: "Female, US",
+    gender: "female",
+    tier: "neural2",
+    priceMultiplier: 4,
+  },
+  {
+    name: "en-US-Neural2-G",
+    label: "Grace",
+    description: "Female, US",
+    gender: "female",
+    tier: "neural2",
+    priceMultiplier: 4,
+  },
+  {
+    name: "en-US-Neural2-H",
+    label: "Harper",
+    description: "Female, US",
+    gender: "female",
+    tier: "neural2",
+    priceMultiplier: 4,
+  },
+  {
+    name: "en-US-Neural2-I",
+    label: "Isaac",
+    description: "Male, US",
+    gender: "male",
+    tier: "neural2",
+    priceMultiplier: 4,
+  },
+  {
+    name: "en-US-Neural2-J",
+    label: "Jade",
+    description: "Male, US",
+    gender: "male",
+    tier: "neural2",
+    priceMultiplier: 4,
+  },
 
   // Studio voices (16x price, professional quality)
-  { name: "en-US-Studio-O", label: "Oliver", description: "Male, US", gender: "male", tier: "studio", priceMultiplier: 16 },
-  { name: "en-US-Studio-Q", label: "Quinn", description: "Male, US", gender: "male", tier: "studio", priceMultiplier: 16 },
+  {
+    name: "en-US-Studio-O",
+    label: "Oliver",
+    description: "Male, US",
+    gender: "male",
+    tier: "studio",
+    priceMultiplier: 16,
+  },
+  {
+    name: "en-US-Studio-Q",
+    label: "Quinn",
+    description: "Male, US",
+    gender: "male",
+    tier: "studio",
+    priceMultiplier: 16,
+  },
 ];
 
 export const DEFAULT_VOICE = "en-US-Chirp3-HD-Charon";
@@ -218,5 +391,3 @@ export function getVoicesByTier(): Record<VoiceTier, TTSVoiceOption[]> {
     studio: TTS_VOICE_OPTIONS.filter((v) => v.tier === "studio"),
   };
 }
-
-

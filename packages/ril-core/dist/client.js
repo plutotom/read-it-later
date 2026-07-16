@@ -22,7 +22,8 @@ export function friendlyMessage(status, body) {
         case 401:
             return "Invalid or missing API key. Set RIL_API_KEY to a valid ril_ key.";
         case 403:
-            return apiMessage ?? "Your API key is missing the required scope for this action.";
+            return (apiMessage ??
+                "Your API key is missing the required scope for this action.");
         case 404:
             return apiMessage ?? "Not found.";
         case 422:
@@ -77,8 +78,14 @@ export function createClient(config) {
             const path = trimmed ? "/search" : "/articles";
             return request(`${path}?${search.toString()}`);
         },
-        createArticle: (body) => request("/articles", { method: "POST", body: JSON.stringify(body) }),
-        updateArticle: (id, body) => request(`/articles/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+        createArticle: (body) => request("/articles", {
+            method: "POST",
+            body: JSON.stringify(body),
+        }),
+        updateArticle: (id, body) => request(`/articles/${id}`, {
+            method: "PATCH",
+            body: JSON.stringify(body),
+        }),
         deleteArticle: async (id) => {
             await request(`/articles/${id}`, { method: "DELETE" });
         },
@@ -94,7 +101,10 @@ export function createClient(config) {
             return response.text();
         },
         listParaExports: () => request("/para/exports"),
-        addToPara: (body) => request("/para/exports", { method: "POST", body: JSON.stringify(body) }),
+        addToPara: (body) => request("/para/exports", {
+            method: "POST",
+            body: JSON.stringify(body),
+        }),
         removeFromParaByArticleId: async (articleId) => {
             await request(`/para/exports?articleId=${encodeURIComponent(articleId)}`, {
                 method: "DELETE",

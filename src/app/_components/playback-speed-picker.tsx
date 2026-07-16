@@ -45,15 +45,15 @@ function SpeedMenuItems({
             onClick={() => onPick(speed)}
             className={cn(
               "flex h-9 w-full items-center justify-between gap-2 px-3",
-              "text-[17px] leading-none tabular-nums tracking-tight text-foreground-soft",
-              "transition-colors active:bg-foreground/8",
-              selected && "font-medium text-foreground",
+              "text-foreground-soft text-[17px] leading-none tracking-tight tabular-nums",
+              "active:bg-foreground/8 transition-colors",
+              selected && "text-foreground font-medium",
             )}
           >
             <span>{formatPlaybackSpeed(speed)}</span>
             {selected ? (
               <Check
-                className="size-3.5 shrink-0 text-foreground"
+                className="text-foreground size-3.5 shrink-0"
                 strokeWidth={2.5}
                 aria-hidden
               />
@@ -97,7 +97,7 @@ function ExpandedPlaybackSpeedPicker({
           setOpen((o) => !o);
         }}
         className={cn(
-          "min-w-[3rem] text-left text-[17px] font-normal tabular-nums text-foreground-soft transition-colors hover:text-foreground disabled:opacity-50",
+          "text-foreground-soft hover:text-foreground min-w-[3rem] text-left text-[17px] font-normal tabular-nums transition-colors disabled:opacity-50",
           open && "text-foreground",
         )}
         aria-label="Playback speed"
@@ -145,7 +145,7 @@ function MiniPlaybackSpeedPicker({
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
           className={cn(
-            "shrink-0 rounded-full border border-rule px-3 text-xs font-medium tabular-nums text-foreground-soft hover:bg-background-deep hover:text-foreground",
+            "border-rule text-foreground-soft hover:bg-background-deep hover:text-foreground shrink-0 rounded-full border px-3 text-xs font-medium tabular-nums",
             className,
           )}
           aria-label="Playback speed"
@@ -176,16 +176,16 @@ function MiniPlaybackSpeedPicker({
               onSelect={() => onChange(speed)}
               className={cn(
                 "flex h-9 cursor-pointer items-center justify-between gap-2 rounded-none px-3 py-0",
-                "text-[17px] leading-none tabular-nums tracking-tight text-foreground-soft",
+                "text-foreground-soft text-[17px] leading-none tracking-tight tabular-nums",
                 "focus:bg-foreground/8 focus:text-foreground",
                 "data-[highlighted]:bg-foreground/8 data-[highlighted]:text-foreground",
-                selected && "font-medium text-foreground",
+                selected && "text-foreground font-medium",
               )}
             >
               <span>{formatPlaybackSpeed(speed)}</span>
               {selected ? (
                 <Check
-                  className="size-3.5 shrink-0 text-foreground"
+                  className="text-foreground size-3.5 shrink-0"
                   strokeWidth={2.5}
                   aria-hidden
                 />

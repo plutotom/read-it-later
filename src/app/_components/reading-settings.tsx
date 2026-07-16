@@ -20,24 +20,24 @@ export function ReadingSettings({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-foreground">Font Size</span>
+        <span className="text-foreground text-sm font-medium">Font Size</span>
         <div className="flex items-center space-x-2">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => onFontSizeChange(Math.max(12, fontSize - 2))}
-            className="h-7 w-7 rounded-full text-foreground-soft hover:bg-background-deep hover:text-foreground"
+            className="text-foreground-soft hover:bg-background-deep hover:text-foreground h-7 w-7 rounded-full"
           >
             <Minus className="h-4 w-4" />
           </Button>
-          <span className="w-8 text-center text-sm text-foreground-soft">
+          <span className="text-foreground-soft w-8 text-center text-sm">
             {fontSize}
           </span>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => onFontSizeChange(Math.min(24, fontSize + 2))}
-            className="h-7 w-7 rounded-full text-foreground-soft hover:bg-background-deep hover:text-foreground"
+            className="text-foreground-soft hover:bg-background-deep hover:text-foreground h-7 w-7 rounded-full"
           >
             <Plus className="h-4 w-4" />
           </Button>

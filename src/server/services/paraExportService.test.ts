@@ -4,9 +4,7 @@ import type { paraExports } from "~/server/db/schema";
 
 type ExportRow = typeof paraExports.$inferSelect;
 
-function makeExportRow(
-  overrides: Partial<ExportRow> = {},
-): ExportRow {
+function makeExportRow(overrides: Partial<ExportRow> = {}): ExportRow {
   return {
     id: "550e8400-e29b-41d4-a716-446655440000",
     userId: "user-1",

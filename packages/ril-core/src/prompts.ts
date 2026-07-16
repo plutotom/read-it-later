@@ -64,8 +64,13 @@ export const addArticleShape = {
   author: z
     .string()
     .optional()
-    .describe("Author name when known (e.g. from an email signature or byline)."),
-  tags: z.array(z.string()).optional().describe("Tags to apply to the new article."),
+    .describe(
+      "Author name when known (e.g. from an email signature or byline).",
+    ),
+  tags: z
+    .array(z.string())
+    .optional()
+    .describe("Tags to apply to the new article."),
 };
 
 // ---- search_articles ------------------------------------------------------
@@ -83,8 +88,13 @@ export const searchArticlesShape = {
     .number()
     .int()
     .optional()
-    .describe("Maximum number of articles to return. Defaults to 10, capped at 50."),
-  tag: z.string().optional().describe("Only return articles with this exact tag."),
+    .describe(
+      "Maximum number of articles to return. Defaults to 10, capped at 50.",
+    ),
+  tag: z
+    .string()
+    .optional()
+    .describe("Only return articles with this exact tag."),
   isRead: z
     .boolean()
     .optional()
@@ -105,7 +115,9 @@ export const GET_ARTICLE_CONTENT_DESCRIPTION = `Fetch the full readable text of 
 export const getArticleContentShape = {
   articleId: z
     .string()
-    .describe("The id of the article to read. Get this from the search_articles tool."),
+    .describe(
+      "The id of the article to read. Get this from the search_articles tool.",
+    ),
 };
 
 // ---- update_article -------------------------------------------------------
@@ -115,7 +127,9 @@ export const UPDATE_ARTICLE_DESCRIPTION = `Update an article by id: set its tags
 export const updateArticleShape = {
   articleId: z
     .string()
-    .describe("The id of the article to update. Get this from the search_articles tool."),
+    .describe(
+      "The id of the article to update. Get this from the search_articles tool.",
+    ),
   tags: z
     .array(z.string())
     .optional()
@@ -126,7 +140,9 @@ export const updateArticleShape = {
   isFavorite: z
     .boolean()
     .optional()
-    .describe("Mark the article as favorite (true) or remove favorite (false)."),
+    .describe(
+      "Mark the article as favorite (true) or remove favorite (false).",
+    ),
   isRead: z
     .boolean()
     .optional()

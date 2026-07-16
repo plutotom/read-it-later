@@ -28,15 +28,15 @@ export function AudioPlayerSeekBar({
   return (
     <div className={cn("relative w-full", className)}>
       <div
-        className="relative h-2 overflow-hidden rounded-full bg-background-deep"
+        className="bg-background-deep relative h-2 overflow-hidden rounded-full"
         aria-hidden
       >
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-accent transition-[width] duration-150 ease-out"
+          className="bg-accent absolute inset-y-0 left-0 rounded-full transition-[width] duration-150 ease-out"
           style={{ width: `${pct}%` }}
         />
         <div
-          className="absolute top-1/2 size-5 -translate-y-1/2 rounded-full border-2 border-accent bg-foreground shadow-md"
+          className="border-accent bg-foreground absolute top-1/2 size-5 -translate-y-1/2 rounded-full border-2 shadow-md"
           style={{ left: `calc(${pct}% - 10px)` }}
         />
       </div>
@@ -69,7 +69,7 @@ export function AudioPlayerSeekTimes({
   return (
     <div
       className={cn(
-        "flex justify-between text-[13px] tabular-nums text-muted-foreground",
+        "text-muted-foreground flex justify-between text-[13px] tabular-nums",
         className,
       )}
     >

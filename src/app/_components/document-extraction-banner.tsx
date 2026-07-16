@@ -40,7 +40,7 @@ export function DocumentExtractionBanner({
   return (
     <Alert
       variant={status === "failed" ? "destructive" : "default"}
-      className="mb-4 rounded-2xl border border-rule bg-surface shadow-[var(--shadow-soft)]"
+      className="border-rule bg-surface mb-4 rounded-2xl border shadow-[var(--shadow-soft)]"
     >
       <AlertCircle className="h-4 w-4" />
       <AlertDescription className="flex flex-col gap-3 text-sm">

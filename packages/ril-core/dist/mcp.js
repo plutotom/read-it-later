@@ -132,7 +132,10 @@ export function registerTools(server, client) {
     server.tool("list_tags", LIST_TAGS_DESCRIPTION, listTagsShape, async () => {
         try {
             const tags = await client.getTags();
-            return ok(tags.map((tag) => ({ name: tag.name ?? tag.tag ?? "", count: tag.count ?? 0 })));
+            return ok(tags.map((tag) => ({
+                name: tag.name ?? tag.tag ?? "",
+                count: tag.count ?? 0,
+            })));
         }
         catch (error) {
             return fail(error);
@@ -158,7 +161,9 @@ export function registerTools(server, client) {
     });
     server.tool("add_to_para", ADD_TO_PARA_DESCRIPTION, addToParaShape, async (input) => {
         try {
-            const exportRow = await client.addToPara({ articleId: input.articleId });
+            const exportRow = await client.addToPara({
+                articleId: input.articleId,
+            });
             return ok(exportRow);
         }
         catch (error) {

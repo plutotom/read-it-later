@@ -4,10 +4,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "~/trpc/react";
 import { withViewTransition } from "~/lib/with-view-transition";
-import {
-  buildArticlePath,
-  currentPathFrom,
-} from "~/lib/article-navigation";
+import { buildArticlePath, currentPathFrom } from "~/lib/article-navigation";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";

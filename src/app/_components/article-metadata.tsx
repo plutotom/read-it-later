@@ -38,13 +38,13 @@ export function ArticleMetadata({ article }: ArticleMetadataProps) {
   return (
     <div className="mb-10">
       <h1
-        className="text-[2.6rem] leading-[1.05] font-medium tracking-tight text-foreground sm:text-[3.4rem]"
+        className="text-foreground text-[2.6rem] leading-[1.05] font-medium tracking-tight sm:text-[3.4rem]"
         style={{ fontFamily: "var(--font-app-display)" }}
       >
         {article.title}
       </h1>
 
-      <div className="mt-5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+      <div className="text-muted-foreground mt-5 flex flex-wrap items-center gap-2 text-sm">
         {article.author && <span>{article.author}</span>}
         {article.author && <span>·</span>}
         <span>{domain}</span>
@@ -57,7 +57,9 @@ export function ArticleMetadata({ article }: ArticleMetadataProps) {
         {article.publishedAt && (
           <>
             <span>·</span>
-            <span suppressHydrationWarning>{formatDate(article.publishedAt)}</span>
+            <span suppressHydrationWarning>
+              {formatDate(article.publishedAt)}
+            </span>
           </>
         )}
       </div>

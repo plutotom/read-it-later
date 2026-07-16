@@ -286,7 +286,7 @@ export interface GenerateAudioResult {
 export async function generateAudioForArticle(
   articleId: string,
   htmlContent: string,
-  voiceNameOverride?: string
+  voiceNameOverride?: string,
 ): Promise<GenerateAudioResult> {
   // Check if Blob token is available
   if (!env.BLOB_READ_WRITE_TOKEN) {

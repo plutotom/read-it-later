@@ -64,7 +64,8 @@ function ParaGotoPageControl({
       setPageInput("");
       toast({
         title: "Go to page cleared",
-        description: "Your device will no longer receive a jump command on sync.",
+        description:
+          "Your device will no longer receive a jump command on sync.",
       });
     },
     onError: () => {
@@ -154,8 +155,8 @@ function ParaGotoPageControl({
         </p>
       )}
       <p className="text-[11px] text-gray-500">
-        Page numbers match your device display (1-indexed). Pagination may differ
-        from the web reader.
+        Page numbers match your device display (1-indexed). Pagination may
+        differ from the web reader.
       </p>
     </div>
   );
@@ -209,7 +210,7 @@ export default function ParaPage() {
             <CardTitle className="text-base text-white">Storage</CardTitle>
             <CardDescription>
               Total size of all Para exports:{" "}
-              <span className="font-medium text-foreground">
+              <span className="text-foreground font-medium">
                 {formatBytes(totalBytes)}
               </span>
               {totalBytes > PARA_SIZE_WARNING_BYTES && (
@@ -242,7 +243,9 @@ export default function ParaPage() {
                 className="flex items-start justify-between gap-4 px-4 py-4 sm:px-6"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-white">{item.title}</p>
+                  <p className="truncate font-medium text-white">
+                    {item.title}
+                  </p>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-400">
                     <span>{formatBytes(item.bytes)}</span>
                     <span>·</span>

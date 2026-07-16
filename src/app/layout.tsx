@@ -4,12 +4,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import Script from "next/script";
-import {
-  Geist,
-  Inter,
-  Newsreader,
-  Source_Serif_4,
-} from "next/font/google";
+import { Geist, Inter, Newsreader, Source_Serif_4 } from "next/font/google";
 
 import { ThemeProvider } from "~/app/_components/theme-provider";
 import {

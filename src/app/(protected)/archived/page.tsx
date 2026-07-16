@@ -48,7 +48,7 @@ export default function ArchivedPage() {
   return (
     <Layout pageTitle="Archived Articles">
       <div className="bg-background flex min-h-screen flex-col">
-        <main className="mx-auto flex-1 w-full max-w-5xl p-4 sm:p-6">
+        <main className="mx-auto w-full max-w-5xl flex-1 p-4 sm:p-6">
           <ArticleList
             articles={articles ?? []}
             isLoading={isLoading}

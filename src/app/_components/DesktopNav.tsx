@@ -22,17 +22,17 @@ export function DesktopNav({ pageTitle }: DesktopNavProps) {
     .toUpperCase();
 
   return (
-    <header className="bg-background/90 sticky top-0 z-40 border-b border-rule backdrop-blur-xl">
+    <header className="bg-background/90 border-rule sticky top-0 z-40 border-b backdrop-blur-xl">
       <div className="flex h-14 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-3">
           <div className="md:hidden">
-            <SidebarTrigger className="h-8 w-8 rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground" />
+            <SidebarTrigger className="text-muted-foreground hover:bg-foreground/10 hover:text-foreground h-8 w-8 rounded-full" />
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="hidden h-7 w-7 items-center justify-center rounded-[8px] bg-accent text-white shadow-[var(--shadow-soft)] md:flex">
+            <div className="bg-accent hidden h-7 w-7 items-center justify-center rounded-[8px] text-white shadow-[var(--shadow-soft)] md:flex">
               <span
-                className="text-[15px] font-bold leading-none"
+                className="text-[15px] leading-none font-bold"
                 style={{
                   fontFamily: "var(--font-app-display)",
                   letterSpacing: "-0.03em",
@@ -42,11 +42,11 @@ export function DesktopNav({ pageTitle }: DesktopNavProps) {
               </span>
             </div>
             <h1
-              className="text-lg font-medium tracking-tight text-foreground"
+              className="text-foreground text-lg font-medium tracking-tight"
               style={{ fontFamily: "var(--font-app-display)" }}
             >
               <span className="hidden md:inline">Read It Later</span>
-              <span className="hidden text-foreground-soft md:inline"> / </span>
+              <span className="text-foreground-soft hidden md:inline"> / </span>
               {pageTitle}
             </h1>
           </div>
@@ -59,10 +59,7 @@ export function DesktopNav({ pageTitle }: DesktopNavProps) {
 
           {session?.user && (
             <>
-              <Separator
-                orientation="vertical"
-                className="mx-2 h-5 bg-rule"
-              />
+              <Separator orientation="vertical" className="bg-rule mx-2 h-5" />
               <UserMenu showName />
             </>
           )}
@@ -70,8 +67,8 @@ export function DesktopNav({ pageTitle }: DesktopNavProps) {
 
         <div className="flex items-center md:hidden">
           {session?.user && (
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent">
-              <span className="text-xs font-medium text-accent-foreground">
+            <div className="bg-accent flex h-7 w-7 items-center justify-center rounded-full">
+              <span className="text-accent-foreground text-xs font-medium">
                 {userInitial}
               </span>
             </div>

@@ -20,7 +20,6 @@ export function useWhyDidYouUpdate(componentName: string, props: IProps) {
       });
 
       if (Object.keys(changedProps).length) {
-         
         console.log("[why-did-you-update]", componentName, changedProps);
       }
     }

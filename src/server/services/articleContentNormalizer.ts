@@ -56,7 +56,10 @@ function splitInlineBullets(text: string): string {
     // Use horizontal whitespace only — \s would treat newlines as bullet separators.
     result = result.replace(/([.:!?])[ \t]+\*(?=[ \t])/g, "$1\n\n*");
     result = result.replace(/(\*[ \t][^*\n]+?)[ \t]+\*(?=[ \t])/g, "$1\n*");
-    result = result.replace(/(\*[ \t][^\n#]+?)[ \t]+(#{1,6}[ \t])/g, "$1\n\n$2");
+    result = result.replace(
+      /(\*[ \t][^\n#]+?)[ \t]+(#{1,6}[ \t])/g,
+      "$1\n\n$2",
+    );
   } while (result !== prev);
 
   return result;
@@ -91,7 +94,9 @@ function plainTextToHtml(text: string): string {
     .filter(Boolean)
     .map((block) => {
       const escaped = escapeHtml(block);
-      const inner = hasParagraphBreaks ? escaped.replace(/\n/g, "<br>") : escaped;
+      const inner = hasParagraphBreaks
+        ? escaped.replace(/\n/g, "<br>")
+        : escaped;
       return `<p>${inner}</p>`;
     })
     .join("\n");

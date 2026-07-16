@@ -44,11 +44,7 @@ export const DELETE = defineRoute(RIL_WRITE_SCOPE, async (ctx) => {
     );
   }
 
-  const success = await removeParaExportByArticleId(
-    db,
-    ctx.userId,
-    articleId,
-  );
+  const success = await removeParaExportByArticleId(db, ctx.userId, articleId);
   if (!success) {
     throw new ApiError(404, "not_found", "Export not found");
   }

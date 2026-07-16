@@ -78,7 +78,9 @@ export default function Command() {
   });
 
   const paraArticleIds = new Set(
-    paraExports.map((row) => row.articleId).filter((id): id is string => Boolean(id)),
+    paraExports
+      .map((row) => row.articleId)
+      .filter((id): id is string => Boolean(id)),
   );
 
   const refreshAll = () => {
@@ -115,8 +117,16 @@ export default function Command() {
           defaultValue="inbox"
           onChange={(value) => setView(value as LibraryView)}
         >
-          <List.Dropdown.Item title="Inbox" value="inbox" icon={Icon.Bookmark} />
-          <List.Dropdown.Item title="Archived" value="archived" icon={Icon.Tray} />
+          <List.Dropdown.Item
+            title="Inbox"
+            value="inbox"
+            icon={Icon.Bookmark}
+          />
+          <List.Dropdown.Item
+            title="Archived"
+            value="archived"
+            icon={Icon.Tray}
+          />
         </List.Dropdown>
       }
     >
@@ -161,13 +171,22 @@ function ArticleItem({
   const accessories: List.Item.Accessory[] = [];
 
   if (isOnPara) {
-    accessories.push({ icon: { source: Icon.Mobile, tintColor: Color.Green }, tooltip: "On Para list" });
+    accessories.push({
+      icon: { source: Icon.Mobile, tintColor: Color.Green },
+      tooltip: "On Para list",
+    });
   }
   if (article.isFavorite) {
-    accessories.push({ icon: { source: Icon.Star, tintColor: Color.Yellow }, tooltip: "Favorite" });
+    accessories.push({
+      icon: { source: Icon.Star, tintColor: Color.Yellow },
+      tooltip: "Favorite",
+    });
   }
   if (article.isArchived) {
-    accessories.push({ icon: { source: Icon.Tray, tintColor: Color.SecondaryText }, tooltip: "Archived" });
+    accessories.push({
+      icon: { source: Icon.Tray, tintColor: Color.SecondaryText },
+      tooltip: "Archived",
+    });
   }
   if (article.tags && article.tags.length > 0) {
     accessories.push({ tag: article.tags[0] });
@@ -183,7 +202,13 @@ function ArticleItem({
       subtitle={article.excerpt ?? undefined}
       accessories={accessories}
       keywords={article.tags ?? undefined}
-      actions={<ArticleActions article={article} isOnPara={isOnPara} revalidate={revalidate} />}
+      actions={
+        <ArticleActions
+          article={article}
+          isOnPara={isOnPara}
+          revalidate={revalidate}
+        />
+      }
     />
   );
 }
@@ -198,7 +223,10 @@ function ArticleActions({
   revalidate: () => void;
 }) {
   async function patch(update: ArticleUpdate, label: string) {
-    const toast = await showToast({ style: Toast.Style.Animated, title: `${label}…` });
+    const toast = await showToast({
+      style: Toast.Style.Animated,
+      title: `${label}…`,
+    });
     try {
       await updateArticle(article.id, update);
       toast.style = Toast.Style.Success;
@@ -212,7 +240,10 @@ function ArticleActions({
   }
 
   async function copyShareLink() {
-    const toast = await showToast({ style: Toast.Style.Animated, title: "Creating share link…" });
+    const toast = await showToast({
+      style: Toast.Style.Animated,
+      title: "Creating share link…",
+    });
     try {
       const { shareUrl } = await shareArticle(article.id);
       await Clipboard.copy(shareUrl);
@@ -235,7 +266,10 @@ function ArticleActions({
     });
     if (!confirmed) return;
 
-    const toast = await showToast({ style: Toast.Style.Animated, title: "Deleting…" });
+    const toast = await showToast({
+      style: Toast.Style.Animated,
+      title: "Deleting…",
+    });
     try {
       await deleteArticle(article.id);
       toast.style = Toast.Style.Success;
@@ -250,7 +284,10 @@ function ArticleActions({
 
   async function togglePara() {
     const label = isOnPara ? "Removing from Para" : "Adding to Para";
-    const toast = await showToast({ style: Toast.Style.Animated, title: `${label}…` });
+    const toast = await showToast({
+      style: Toast.Style.Animated,
+      title: `${label}…`,
+    });
     try {
       if (isOnPara) {
         await removeFromParaByArticleId(article.id);
@@ -266,7 +303,9 @@ function ArticleActions({
       revalidate();
     } catch (error) {
       toast.style = Toast.Style.Failure;
-      toast.title = isOnPara ? "Could not remove from Para" : "Could not add to Para";
+      toast.title = isOnPara
+        ? "Could not remove from Para"
+        : "Could not add to Para";
       toast.message = error instanceof Error ? error.message : String(error);
     }
   }
@@ -311,21 +350,32 @@ function ArticleActions({
           icon={article.isFavorite ? Icon.StarDisabled : Icon.Star}
           title={article.isFavorite ? "Remove Favorite" : "Add Favorite"}
           onAction={() =>
-            patch({ isFavorite: !article.isFavorite }, article.isFavorite ? "Unfavoriting" : "Favoriting")
+            patch(
+              { isFavorite: !article.isFavorite },
+              article.isFavorite ? "Unfavoriting" : "Favoriting",
+            )
           }
           shortcut={{ modifiers: ["cmd"], key: "f" }}
         />
         <Action
           icon={article.isRead ? Icon.Circle : Icon.CheckCircle}
           title={article.isRead ? "Mark as Unread" : "Mark as Read"}
-          onAction={() => patch({ isRead: !article.isRead }, article.isRead ? "Marking unread" : "Marking read")}
+          onAction={() =>
+            patch(
+              { isRead: !article.isRead },
+              article.isRead ? "Marking unread" : "Marking read",
+            )
+          }
           shortcut={{ modifiers: ["cmd"], key: "r" }}
         />
         <Action
           icon={article.isArchived ? Icon.Tray : Icon.Box}
           title={article.isArchived ? "Unarchive" : "Archive"}
           onAction={() =>
-            patch({ isArchived: !article.isArchived }, article.isArchived ? "Unarchiving" : "Archiving")
+            patch(
+              { isArchived: !article.isArchived },
+              article.isArchived ? "Unarchiving" : "Archiving",
+            )
           }
           shortcut={{ modifiers: ["cmd"], key: "e" }}
         />

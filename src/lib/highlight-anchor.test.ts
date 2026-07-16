@@ -13,7 +13,9 @@ describe("hashAnchorText / cyrb53", () => {
   });
 
   it("differs for different input", () => {
-    expect(hashAnchorText("hello world")).not.toBe(hashAnchorText("hello worl"));
+    expect(hashAnchorText("hello world")).not.toBe(
+      hashAnchorText("hello worl"),
+    );
   });
 
   it("changes when a single character changes", () => {

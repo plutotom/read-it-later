@@ -84,7 +84,9 @@ function buildCreate(input: Input): ArticleCreate {
  */
 export default async function tool(input: Input) {
   if (!input.url && !(input.title && input.content)) {
-    throw new Error("Provide a url, or a title and content for a manual entry.");
+    throw new Error(
+      "Provide a url, or a title and content for a manual entry.",
+    );
   }
   const article = await createArticle(buildCreate(input));
   return {
@@ -98,7 +100,12 @@ export default async function tool(input: Input) {
 export const confirmation: Tool.Confirmation<Input> = async (input) => {
   return {
     title: "Add Article",
-    message: input.url ? `Save ${input.url} to your library?` : `Save “${input.title}” to your library?`,
-    info: input.tags && input.tags.length > 0 ? [{ name: "tags", value: input.tags.join(", ") }] : undefined,
+    message: input.url
+      ? `Save ${input.url} to your library?`
+      : `Save “${input.title}” to your library?`,
+    info:
+      input.tags && input.tags.length > 0
+        ? [{ name: "tags", value: input.tags.join(", ") }]
+        : undefined,
   };
 };

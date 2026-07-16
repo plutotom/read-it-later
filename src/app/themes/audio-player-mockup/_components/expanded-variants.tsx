@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  FileText,
-  Pause,
-  Play,
-  RotateCcw,
-  RotateCw,
-} from "lucide-react";
+import { FileText, Pause, Play, RotateCcw, RotateCw } from "lucide-react";
 import { MATTER_DARK as p } from "./palette";
 import { SeekBar, SeekTimeLabels } from "./seek-bar";
 import type { ExpandedVariant, MockArticle, MockPlayback } from "./types";
@@ -46,7 +40,7 @@ function ArticleArtwork({ title }: { title: string }) {
           {initial}
         </span>
         <span
-          className="text-center text-[10px] uppercase tracking-[0.2em]"
+          className="text-center text-[10px] tracking-[0.2em] uppercase"
           style={{ color: p.inkMute }}
         >
           Narration
@@ -65,12 +59,12 @@ function ClassicExpanded({
   onCycleSpeed,
 }: Omit<ExpandedContentProps, "variant">) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-6 pb-8 pt-2">
+    <div className="flex min-h-0 flex-1 flex-col px-6 pt-2 pb-8">
       <ArticleArtwork title={article.title} />
 
       <div className="mt-6 min-h-0 flex-1">
         <h2
-          className="line-clamp-3 font-sans text-[20px] font-semibold leading-snug tracking-tight"
+          className="line-clamp-3 font-sans text-[20px] leading-snug font-semibold tracking-tight"
           style={{ color: p.ink }}
         >
           {article.title}
@@ -158,14 +152,12 @@ function ReaderExpanded({
   onTogglePlay,
   onCycleSpeed,
 }: Omit<ExpandedContentProps, "variant">) {
-  const readPct = Math.round(
-    (playback.currentTime / playback.duration) * 100,
-  );
+  const readPct = Math.round((playback.currentTime / playback.duration) * 100);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-6 pb-8 pt-4">
+    <div className="flex min-h-0 flex-1 flex-col px-6 pt-4 pb-8">
       <p
-        className="text-[11px] font-medium uppercase tracking-[0.16em]"
+        className="text-[11px] font-medium tracking-[0.16em] uppercase"
         style={{ color: p.inkMute }}
       >
         Now listening
@@ -211,18 +203,28 @@ function ReaderExpanded({
               Through article
             </p>
             <p
-              className="text-[28px] font-semibold tabular-nums tracking-tight"
+              className="text-[28px] font-semibold tracking-tight tabular-nums"
               style={{ color: p.ink }}
             >
               {readPct}%
             </p>
           </div>
           <div className="text-right text-[12px]" style={{ color: p.inkMute }}>
-            <p>~{Math.max(1, Math.ceil((playback.duration - playback.currentTime) / 60))} min left</p>
+            <p>
+              ~
+              {Math.max(
+                1,
+                Math.ceil((playback.duration - playback.currentTime) / 60),
+              )}{" "}
+              min left
+            </p>
             <p className="mt-0.5">at {playback.playbackSpeed}x</p>
           </div>
         </div>
-        <div className="mt-4 h-1.5 overflow-hidden rounded-full" style={{ background: p.surface }}>
+        <div
+          className="mt-4 h-1.5 overflow-hidden rounded-full"
+          style={{ background: p.surface }}
+        >
           <div
             className="h-full rounded-full"
             style={{ width: `${readPct}%`, background: p.accent }}
@@ -286,7 +288,7 @@ function ScrubExpanded({
   onCycleSpeed,
 }: Omit<ExpandedContentProps, "variant">) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-6 pb-8 pt-6">
+    <div className="flex min-h-0 flex-1 flex-col px-6 pt-6 pb-8">
       <div className="flex items-start gap-4">
         <div
           className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border font-serif text-2xl"
@@ -300,7 +302,7 @@ function ScrubExpanded({
         </div>
         <div className="min-w-0 flex-1 pt-0.5">
           <p
-            className="line-clamp-2 text-[15px] font-medium leading-snug"
+            className="line-clamp-2 text-[15px] leading-snug font-medium"
             style={{ color: p.ink }}
           >
             {article.title}
@@ -331,7 +333,10 @@ function ScrubExpanded({
         />
 
         {/* Decorative waveform hint (static mock) */}
-        <div className="mt-10 flex h-12 items-end justify-center gap-[3px] px-2" aria-hidden>
+        <div
+          className="mt-10 flex h-12 items-end justify-center gap-[3px] px-2"
+          aria-hidden
+        >
           {Array.from({ length: 48 }).map((_, i) => {
             const h = 20 + Math.sin(i * 0.45) * 14 + (i % 5) * 3;
             const played = i / 48 < playback.currentTime / playback.duration;
@@ -360,7 +365,11 @@ function ScrubExpanded({
           {playback.playbackSpeed}x
         </button>
         <div className="flex items-center gap-5">
-          <button type="button" style={{ color: p.inkSoft }} aria-label="Back 15s">
+          <button
+            type="button"
+            style={{ color: p.inkSoft }}
+            aria-label="Back 15s"
+          >
             <RotateCcw className="size-6" strokeWidth={1.5} />
           </button>
           <button
@@ -375,7 +384,11 @@ function ScrubExpanded({
               <Play className="ml-0.5 size-6" />
             )}
           </button>
-          <button type="button" style={{ color: p.inkSoft }} aria-label="Forward 30s">
+          <button
+            type="button"
+            style={{ color: p.inkSoft }}
+            aria-label="Forward 30s"
+          >
             <RotateCw className="size-6" strokeWidth={1.5} />
           </button>
         </div>
@@ -402,7 +415,8 @@ export const VARIANT_LABELS: Record<
 > = {
   classic: {
     title: "Classic",
-    blurb: "Podcast-style sheet: artwork, title, skip controls (like your reference).",
+    blurb:
+      "Podcast-style sheet: artwork, title, skip controls (like your reference).",
   },
   reader: {
     title: "Reader",

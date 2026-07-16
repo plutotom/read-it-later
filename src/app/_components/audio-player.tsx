@@ -488,9 +488,7 @@ export function AudioPlayer({
             <div className="text-foreground truncate text-[13px] font-medium tracking-tight">
               Checking audio
             </div>
-            <div className="text-muted-foreground text-[11px]">
-              One moment
-            </div>
+            <div className="text-muted-foreground text-[11px]">One moment</div>
           </div>
         </div>
       );
@@ -524,7 +522,10 @@ export function AudioPlayer({
       );
     }
 
-    if (!isPublicShare && (playerState === "generating" || generationInFlight)) {
+    if (
+      !isPublicShare &&
+      (playerState === "generating" || generationInFlight)
+    ) {
       return (
         <div className="flex items-center gap-3">
           <div className="bg-accent text-accent-foreground flex h-10 w-10 items-center justify-center rounded-full">

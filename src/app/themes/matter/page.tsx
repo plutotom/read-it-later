@@ -222,11 +222,11 @@ export default function MatterThemePage() {
         rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..700&display=swap"
       />
-      { }
+      {}
       <style dangerouslySetInnerHTML={{ __html: css }} />
 
       <div
-        className="sticky top-0 z-20 flex items-center justify-between border-b px-8 py-3 m-fade-in"
+        className="m-fade-in sticky top-0 z-20 flex items-center justify-between border-b px-8 py-3"
         style={{
           borderColor: p.rule,
           background: p.topBarBg,
@@ -246,12 +246,16 @@ export default function MatterThemePage() {
         </div>
         <div className="flex items-center gap-2">
           <SearchBox p={p} />
-          <ThemeToggle mode={mode} onToggle={() => setMode((m) => (m === "dark" ? "light" : "dark"))} p={p} />
+          <ThemeToggle
+            mode={mode}
+            onToggle={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
+            p={p}
+          />
         </div>
       </div>
 
       <div className="mx-auto grid max-w-[1200px] grid-cols-[240px_1fr] gap-10 px-8 py-10">
-        <aside className="sticky top-20 self-start m-fade-up m-d-0">
+        <aside className="m-fade-up m-d-0 sticky top-20 self-start">
           <nav className="flex flex-col gap-0.5">
             {NAV_ITEMS.map((item) => {
               const active = activeNav === item.label;
@@ -286,10 +290,7 @@ export default function MatterThemePage() {
             })}
           </nav>
 
-          <div
-            className="mx-3 my-6 h-px"
-            style={{ background: p.rule }}
-          />
+          <div className="mx-3 my-6 h-px" style={{ background: p.rule }} />
           <div className="flex flex-col gap-0.5">
             {COLLECTIONS.map((c) => (
               <button
@@ -308,7 +309,7 @@ export default function MatterThemePage() {
         </aside>
 
         <section>
-          <header className="mb-10 m-fade-up m-d-1">
+          <header className="m-fade-up m-d-1 mb-10">
             <h1
               className="text-4xl leading-[1.05] tracking-tight"
               style={{
@@ -394,7 +395,7 @@ export default function MatterThemePage() {
           </article>
 
           <div
-            className="divide-y overflow-hidden rounded-2xl border m-fade-up m-d-4"
+            className="m-fade-up m-d-4 divide-y overflow-hidden rounded-2xl border"
             style={{
               borderColor: p.rule,
               background: p.surface,
@@ -412,7 +413,6 @@ export default function MatterThemePage() {
               />
             ))}
           </div>
-
         </section>
       </div>
 
@@ -439,7 +439,7 @@ function Logo({ p }: { p: Palette }) {
       style={{ background: p.accent, color: "white" }}
     >
       <span
-        className="text-[15px] font-bold leading-none"
+        className="text-[15px] leading-none font-bold"
         style={{
           fontFamily: "'Newsreader', ui-serif, Georgia, serif",
           letterSpacing: "-0.03em",
@@ -543,13 +543,7 @@ function ThemeToggle({
   );
 }
 
-function SourceFavicon({
-  domain,
-  accent,
-}: {
-  domain: string;
-  accent: string;
-}) {
+function SourceFavicon({ domain, accent }: { domain: string; accent: string }) {
   const initial = domain.replace("www.", "").charAt(0).toUpperCase();
   const palette = [accent, "#4FB395", "#6E9BD9", "#E0B85A", "#A07AC6"];
   const hue = palette[domain.length % palette.length] ?? accent;
@@ -652,12 +646,12 @@ function Reader({
 
   return (
     <div
-      className="fixed inset-0 z-30 m-fade-in"
+      className="m-fade-in fixed inset-0 z-30"
       style={{ background: p.scrim, backdropFilter: "blur(4px)" }}
       onClick={onClose}
     >
       <div
-        className="absolute top-0 right-0 flex h-full w-full max-w-[880px] flex-col m-slide-in"
+        className="m-slide-in absolute top-0 right-0 flex h-full w-full max-w-[880px] flex-col"
         style={{ background: p.paper, boxShadow: p.shadowStrong }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -667,7 +661,7 @@ function Reader({
         >
           <button
             onClick={onClose}
-            className="text-sm m-nav-item rounded-md px-2 py-1"
+            className="m-nav-item rounded-md px-2 py-1 text-sm"
             style={{ color: p.inkSoft }}
           >
             ← Close
@@ -698,7 +692,7 @@ function Reader({
         >
           <div className="mx-auto max-w-[640px]">
             <h1
-              className="text-[44px] leading-[1.05] tracking-tight m-fade-up"
+              className="m-fade-up text-[44px] leading-[1.05] tracking-tight"
               style={{
                 fontFamily: "'Newsreader', ui-serif, Georgia, serif",
                 fontWeight: 500,
@@ -707,7 +701,7 @@ function Reader({
               {article.title}
             </h1>
             <div
-              className="mt-6 text-sm m-fade-up m-d-1"
+              className="m-fade-up m-d-1 mt-6 text-sm"
               style={{ color: p.inkMute }}
             >
               {article.author} · {article.domain}
@@ -740,13 +734,12 @@ function Reader({
                   return (
                     <blockquote
                       key={i}
-                      className="m-fade-up border-l-2 py-2 pl-6 text-[22px] italic leading-[1.45]"
+                      className="m-fade-up border-l-2 py-2 pl-6 text-[22px] leading-[1.45] italic"
                       style={{
                         borderColor: p.accent,
                         color: p.inkSoft,
                         animationDelay: `${300 + i * 80}ms`,
-                        fontFamily:
-                          "'Newsreader', ui-serif, Georgia, serif",
+                        fontFamily: "'Newsreader', ui-serif, Georgia, serif",
                       }}
                     >
                       &ldquo;
@@ -766,12 +759,11 @@ function Reader({
                 );
               })}
             </div>
-
           </div>
         </div>
 
         <div
-          className="absolute right-6 bottom-6 left-6 flex items-center gap-4 rounded-2xl border px-4 py-3 m-fade-up m-d-3"
+          className="m-fade-up m-d-3 absolute right-6 bottom-6 left-6 flex items-center gap-4 rounded-2xl border px-4 py-3"
           style={{
             background: p.surface,
             borderColor: p.rule,

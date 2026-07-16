@@ -74,7 +74,8 @@ export async function updateFolder(
 ): Promise<Folder | undefined> {
   const updateData: Partial<typeof folders.$inferInsert> = {};
   if (patch.name !== undefined) updateData.name = patch.name;
-  if (patch.description !== undefined) updateData.description = patch.description;
+  if (patch.description !== undefined)
+    updateData.description = patch.description;
   if (patch.color !== undefined) updateData.color = patch.color;
   if (patch.icon !== undefined) updateData.icon = patch.icon;
   if (patch.parentId !== undefined) updateData.parentId = patch.parentId;

@@ -55,34 +55,36 @@ export function UserMenu({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+            className="text-muted-foreground hover:bg-foreground/10 hover:text-foreground h-8 w-8 rounded-full"
           >
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="end"
-          className="w-56 border-rule bg-surface text-foreground shadow-[var(--shadow-soft)]"
+          className="border-rule bg-surface text-foreground w-56 shadow-[var(--shadow-soft)]"
         >
-          <DropdownMenuLabel className="flex items-center gap-3 text-foreground">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
+          <DropdownMenuLabel className="text-foreground flex items-center gap-3">
+            <div className="bg-accent text-accent-foreground flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold">
               {userInitial}
             </div>
-            <span className="truncate">{session.user.name ?? session.user.email}</span>
+            <span className="truncate">
+              {session.user.name ?? session.user.email}
+            </span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator className="bg-rule" />
           <ThemeSwitcher className="px-2 py-1" />
           <DropdownMenuSeparator className="bg-rule" />
           <DropdownMenuItem
             onClick={() => router.push("/preferences")}
-            className="cursor-pointer text-foreground-soft focus:bg-background-deep focus:text-foreground"
+            className="text-foreground-soft focus:bg-background-deep focus:text-foreground cursor-pointer"
           >
             <Settings className="mr-2 h-4 w-4" />
             Preferences
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => void handleSignOut()}
-            className="cursor-pointer text-foreground-soft focus:bg-background-deep focus:text-foreground"
+            className="text-foreground-soft focus:bg-background-deep focus:text-foreground cursor-pointer"
           >
             <LogOut className="mr-2 h-4 w-4" />
             Sign out
@@ -104,8 +106,8 @@ export function UserMenu({
             "text-foreground-soft hover:bg-foreground/10 hover:text-foreground",
           )}
         >
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent">
-            <span className="text-xs font-medium text-accent-foreground">
+          <div className="bg-accent flex h-6 w-6 items-center justify-center rounded-full">
+            <span className="text-accent-foreground text-xs font-medium">
               {userInitial}
             </span>
           </div>
@@ -119,7 +121,7 @@ export function UserMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-64 border-rule bg-surface text-foreground shadow-[var(--shadow-soft)]"
+        className="border-rule bg-surface text-foreground w-64 shadow-[var(--shadow-soft)]"
       >
         <DropdownMenuLabel className="text-foreground-soft">
           {showName ? "My Account" : (session.user.name ?? session.user.email)}
@@ -134,7 +136,7 @@ export function UserMenu({
         <DropdownMenuSeparator className="bg-rule" />
         <DropdownMenuItem
           onClick={() => router.push("/preferences")}
-          className="cursor-pointer text-foreground-soft focus:bg-background-deep focus:text-foreground"
+          className="text-foreground-soft focus:bg-background-deep focus:text-foreground cursor-pointer"
         >
           <Settings className="mr-2 h-4 w-4" />
           Preferences
@@ -142,7 +144,7 @@ export function UserMenu({
         <DropdownMenuSeparator className="bg-rule" />
         <DropdownMenuItem
           onClick={() => void handleSignOut()}
-          className="cursor-pointer text-foreground-soft focus:bg-background-deep focus:text-foreground"
+          className="text-foreground-soft focus:bg-background-deep focus:text-foreground cursor-pointer"
         >
           <LogOut className="mr-2 h-4 w-4" />
           Sign out

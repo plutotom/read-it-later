@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  FileText,
-  Pause,
-  Play,
-  RotateCcw,
-  RotateCw,
-} from "lucide-react";
+import { FileText, Pause, Play, RotateCcw, RotateCw } from "lucide-react";
 import { getDomainFromUrl } from "~/lib/article-url";
 import { cn } from "~/lib/utils";
 import {
@@ -43,10 +37,14 @@ function ArticleArtwork({
   const initial = title.trim().charAt(0).toUpperCase() || "A";
 
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[248px] overflow-hidden rounded-[14px] bg-background-deep shadow-[0_8px_32px_rgba(0,0,0,0.28)]">
+    <div className="bg-background-deep relative mx-auto aspect-square w-full max-w-[248px] overflow-hidden rounded-[14px] shadow-[0_8px_32px_rgba(0,0,0,0.28)]">
       {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt="" className="absolute inset-0 size-full object-cover" />
+        <img
+          src={imageUrl}
+          alt=""
+          className="absolute inset-0 size-full object-cover"
+        />
       ) : (
         <>
           <div
@@ -58,12 +56,12 @@ function ArticleArtwork({
           />
           <div className="flex h-full flex-col items-center justify-center gap-1.5 p-6">
             <span
-              className="font-serif text-[2.75rem] font-medium leading-none text-foreground-soft"
+              className="text-foreground-soft font-serif text-[2.75rem] leading-none font-medium"
               style={{ fontFamily: "var(--font-app-display)" }}
             >
               {initial}
             </span>
-            <span className="text-center text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            <span className="text-muted-foreground text-center text-[10px] font-medium tracking-[0.18em] uppercase">
               Narration
             </span>
           </div>
@@ -100,16 +98,18 @@ export function AudioPlayerExpanded({
       </div>
 
       <div className="audio-player-sheet__section mt-5 text-center">
-        <h2 className="line-clamp-3 text-[22px] font-semibold leading-[1.2] tracking-[-0.02em] text-foreground">
+        <h2 className="text-foreground line-clamp-3 text-[22px] leading-[1.2] font-semibold tracking-[-0.02em]">
           {title}
         </h2>
         {metaLine ? (
-          <p className="mt-1 text-[15px] leading-snug text-muted-foreground">
+          <p className="text-muted-foreground mt-1 text-[15px] leading-snug">
             {metaLine}
           </p>
         ) : null}
         {voiceLabel ? (
-          <p className="mt-0.5 text-[13px] text-muted-foreground">{voiceLabel}</p>
+          <p className="text-muted-foreground mt-0.5 text-[13px]">
+            {voiceLabel}
+          </p>
         ) : null}
       </div>
 
@@ -142,7 +142,7 @@ export function AudioPlayerExpanded({
           type="button"
           onClick={() => onSkip(-15)}
           disabled={disabled}
-          className="flex flex-col items-center gap-0.5 text-foreground-soft transition-colors hover:text-foreground disabled:opacity-50"
+          className="text-foreground-soft hover:text-foreground flex flex-col items-center gap-0.5 transition-colors disabled:opacity-50"
           aria-label="Rewind 15 seconds"
         >
           <RotateCcw className="size-[1.65rem]" strokeWidth={1.75} />
@@ -154,7 +154,7 @@ export function AudioPlayerExpanded({
           onClick={onTogglePlay}
           disabled={disabled}
           className={cn(
-            "flex h-[4.25rem] w-[4.25rem] items-center justify-center rounded-full bg-foreground text-background transition-transform active:scale-95 disabled:opacity-50",
+            "bg-foreground text-background flex h-[4.25rem] w-[4.25rem] items-center justify-center rounded-full transition-transform active:scale-95 disabled:opacity-50",
             isPlaying && "m-pulse",
           )}
           aria-label={isPlaying ? "Pause" : "Play"}
@@ -170,7 +170,7 @@ export function AudioPlayerExpanded({
           type="button"
           onClick={() => onSkip(30)}
           disabled={disabled}
-          className="flex flex-col items-center gap-0.5 text-foreground-soft transition-colors hover:text-foreground disabled:opacity-50"
+          className="text-foreground-soft hover:text-foreground flex flex-col items-center gap-0.5 transition-colors disabled:opacity-50"
           aria-label="Forward 30 seconds"
         >
           <RotateCw className="size-[1.65rem]" strokeWidth={1.75} />
@@ -181,7 +181,7 @@ export function AudioPlayerExpanded({
           type="button"
           onClick={onJumpToReadingPosition}
           disabled={!!disabled || !onJumpToReadingPosition}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-foreground-soft transition-colors hover:bg-foreground/8 hover:text-foreground disabled:opacity-40"
+          className="text-foreground-soft hover:bg-foreground/8 hover:text-foreground flex h-10 w-10 items-center justify-center rounded-full transition-colors disabled:opacity-40"
           aria-label="Scroll to listen position in article"
           title="Scroll to listen position in article"
         >

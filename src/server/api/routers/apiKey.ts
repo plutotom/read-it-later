@@ -1,10 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
-import {
-  createTRPCRouter,
-  protectedProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { apiKeys } from "~/server/db/schema";
 import {
   generateApiKey,
@@ -88,7 +85,10 @@ export const apiKeyRouter = createTRPCRouter({
         .returning({ id: apiKeys.id });
 
       if (!revoked) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "API key not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "API key not found",
+        });
       }
 
       return { success: true };

@@ -324,7 +324,10 @@ export function selectionToAnchor(
     return null;
   }
   const range = selection.getRangeAt(0);
-  if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) {
+  if (
+    !root.contains(range.startContainer) ||
+    !root.contains(range.endContainer)
+  ) {
     return null;
   }
 

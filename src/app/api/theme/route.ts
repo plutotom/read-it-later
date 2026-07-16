@@ -1,11 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import {
-  THEME_COOKIE_KEY,
-  resolveTheme,
-  type ThemeName,
-} from "~/lib/theme";
+import { THEME_COOKIE_KEY, resolveTheme, type ThemeName } from "~/lib/theme";
 
 export const dynamic = "force-dynamic";
 

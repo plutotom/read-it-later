@@ -11,9 +11,13 @@ function formatReadingTime(article: Article): string | undefined {
 }
 
 export function ArticleDetail({ article }: { article: Article }) {
-  const { data: content, isLoading } = usePromise(getArticleContent, [article.id, "text"], {
-    failureToastOptions: { title: "Could not load article content" },
-  });
+  const { data: content, isLoading } = usePromise(
+    getArticleContent,
+    [article.id, "text"],
+    {
+      failureToastOptions: { title: "Could not load article content" },
+    },
+  );
 
   const body = content?.trim() ? content : "_No content available._";
   const markdown = `# ${article.title}\n\n${body}`;
@@ -29,11 +33,21 @@ export function ArticleDetail({ article }: { article: Article }) {
       markdown={markdown}
       metadata={
         <Detail.Metadata>
-          {article.author ? <Detail.Metadata.Label title="Author" text={article.author} /> : null}
-          {readingTime ? <Detail.Metadata.Label title="Length" text={readingTime} /> : null}
+          {article.author ? (
+            <Detail.Metadata.Label title="Author" text={article.author} />
+          ) : null}
+          {readingTime ? (
+            <Detail.Metadata.Label title="Length" text={readingTime} />
+          ) : null}
           <Detail.Metadata.Label
             title="Status"
-            text={article.isArchived ? "Archived" : article.isRead ? "Read" : "Unread"}
+            text={
+              article.isArchived
+                ? "Archived"
+                : article.isRead
+                  ? "Read"
+                  : "Unread"
+            }
             icon={article.isFavorite ? Icon.Star : undefined}
           />
           {article.tags && article.tags.length > 0 ? (

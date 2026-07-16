@@ -22,7 +22,11 @@ import {
   toWeightedCharacters,
 } from "~/lib/tts-voices";
 import { nanoid } from "nanoid";
-import { isDocumentArticle, hasExtractedText, DOCUMENT_UNSUPPORTED_TTS_MESSAGE } from "~/lib/article-content-kind";
+import {
+  isDocumentArticle,
+  hasExtractedText,
+  DOCUMENT_UNSUPPORTED_TTS_MESSAGE,
+} from "~/lib/article-content-kind";
 
 /**
  * Get the current billing period in YYYY-MM format
@@ -77,9 +81,7 @@ async function getUserVoicePreference(
     where: eq(userPreferences.userId, userId),
     columns: { ttsVoiceName: true },
   });
-  return (
-    prefs?.ttsVoiceName ?? process.env.TTS_VOICE_NAME ?? DEFAULT_VOICE
-  );
+  return prefs?.ttsVoiceName ?? process.env.TTS_VOICE_NAME ?? DEFAULT_VOICE;
 }
 
 type ArticleAudioPlaybackRow = Pick<

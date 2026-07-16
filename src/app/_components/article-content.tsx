@@ -27,7 +27,7 @@ function ArticleContentImpl({
   return (
     <div
       ref={contentRef}
-      className="article-content min-w-0 w-full max-w-none leading-relaxed text-foreground"
+      className="article-content text-foreground w-full max-w-none min-w-0 leading-relaxed"
       style={{
         fontFamily: "var(--font-app-reading)",
         fontSize: `${fontSize}px`,

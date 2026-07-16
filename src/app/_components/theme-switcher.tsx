@@ -33,7 +33,7 @@ export function ThemeSwitcher({ className }: { className?: string }) {
 
   return (
     <div className={cn("px-2 py-2", className)}>
-      <div className="mb-2 flex items-center gap-2 px-1 text-xs font-medium tracking-wider text-muted-foreground uppercase">
+      <div className="text-muted-foreground mb-2 flex items-center gap-2 px-1 text-xs font-medium tracking-wider uppercase">
         <Palette className="h-3.5 w-3.5" />
         <span>Theme</span>
       </div>
@@ -71,16 +71,14 @@ export function ThemeSwitcher({ className }: { className?: string }) {
                 />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-medium text-foreground">
+                <span className="text-foreground block truncate text-xs font-medium">
                   {t.name}
                 </span>
-                <span className="block truncate text-[10px] text-muted-foreground">
+                <span className="text-muted-foreground block truncate text-[10px]">
                   {t.tagline}
                 </span>
               </span>
-              {active && (
-                <Check className="h-3.5 w-3.5 shrink-0 text-accent" />
-              )}
+              {active && <Check className="text-accent h-3.5 w-3.5 shrink-0" />}
             </button>
           );
         })}

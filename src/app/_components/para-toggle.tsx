@@ -60,10 +60,11 @@ export function ParaToggle({
 }: ParaToggleProps) {
   const utils = api.useUtils();
 
-  const { data: queriedIsOnPara = false, isLoading } = api.para.isOnPara.useQuery(
-    { articleId },
-    { enabled: isOnParaProp === undefined },
-  );
+  const { data: queriedIsOnPara = false, isLoading } =
+    api.para.isOnPara.useQuery(
+      { articleId },
+      { enabled: isOnParaProp === undefined },
+    );
 
   const isOnPara = isOnParaProp ?? queriedIsOnPara;
 
@@ -121,17 +122,19 @@ export function ParaToggle({
       <button
         type="button"
         className={cn(
-          "relative flex w-full select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
+          "relative flex w-full items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none",
           disabled
-            ? "cursor-not-allowed text-muted-foreground opacity-60"
-            : "cursor-pointer hover:bg-accent hover:text-accent-foreground",
+            ? "text-muted-foreground cursor-not-allowed opacity-60"
+            : "hover:bg-accent hover:text-accent-foreground cursor-pointer",
           className,
         )}
         onClick={(e) => {
           e.stopPropagation();
           if (!disabled && !isPending) handleChange(!isOnPara);
         }}
-        disabled={disabled || (isOnParaProp === undefined && isLoading) || isPending}
+        disabled={
+          disabled || (isOnParaProp === undefined && isLoading) || isPending
+        }
       >
         {showOnListState ? (
           <Check className="mr-2 h-4 w-4 text-emerald-400" />
@@ -172,17 +175,20 @@ export function ParaToggle({
         {showOnListState ? (
           <Check className="h-4 w-4 shrink-0 text-emerald-400" />
         ) : (
-          <Tablet className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <Tablet className="text-muted-foreground h-4 w-4 shrink-0" />
         )}
         <div className="min-w-0">
           <Label
             htmlFor={`para-${articleId}`}
-            className={cn("text-sm", disabled ? "text-muted-foreground" : "text-white")}
+            className={cn(
+              "text-sm",
+              disabled ? "text-muted-foreground" : "text-white",
+            )}
           >
             {showOnListState ? "On Para list" : "Add to Para"}
           </Label>
           {disabled ? (
-            <p className="truncate text-xs text-muted-foreground">
+            <p className="text-muted-foreground truncate text-xs">
               Not available for PDFs
             </p>
           ) : (
@@ -195,7 +201,7 @@ export function ParaToggle({
         </div>
       </div>
       {isOnParaProp === undefined && isLoading ? (
-        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
       ) : (
         <Switch
           id={`para-${articleId}`}

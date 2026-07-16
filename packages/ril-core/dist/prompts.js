@@ -56,7 +56,10 @@ export const addArticleShape = {
         .string()
         .optional()
         .describe("Author name when known (e.g. from an email signature or byline)."),
-    tags: z.array(z.string()).optional().describe("Tags to apply to the new article."),
+    tags: z
+        .array(z.string())
+        .optional()
+        .describe("Tags to apply to the new article."),
 };
 // ---- search_articles ------------------------------------------------------
 export const SEARCH_ARTICLES_DESCRIPTION = `List the most recent articles in the user's read-it-later library, or search them by keyword. Returns article metadata (id, title, url, excerpt, tags, read/favorite/archived status, reading time). Use this to answer questions like "my 5 most recent articles" or to find the articles to operate on.`;
@@ -70,7 +73,10 @@ export const searchArticlesShape = {
         .int()
         .optional()
         .describe("Maximum number of articles to return. Defaults to 10, capped at 50."),
-    tag: z.string().optional().describe("Only return articles with this exact tag."),
+    tag: z
+        .string()
+        .optional()
+        .describe("Only return articles with this exact tag."),
     isRead: z
         .boolean()
         .optional()

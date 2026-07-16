@@ -94,7 +94,10 @@ export function formatParaTxt(title: string, html: string): string {
   return `${trimmedTitle}\n${"=".repeat(trimmedTitle.length)}\n\n${body}`;
 }
 
-export function buildParaTxtFromArticle(title: string, html: string): {
+export function buildParaTxtFromArticle(
+  title: string,
+  html: string,
+): {
   txtContent: string;
   bytes: number;
   sha256: string;

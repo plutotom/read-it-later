@@ -27,7 +27,7 @@ export function Layout({ children, pageTitle }: LayoutProps) {
             <AppSidebar />
           </div>
 
-          <main className="flex-1 bg-background">{children}</main>
+          <main className="bg-background flex-1">{children}</main>
           <AddArticleButton />
         </div>
         <AddArticleFormCard />
