@@ -17,9 +17,11 @@ import {
   ExternalLink,
   Pencil,
   Archive,
+  Share2,
   Trash2,
 } from "lucide-react";
 import { ParaToggle } from "./para-toggle";
+import { ShareDialog } from "./share-dialog";
 import { cn } from "~/lib/utils";
 import {
   hasExtractedText,
@@ -35,6 +37,8 @@ interface ArticleActionsMenuProps {
   onDelete?: () => void;
   /** Always visible (e.g. hero card) vs show on group-hover */
   alwaysVisible?: boolean;
+  /** Include Share in the menu (reader header) */
+  showShare?: boolean;
   align?: "start" | "center" | "end";
   className?: string;
 }
@@ -46,12 +50,14 @@ export function ArticleActionsMenu({
   onUnarchive,
   onDelete,
   alwaysVisible = false,
+  showShare = false,
   align = "end",
   className,
 }: ArticleActionsMenuProps) {
   const { setMetadataEditArticle } = useContext(GeneralContext);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   // Radix closes the menu on pointer-up; without this, the click can fall through
   // to the article row underneath and navigate/open the article.
@@ -141,6 +147,20 @@ export function ArticleActionsMenu({
             </DropdownMenuItem>
           )}
 
+          {showShare && (
+            <DropdownMenuItem
+              onPointerDown={preventMenuClickThrough}
+              onSelect={(event) => {
+                event.preventDefault();
+                setMenuOpen(false);
+                setShareDialogOpen(true);
+              }}
+            >
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </DropdownMenuItem>
+          )}
+
           <DropdownMenuItem
             onPointerDown={preventMenuClickThrough}
             onSelect={(event) => {
@@ -155,6 +175,17 @@ export function ArticleActionsMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {showShare && (
+        <ShareDialog
+          articleId={article.id}
+          articleTitle={article.title}
+          originalUrl={article.url}
+          existingShareToken={article.shareToken}
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+        />
+      )}
 
       <ConfirmDialog
         open={deleteConfirmOpen}

@@ -5,37 +5,18 @@
 
 "use client";
 
-import { useState, type MouseEvent } from "react";
+import { type MouseEvent } from "react";
 import Link from "next/link";
 import { type Article } from "~/types/article";
 import { ReadingSettings } from "./reading-settings";
 import { Button } from "~/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
-import {
-  Settings,
-  ArrowLeft,
-  Archive,
-  List,
-  MoreVertical,
-  Share2,
-  Trash2,
-} from "lucide-react";
+import { Settings, ArrowLeft, List } from "lucide-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
-import {
-  getReturnToLabel,
-  sanitizeReturnTo,
-} from "~/lib/article-navigation";
+import { getReturnToLabel, sanitizeReturnTo } from "~/lib/article-navigation";
 import { withViewTransition } from "~/lib/with-view-transition";
-import { ShareDialog } from "./share-dialog";
 import { ParaToggle } from "./para-toggle";
-import { ConfirmDialog } from "~/components/ui/confirm-dialog";
+import { ArticleActionsMenu } from "./article-actions-menu";
 import { useDeleteArticle } from "../_hooks/use-delete-article";
 import { cn } from "~/lib/utils";
 import {
@@ -68,8 +49,6 @@ export function ArticleReaderHeader({
   returnTo: returnToProp,
 }: ArticleReaderHeaderProps) {
   const returnTo = sanitizeReturnTo(returnToProp ?? null);
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const utils = api.useUtils();
   const router = useRouter();
   const { mutate: archive } = api.article.archive.useMutation({
@@ -105,18 +84,6 @@ export function ArticleReaderHeader({
     });
   };
 
-  const handleArchive = () => {
-    archive({ id: article.id });
-  };
-
-  const handleUnarchive = () => {
-    unarchive({ id: article.id });
-  };
-
-  const handleDelete = () => {
-    deleteArticle({ id: article.id });
-  };
-
   const domain = (() => {
     try {
       return new URL(article.url).hostname.replace("www.", "");
@@ -125,8 +92,7 @@ export function ArticleReaderHeader({
     }
   })();
 
-  const isPdfWithoutText =
-    isPdfArticle(article) && !hasExtractedText(article);
+  const isPdfWithoutText = isPdfArticle(article) && !hasExtractedText(article);
 
   const readingTime = isPdfWithoutText
     ? "PDF"
@@ -195,50 +161,15 @@ export function ArticleReaderHeader({
             <Settings className="h-4 w-4" />
           </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-foreground-soft hover:bg-foreground/10 hover:text-foreground h-8 w-8 rounded-full"
-                aria-label="Article actions"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {article.isArchived ? (
-                <DropdownMenuItem onClick={handleUnarchive}>
-                  <Archive className="mr-2 h-4 w-4" />
-                  Unarchive
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={handleArchive}>
-                  <Archive className="mr-2 h-4 w-4" />
-                  Archive
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onSelect={() => setShareDialogOpen(true)}>
-                <Share2 className="mr-2 h-4 w-4" />
-                Share
-              </DropdownMenuItem>
-              <ParaToggle
-                articleId={article.id}
-                articleTitle={article.title}
-                variant="menu"
-                disabled={isPdfWithoutText}
-                disabledReason={DOCUMENT_UNSUPPORTED_PARA_MESSAGE}
-              />
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() => setDeleteConfirmOpen(true)}
-                className="text-red-400 focus:bg-red-900/30 focus:text-red-400"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ArticleActionsMenu
+            article={article}
+            alwaysVisible
+            showShare
+            onArchive={() => archive({ id: article.id })}
+            onUnarchive={() => unarchive({ id: article.id })}
+            onDelete={() => deleteArticle({ id: article.id })}
+            className="text-foreground-soft hover:bg-foreground/10 hover:text-foreground"
+          />
         </div>
       </div>
 
@@ -262,25 +193,6 @@ export function ArticleReaderHeader({
           </div>
         </div>
       )}
-
-      <ShareDialog
-        articleId={article.id}
-        articleTitle={article.title}
-        originalUrl={article.url}
-        existingShareToken={article.shareToken}
-        open={shareDialogOpen}
-        onOpenChange={setShareDialogOpen}
-      />
-
-      <ConfirmDialog
-        open={deleteConfirmOpen}
-        onOpenChange={setDeleteConfirmOpen}
-        title="Delete article?"
-        description="This article will be permanently removed. This action cannot be undone."
-        confirmLabel="Delete"
-        destructive
-        onConfirm={handleDelete}
-      />
     </div>
   );
 }

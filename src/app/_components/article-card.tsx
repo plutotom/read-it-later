@@ -61,7 +61,7 @@ export function ArticleCard({
   return (
     <div className="group relative">
       <div
-        className="flex cursor-pointer items-start gap-4 px-4 py-4 transition-colors duration-200 hover:bg-foreground/10 sm:px-6 sm:py-5"
+        className="hover:bg-foreground/10 flex cursor-pointer items-start gap-4 px-4 py-4 transition-colors duration-200 sm:px-6 sm:py-5"
         onClick={onClick}
         onPointerEnter={onPrefetch}
         onFocus={onPrefetch}
@@ -77,7 +77,7 @@ export function ArticleCard({
 
         <div className="min-w-0 flex-1">
           <div
-            className="line-clamp-2 text-[17px] leading-snug tracking-tight text-foreground"
+            className="text-foreground line-clamp-2 text-[17px] leading-snug tracking-tight"
             style={{
               fontFamily: "var(--font-app-display)",
               fontWeight: 500,
@@ -87,12 +87,12 @@ export function ArticleCard({
           </div>
 
           {article.excerpt && (
-            <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-foreground-soft">
+            <p className="text-foreground-soft mt-1 line-clamp-2 text-sm leading-relaxed">
               {article.excerpt}
             </p>
           )}
 
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+          <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2 text-[11px]">
             <span>{domain}</span>
             {article.readingTime && (
               <>
@@ -123,6 +123,7 @@ export function ArticleCard({
               onArchive={onArchive}
               onUnarchive={onUnarchive}
               onDelete={onDelete}
+              alwaysVisible
             />
           )}
         </div>

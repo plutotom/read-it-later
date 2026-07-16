@@ -69,6 +69,7 @@ export function AddArticleFormCard() {
     onSuccess: async (result) => {
       if (result.article) {
         await patchArticleInListCache(utils, result.article);
+        await utils.article.get.invalidate({ id: result.article.id });
       } else {
         await utils.article.getAll.refetch();
       }
@@ -141,22 +142,22 @@ export function AddArticleFormCard() {
         onClick={handleOverlayClick}
       >
         <div
-          className="relative z-10 flex max-h-[92svh] w-full flex-col overflow-hidden rounded-t-[1.75rem] border border-rule bg-surface shadow-strong m-fade-up sm:max-h-[90vh] sm:max-w-md sm:rounded-[1.75rem]"
+          className="border-rule bg-surface shadow-strong m-fade-up relative z-10 flex max-h-[92svh] w-full flex-col overflow-hidden rounded-t-[1.75rem] border sm:max-h-[90vh] sm:max-w-md sm:rounded-[1.75rem]"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="shrink-0 border-b border-rule bg-surface/95 px-4 pt-3 pb-4 backdrop-blur-xl sm:px-5 sm:pt-4">
+          <div className="border-rule bg-surface/95 shrink-0 border-b px-4 pt-3 pb-4 backdrop-blur-xl sm:px-5 sm:pt-4">
             <div className="mb-3 flex justify-center sm:hidden">
-              <div className="h-1.5 w-12 rounded-full bg-rule" />
+              <div className="bg-rule h-1.5 w-12 rounded-full" />
             </div>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2
-                  className="text-[1.65rem] leading-[1.05] font-medium tracking-tight text-foreground"
+                  className="text-foreground text-[1.65rem] leading-[1.05] font-medium tracking-tight"
                   style={{ fontFamily: "var(--font-app-display)" }}
                 >
                   {headerTitle}
                 </h2>
-                <p className="mt-1 text-sm leading-relaxed text-foreground-soft">
+                <p className="text-foreground-soft mt-1 text-sm leading-relaxed">
                   {headerDescription}
                 </p>
               </div>
@@ -165,7 +166,7 @@ export function AddArticleFormCard() {
                 variant="ghost"
                 size="icon"
                 onClick={handleClose}
-                className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-background-deep hover:text-foreground"
+                className="text-muted-foreground hover:bg-background-deep hover:text-foreground h-9 w-9 shrink-0 rounded-full"
                 aria-label="Close add article composer"
               >
                 <X className="h-4 w-4" />
