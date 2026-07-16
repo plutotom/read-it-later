@@ -187,7 +187,8 @@ export async function updateNote(
 ): Promise<Note | undefined> {
   const updateData: Partial<typeof notes.$inferInsert> = {};
   if (patch.content !== undefined) updateData.content = patch.content;
-  if (patch.highlightId !== undefined) updateData.highlightId = patch.highlightId;
+  if (patch.highlightId !== undefined)
+    updateData.highlightId = patch.highlightId;
   if (patch.position !== undefined) updateData.position = patch.position;
 
   if (Object.keys(updateData).length === 0) {

@@ -71,11 +71,7 @@ describe("detectPdfResponse", () => {
 
   it("detects .pdf urls that are not html error pages", () => {
     expect(
-      detectPdfResponse(
-        "https://example.com/paper.pdf",
-        null,
-        toBuffer(""),
-      ),
+      detectPdfResponse("https://example.com/paper.pdf", null, toBuffer("")),
     ).toBe(true);
   });
 
@@ -108,6 +104,8 @@ describe("titleFromPdfUrl", () => {
   });
 
   it("falls back to hostname when no filename", () => {
-    expect(titleFromPdfUrl("https://example.com/")).toBe("PDF from example.com");
+    expect(titleFromPdfUrl("https://example.com/")).toBe(
+      "PDF from example.com",
+    );
   });
 });

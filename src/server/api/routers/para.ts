@@ -1,9 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import {
-  createTRPCRouter,
-  protectedProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import {
   clearParaGotoPage,
   createParaExport,
@@ -38,9 +35,11 @@ export const paraRouter = createTRPCRouter({
   isOnPara: protectedProcedure
     .input(z.object({ articleId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const statuses = await getParaArticleStatuses(ctx.db, ctx.session.user.id, [
-        input.articleId,
-      ]);
+      const statuses = await getParaArticleStatuses(
+        ctx.db,
+        ctx.session.user.id,
+        [input.articleId],
+      );
       return statuses[input.articleId] ?? false;
     }),
 

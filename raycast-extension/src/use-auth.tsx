@@ -1,4 +1,9 @@
-import { Action, ActionPanel, Detail, openExtensionPreferences } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Detail,
+  openExtensionPreferences,
+} from "@raycast/api";
 import { usePromise } from "@raycast/utils";
 import { getMe, ApiError } from "./api";
 
@@ -16,7 +21,10 @@ export function useAuth(): Auth {
 
   let authError: string | undefined;
   if (error) {
-    authError = error instanceof ApiError ? error.message : "Could not reach the read-it-later API. Check your connection.";
+    authError =
+      error instanceof ApiError
+        ? error.message
+        : "Could not reach the read-it-later API. Check your connection.";
   }
 
   return { isValidating: isLoading, authError };
@@ -29,7 +37,10 @@ export function AuthErrorView({ message }: { message: string }) {
       markdown={`# 🔒 Authentication Error\n\n${message}`}
       actions={
         <ActionPanel>
-          <Action title="Open Extension Preferences" onAction={openExtensionPreferences} />
+          <Action
+            title="Open Extension Preferences"
+            onAction={openExtensionPreferences}
+          />
         </ActionPanel>
       }
     />

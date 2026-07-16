@@ -1,5 +1,10 @@
 import { type Tool } from "@raycast/api";
-import { getArticle, listParaExports, removeFromParaByArticleId, removeFromParaByExportId } from "../api";
+import {
+  getArticle,
+  listParaExports,
+  removeFromParaByArticleId,
+  removeFromParaByExportId,
+} from "../api";
 
 type Input = {
   /**
@@ -48,6 +53,11 @@ export const confirmation: Tool.Confirmation<Input> = async (input) => {
   return {
     title: "Remove from Para",
     message: `Remove “${title}” from your Para sync list?`,
-    info: [{ name: "Device sync", value: "Deleted from your e-reader on the next sync." }],
+    info: [
+      {
+        name: "Device sync",
+        value: "Deleted from your e-reader on the next sync.",
+      },
+    ],
   };
 };

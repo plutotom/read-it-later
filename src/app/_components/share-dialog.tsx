@@ -48,9 +48,7 @@ export function ShareDialog({
       return;
     }
     if (existingShareToken) {
-      setShareUrl(
-        `${window.location.origin}/shared/${existingShareToken}`,
-      );
+      setShareUrl(`${window.location.origin}/shared/${existingShareToken}`);
     }
   }, [open, existingShareToken]);
 

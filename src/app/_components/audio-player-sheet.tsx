@@ -123,7 +123,8 @@ export function AudioPlayerSheet({
   }, [isDismissing, onClose]);
 
   const isNoDragTarget = (target: EventTarget | null) =>
-    target instanceof Element && target.closest("[data-sheet-no-drag]") !== null;
+    target instanceof Element &&
+    target.closest("[data-sheet-no-drag]") !== null;
 
   const onPointerDownCapture = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!open || isDismissing) return;

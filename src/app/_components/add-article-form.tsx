@@ -361,7 +361,7 @@ export function AddArticleForm({
           <Button
             type="submit"
             disabled={isSubmitDisabled}
-            className="bg-accent text-accent-foreground hover:bg-accent/90 h-11 w-full rounded-full sm:min-w-[9.5rem] sm:w-auto"
+            className="bg-accent text-accent-foreground hover:bg-accent/90 h-11 w-full rounded-full sm:w-auto sm:min-w-[9.5rem]"
           >
             {isLoading ? (
               <>
@@ -647,7 +647,7 @@ export function AddArticleForm({
         <Button
           type="submit"
           disabled={isSubmitDisabled}
-          className="bg-accent text-accent-foreground hover:bg-accent/90 h-11 w-full rounded-full sm:min-w-[9.5rem] sm:w-auto"
+          className="bg-accent text-accent-foreground hover:bg-accent/90 h-11 w-full rounded-full sm:w-auto sm:min-w-[9.5rem]"
         >
           {isLoading ? (
             <>

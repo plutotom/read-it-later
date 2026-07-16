@@ -11,10 +11,7 @@ interface SharedArticlePageProps {
   }>;
 }
 
-function getSharedDescription(
-  excerpt: string | null,
-  content: string,
-): string {
+function getSharedDescription(excerpt: string | null, content: string): string {
   if (excerpt?.trim()) return excerpt.trim();
 
   const plainText = content
@@ -35,7 +32,8 @@ export async function generateMetadata({
   if (!article) {
     return {
       title: "Article not found",
-      description: "This shared article may have been removed or the link is invalid.",
+      description:
+        "This shared article may have been removed or the link is invalid.",
     };
   }
 

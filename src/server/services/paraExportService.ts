@@ -101,10 +101,7 @@ async function getTakenFilenames(
 ): Promise<Set<string>> {
   const rows = await db.query.paraExports.findMany({
     where: excludeExportId
-      ? and(
-          eq(paraExports.userId, userId),
-          ne(paraExports.id, excludeExportId),
-        )
+      ? and(eq(paraExports.userId, userId), ne(paraExports.id, excludeExportId))
       : eq(paraExports.userId, userId),
     columns: { filename: true },
   });
@@ -232,10 +229,7 @@ export async function removeParaExportByArticleId(
   const result = await db
     .delete(paraExports)
     .where(
-      and(
-        eq(paraExports.userId, userId),
-        eq(paraExports.articleId, articleId),
-      ),
+      and(eq(paraExports.userId, userId), eq(paraExports.articleId, articleId)),
     )
     .returning({ id: paraExports.id });
 
@@ -390,9 +384,7 @@ export async function clearParaGotoPage(
       gotoPage: null,
       gotoSetAt: null,
     })
-    .where(
-      and(eq(paraExports.id, exportId), eq(paraExports.userId, userId)),
-    )
+    .where(and(eq(paraExports.id, exportId), eq(paraExports.userId, userId)))
     .returning();
 
   if (!updated) {

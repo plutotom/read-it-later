@@ -143,4 +143,6 @@ export const paraExportCreateApiSchema = z.object({
   articleId: z.string().uuid(),
 });
 
-export type ParaExportCreateApiInput = z.infer<typeof paraExportCreateApiSchema>;
+export type ParaExportCreateApiInput = z.infer<
+  typeof paraExportCreateApiSchema
+>;

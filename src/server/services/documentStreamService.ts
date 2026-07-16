@@ -67,8 +67,7 @@ export async function proxyDocumentResponse(
   }
 
   const responseHeaders = new Headers();
-  const contentType =
-    upstream.headers.get("content-type") ?? "application/pdf";
+  const contentType = upstream.headers.get("content-type") ?? "application/pdf";
   responseHeaders.set("Content-Type", contentType);
   responseHeaders.set("Content-Disposition", "inline");
   responseHeaders.set("Cache-Control", "private, max-age=3600");

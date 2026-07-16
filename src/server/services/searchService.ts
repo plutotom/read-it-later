@@ -195,7 +195,9 @@ export class SearchService {
       } else if (typeof aValue === "number" && typeof bValue === "number") {
         comparison = aValue - bValue;
       } else {
-        comparison = JSON.stringify(aValue).localeCompare(JSON.stringify(bValue));
+        comparison = JSON.stringify(aValue).localeCompare(
+          JSON.stringify(bValue),
+        );
       }
 
       return sort.order === "desc" ? -comparison : comparison;

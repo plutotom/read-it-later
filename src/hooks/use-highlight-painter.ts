@@ -48,9 +48,10 @@ type Options = {
 };
 
 /** Feature-detect the Custom Highlight API without tripping TS lib gaps. */
-function getHighlightRegistry():
-  | { set: (name: string, hl: object) => void; delete: (name: string) => void }
-  | null {
+function getHighlightRegistry(): {
+  set: (name: string, hl: object) => void;
+  delete: (name: string) => void;
+} | null {
   if (typeof CSS === "undefined") return null;
   const highlights = (CSS as unknown as { highlights?: unknown }).highlights;
   if (!highlights) return null;
@@ -75,9 +76,11 @@ export function useHighlightPainter({
     const registry = getHighlightRegistry();
     if (!root || !registry) return;
 
-    const HighlightCtor = (globalThis as unknown as {
-      Highlight: new (...ranges: Range[]) => object;
-    }).Highlight;
+    const HighlightCtor = (
+      globalThis as unknown as {
+        Highlight: new (...ranges: Range[]) => object;
+      }
+    ).Highlight;
 
     const rangesByColor = new Map<string, Range[]>();
     const relocated: RelocatedHighlight[] = [];

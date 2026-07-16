@@ -10,15 +10,7 @@ const PAUSE_LONG = " [pause long]";
 const PAUSE = " [pause]";
 
 const LONG_PAUSE_TAGS = new Set(["P", "BLOCKQUOTE"]);
-const SHORT_PAUSE_TAGS = new Set([
-  "H1",
-  "H2",
-  "H3",
-  "H4",
-  "H5",
-  "H6",
-  "LI",
-]);
+const SHORT_PAUSE_TAGS = new Set(["H1", "H2", "H3", "H4", "H5", "H6", "LI"]);
 const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "NOSCRIPT"]);
 
 // Chirp 3 splits text into "sentences" by terminal punctuation, not pause

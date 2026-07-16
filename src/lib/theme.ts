@@ -81,7 +81,9 @@ export const THEMES: readonly ThemeDef[] = [
 
 const THEME_ID_SET = new Set<string>(THEME_IDS);
 
-export function isThemeName(value: string | null | undefined): value is ThemeName {
+export function isThemeName(
+  value: string | null | undefined,
+): value is ThemeName {
   return typeof value === "string" && THEME_ID_SET.has(value);
 }
 

@@ -226,7 +226,11 @@ export function useArticleToc({
       return;
     }
 
-    measurementsRef.current = measureToc(scroller, contentRoot, currentHeadings);
+    measurementsRef.current = measureToc(
+      scroller,
+      contentRoot,
+      currentHeadings,
+    );
   }, [contentRef, scrollerRef]);
 
   const updateActiveHeading = useCallback(() => {
@@ -271,7 +275,10 @@ export function useArticleToc({
   }, [scanHeadings, refreshMeasurements, updateActiveHeading]);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(syncHeadingsAndActive, HEADING_SCAN_DELAY_MS);
+    const timeoutId = window.setTimeout(
+      syncHeadingsAndActive,
+      HEADING_SCAN_DELAY_MS,
+    );
     return () => window.clearTimeout(timeoutId);
   }, [syncHeadingsAndActive, contentKey]);
 

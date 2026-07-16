@@ -9,7 +9,16 @@ const compat = new FlatCompat({
 
 export default tseslint.config(
   {
-    ignores: [".next"],
+    ignores: [
+      ".next/**",
+      "dist/**",
+      "**/dist/**",
+      "node_modules/**",
+      "mcp-server/dist/**",
+      "packages/*/dist/**",
+      "raycast-extension/.raycast/**",
+      "public/pdfjs/**",
+    ],
   },
   ...compat.extends("next/core-web-vitals"),
   {

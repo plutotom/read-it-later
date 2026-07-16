@@ -6,7 +6,13 @@
  * the shared anchoring contract. Positioning follows the selection's bounding
  * rect; on touch it sits just above the selection so it stays thumb-reachable.
  */
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { selectionToAnchor } from "~/lib/highlight-anchor";
 import { HIGHLIGHT_COLORS } from "~/server/services/annotationService";
 import type { HighlightColor } from "~/types/annotation";
@@ -118,7 +124,7 @@ export function HighlightToolbar({ contentRef, onCreate }: Props) {
       ref={toolbarRef}
       role="toolbar"
       aria-label="Highlight color"
-      className="fixed z-50 -translate-x-1/2 -translate-y-full rounded-full border border-rule bg-surface px-2 py-1.5 shadow-[var(--shadow-soft)]"
+      className="border-rule bg-surface fixed z-50 -translate-x-1/2 -translate-y-full rounded-full border px-2 py-1.5 shadow-[var(--shadow-soft)]"
       style={{ top: anchored.top - 8, left: anchored.left }}
       // Prevent the toolbar from stealing the selection before the click lands.
       onMouseDown={(e) => e.preventDefault()}

@@ -59,7 +59,11 @@ export function registerTools(server: McpServer, client: RilClient): void {
     async (input) => {
       try {
         if (!input.url && !(input.title && input.content)) {
-          return fail(new Error("Provide a url, or a title and content for a manual entry."));
+          return fail(
+            new Error(
+              "Provide a url, or a title and content for a manual entry.",
+            ),
+          );
         }
         const body: ArticleCreate = {};
         if (input.url) body.url = input.url;
@@ -153,9 +157,11 @@ export function registerTools(server: McpServer, client: RilClient): void {
         const update: ArticleUpdate = {};
         if (input.tags !== undefined) update.tags = input.tags;
         if (input.title !== undefined) update.title = input.title;
-        if (input.isFavorite !== undefined) update.isFavorite = input.isFavorite;
+        if (input.isFavorite !== undefined)
+          update.isFavorite = input.isFavorite;
         if (input.isRead !== undefined) update.isRead = input.isRead;
-        if (input.isArchived !== undefined) update.isArchived = input.isArchived;
+        if (input.isArchived !== undefined)
+          update.isArchived = input.isArchived;
 
         if (Object.keys(update).length === 0) {
           return fail(new Error("Provide at least one field to update."));
@@ -179,7 +185,12 @@ export function registerTools(server: McpServer, client: RilClient): void {
   server.tool("list_tags", LIST_TAGS_DESCRIPTION, listTagsShape, async () => {
     try {
       const tags = await client.getTags();
-      return ok(tags.map((tag) => ({ name: tag.name ?? tag.tag ?? "", count: tag.count ?? 0 })));
+      return ok(
+        tags.map((tag) => ({
+          name: tag.name ?? tag.tag ?? "",
+          count: tag.count ?? 0,
+        })),
+      );
     } catch (error) {
       return fail(error);
     }
@@ -219,7 +230,9 @@ export function registerTools(server: McpServer, client: RilClient): void {
     addToParaShape,
     async (input) => {
       try {
-        const exportRow = await client.addToPara({ articleId: input.articleId });
+        const exportRow = await client.addToPara({
+          articleId: input.articleId,
+        });
         return ok(exportRow);
       } catch (error) {
         return fail(error);

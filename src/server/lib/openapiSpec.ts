@@ -96,7 +96,10 @@ export function buildOpenApiSpec(baseUrl: string) {
         ArticleList: {
           type: "object",
           properties: {
-            data: { type: "array", items: { $ref: "#/components/schemas/Article" } },
+            data: {
+              type: "array",
+              items: { $ref: "#/components/schemas/Article" },
+            },
             nextCursor: { type: ["string", "null"] },
           },
         },
@@ -195,7 +198,8 @@ export function buildOpenApiSpec(baseUrl: string) {
             bytes: { type: "integer" },
             isLarge: {
               type: "boolean",
-              description: "True when the export exceeds the recommended device size.",
+              description:
+                "True when the export exceeds the recommended device size.",
             },
             gotoPage: { type: ["integer", "null"] },
             gotoVersion: { type: "integer" },
@@ -313,7 +317,11 @@ export function buildOpenApiSpec(baseUrl: string) {
             {
               name: "format",
               in: "query",
-              schema: { type: "string", enum: ["text", "html"], default: "text" },
+              schema: {
+                type: "string",
+                enum: ["text", "html"],
+                default: "text",
+              },
             },
           ],
           responses: {
@@ -438,7 +446,12 @@ export function buildOpenApiSpec(baseUrl: string) {
           summary: "Search articles",
           operationId: "searchArticles",
           parameters: [
-            { name: "q", in: "query", required: true, schema: { type: "string" } },
+            {
+              name: "q",
+              in: "query",
+              required: true,
+              schema: { type: "string" },
+            },
             ...paginationParams,
             ...articleFilterParams.filter((p) => p.name !== "q"),
           ],

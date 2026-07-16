@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { Action, ActionPanel, Form, Icon, showToast, Toast, useNavigation } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Form,
+  Icon,
+  showToast,
+  Toast,
+  useNavigation,
+} from "@raycast/api";
 import { createArticle } from "./api";
 import type { ArticleCreate } from "./types";
 import { AuthErrorView, useAuth } from "./use-auth";
@@ -42,7 +50,10 @@ export default function Command() {
       .filter(Boolean);
     if (tags.length > 0) body.tags = tags;
 
-    const toast = await showToast({ style: Toast.Style.Animated, title: "Saving article…" });
+    const toast = await showToast({
+      style: Toast.Style.Animated,
+      title: "Saving article…",
+    });
     try {
       const article = await createArticle(body);
       toast.style = Toast.Style.Success;
@@ -61,7 +72,11 @@ export default function Command() {
       isLoading={isValidating}
       actions={
         <ActionPanel>
-          <Action.SubmitForm icon={Icon.PlusCircle} title="Add to Library" onSubmit={handleSubmit} />
+          <Action.SubmitForm
+            icon={Icon.PlusCircle}
+            title="Add to Library"
+            onSubmit={handleSubmit}
+          />
         </ActionPanel>
       }
     >
@@ -74,9 +89,21 @@ export default function Command() {
         onChange={() => urlError && setUrlError(undefined)}
       />
       <Form.Separator />
-      <Form.TextField id="title" title="Title" placeholder="Optional — required for manual entry" />
-      <Form.TextArea id="content" title="Content" placeholder="Optional — paste text for a manual entry" />
-      <Form.TextField id="tags" title="Tags" placeholder="Comma-separated, e.g. reading, research" />
+      <Form.TextField
+        id="title"
+        title="Title"
+        placeholder="Optional — required for manual entry"
+      />
+      <Form.TextArea
+        id="content"
+        title="Content"
+        placeholder="Optional — paste text for a manual entry"
+      />
+      <Form.TextField
+        id="tags"
+        title="Tags"
+        placeholder="Comma-separated, e.g. reading, research"
+      />
     </Form>
   );
 }

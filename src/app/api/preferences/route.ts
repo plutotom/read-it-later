@@ -23,7 +23,7 @@ export async function GET() {
     return NextResponse.json({
       theme: "light",
       ttsVoiceName: "en-US-Standard-A",
-      settings: {}
+      settings: {},
     });
   }
 

@@ -1,8 +1,8 @@
 export default function SharedArticleNotFound() {
   return (
-    <div className="flex h-dvh items-center justify-center bg-background p-4">
+    <div className="bg-background flex h-dvh items-center justify-center p-4">
       <div className="max-w-md text-center">
-        <h1 className="mb-3 text-2xl font-medium tracking-tight text-foreground">
+        <h1 className="text-foreground mb-3 text-2xl font-medium tracking-tight">
           Article not found
         </h1>
         <p className="text-muted-foreground">

@@ -88,16 +88,18 @@ export function SearchBar({
             className="flex h-9 cursor-text items-center gap-2 overflow-hidden rounded-lg px-2.5 text-sm transition-[width,background-color,border-color] duration-[320ms]"
             style={{
               width: expanded ? "min(100%, 280px)" : "36px",
-              backgroundColor: expanded ? "var(--background-deep)" : "transparent",
+              backgroundColor: expanded
+                ? "var(--background-deep)"
+                : "transparent",
               border: `1px solid ${expanded ? "var(--rule)" : "transparent"}`,
               transitionTimingFunction: "cubic-bezier(0.2, 0.8, 0.2, 1)",
             }}
             onClick={() => inputRef.current?.focus()}
           >
             {isLoading ? (
-              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+              <Loader2 className="text-muted-foreground h-4 w-4 shrink-0 animate-spin" />
             ) : (
-              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <Search className="text-muted-foreground h-4 w-4 shrink-0" />
             )}
 
             <input
@@ -110,7 +112,7 @@ export function SearchBar({
                 setTimeout(() => setIsFocused(false), 150);
               }}
               placeholder={placeholder}
-              className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              className="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-sm outline-none"
               style={{
                 opacity: expanded ? 1 : 0,
                 pointerEvents: expanded ? "auto" : "none",
@@ -120,7 +122,7 @@ export function SearchBar({
 
             {value.length === 0 && (
               <span
-                className="shrink-0 rounded border border-rule px-1 py-0.5 text-[10px] tracking-widest text-muted-foreground"
+                className="border-rule text-muted-foreground shrink-0 rounded border px-1 py-0.5 text-[10px] tracking-widest"
                 style={{
                   opacity: expanded ? 1 : 0,
                   transition: "opacity 180ms ease",
@@ -136,7 +138,7 @@ export function SearchBar({
                 variant="ghost"
                 size="icon"
                 onClick={handleClear}
-                className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                className="text-muted-foreground hover:bg-foreground/10 hover:text-foreground h-7 w-7 shrink-0 rounded-full"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -146,15 +148,15 @@ export function SearchBar({
       </form>
 
       {showSuggestions && (
-        <div className="absolute top-full right-0 left-0 z-50 mt-2 max-h-60 overflow-y-auto rounded-2xl border border-rule bg-surface shadow-[var(--shadow-soft)]">
+        <div className="border-rule bg-surface absolute top-full right-0 left-0 z-50 mt-2 max-h-60 overflow-y-auto rounded-2xl border shadow-[var(--shadow-soft)]">
           {suggestions.map((suggestion, index) => (
             <Button
               key={index}
               variant="ghost"
               onClick={() => handleSuggestionClick(suggestion)}
-              className="w-full justify-start border-b border-rule px-4 py-3 text-left text-sm text-foreground-soft first:rounded-t-2xl last:rounded-b-2xl last:border-b-0 hover:bg-background-deep hover:text-foreground"
+              className="border-rule text-foreground-soft hover:bg-background-deep hover:text-foreground w-full justify-start border-b px-4 py-3 text-left text-sm first:rounded-t-2xl last:rounded-b-2xl last:border-b-0"
             >
-              <Search className="mr-3 h-4 w-4 text-muted-foreground" />
+              <Search className="text-muted-foreground mr-3 h-4 w-4" />
               <span>{suggestion}</span>
             </Button>
           ))}

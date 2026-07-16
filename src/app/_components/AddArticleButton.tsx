@@ -93,7 +93,7 @@ export function AddArticleButton() {
           setIsAddFormOpen(!isAddFormOpen);
           setMetadataEditArticle(null);
         }}
-        className="h-12 w-full rounded-full border border-rule bg-surface px-5 text-sm font-medium text-foreground shadow-soft transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:bg-background-deep hover:text-foreground active:translate-y-0 sm:h-12 sm:w-auto sm:min-w-[11rem]"
+        className="border-rule bg-surface text-foreground shadow-soft hover:bg-background-deep hover:text-foreground h-12 w-full rounded-full border px-5 text-sm font-medium transition-all duration-200 ease-in-out hover:-translate-y-0.5 active:translate-y-0 sm:h-12 sm:w-auto sm:min-w-[11rem]"
         aria-label={
           isAddFormOpen ? "Close add article form" : "Open add article form"
         }

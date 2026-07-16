@@ -7,7 +7,10 @@ import {
   publicProcedure,
 } from "~/server/api/trpc";
 import { articles } from "~/server/db/schema";
-import { articleCreateFromTextSchema, articleReExtractSchema } from "~/schemas/article";
+import {
+  articleCreateFromTextSchema,
+  articleReExtractSchema,
+} from "~/schemas/article";
 import {
   createArticleFromText,
   createArticleFromUrl,
@@ -90,10 +93,15 @@ export const articleRouter = createTRPCRouter({
         }),
     )
     .mutation(async ({ ctx, input }) => {
-      const updated = await updateArticle(ctx.db, ctx.session.user.id, input.id, {
-        title: input.title,
-        url: input.url,
-      });
+      const updated = await updateArticle(
+        ctx.db,
+        ctx.session.user.id,
+        input.id,
+        {
+          title: input.title,
+          url: input.url,
+        },
+      );
 
       return {
         success: !!updated,
@@ -104,34 +112,53 @@ export const articleRouter = createTRPCRouter({
   archive: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const updated = await updateArticle(ctx.db, ctx.session.user.id, input.id, {
-        isArchived: true,
-      });
+      const updated = await updateArticle(
+        ctx.db,
+        ctx.session.user.id,
+        input.id,
+        {
+          isArchived: true,
+        },
+      );
       return { success: !!updated };
     }),
 
   unarchive: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const updated = await updateArticle(ctx.db, ctx.session.user.id, input.id, {
-        isArchived: false,
-      });
+      const updated = await updateArticle(
+        ctx.db,
+        ctx.session.user.id,
+        input.id,
+        {
+          isArchived: false,
+        },
+      );
       return { success: !!updated };
     }),
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const success = await deleteArticle(ctx.db, ctx.session.user.id, input.id);
+      const success = await deleteArticle(
+        ctx.db,
+        ctx.session.user.id,
+        input.id,
+      );
       return { success };
     }),
 
   markAsRead: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const updated = await updateArticle(ctx.db, ctx.session.user.id, input.id, {
-        isRead: true,
-      });
+      const updated = await updateArticle(
+        ctx.db,
+        ctx.session.user.id,
+        input.id,
+        {
+          isRead: true,
+        },
+      );
       return { success: !!updated };
     }),
 

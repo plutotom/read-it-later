@@ -116,7 +116,12 @@ export function defineRoute(requiredScope: string, handler: Handler) {
       return ok(result);
     } catch (error) {
       if (error instanceof ApiError) {
-        return jsonError(error.status, error.code, error.message, error.details);
+        return jsonError(
+          error.status,
+          error.code,
+          error.message,
+          error.details,
+        );
       }
       if (error instanceof ZodError) {
         return jsonError(
@@ -189,9 +194,5 @@ export function parseBoolParam(
   if (raw === null) return undefined;
   if (raw === "true") return true;
   if (raw === "false") return false;
-  throw new ApiError(
-    400,
-    "invalid_query",
-    `${name} must be 'true' or 'false'`,
-  );
+  throw new ApiError(400, "invalid_query", `${name} must be 'true' or 'false'`);
 }

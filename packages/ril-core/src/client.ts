@@ -41,7 +41,10 @@ export function friendlyMessage(status: number, body?: ApiErrorBody): string {
     case 401:
       return "Invalid or missing API key. Set RIL_API_KEY to a valid ril_ key.";
     case 403:
-      return apiMessage ?? "Your API key is missing the required scope for this action.";
+      return (
+        apiMessage ??
+        "Your API key is missing the required scope for this action."
+      );
     case 404:
       return apiMessage ?? "Not found.";
     case 422:
@@ -51,7 +54,9 @@ export function friendlyMessage(status: number, body?: ApiErrorBody): string {
   }
 }
 
-async function readErrorBody(response: Response): Promise<ApiErrorBody | undefined> {
+async function readErrorBody(
+  response: Response,
+): Promise<ApiErrorBody | undefined> {
   try {
     return (await response.json()) as ApiErrorBody;
   } catch {
@@ -117,7 +122,11 @@ export function createClient(config: ClientConfig): RilClient {
     }
     if (!response.ok) {
       const body = await readErrorBody(response);
-      throw new ApiError(response.status, friendlyMessage(response.status, body), body?.error?.code);
+      throw new ApiError(
+        response.status,
+        friendlyMessage(response.status, body),
+        body?.error?.code,
+      );
     }
     return (await response.json()) as T;
   }
@@ -141,10 +150,16 @@ export function createClient(config: ClientConfig): RilClient {
     },
 
     createArticle: (body) =>
-      request<Article>("/articles", { method: "POST", body: JSON.stringify(body) }),
+      request<Article>("/articles", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
 
     updateArticle: (id, body) =>
-      request<Article>(`/articles/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+      request<Article>(`/articles/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
 
     deleteArticle: async (id) => {
       await request<void>(`/articles/${id}`, { method: "DELETE" });
@@ -154,12 +169,19 @@ export function createClient(config: ClientConfig): RilClient {
       request<ShareResponse>(`/articles/${id}/share`, { method: "POST" }),
 
     getArticleContent: async (id, format = "text") => {
-      const response = await fetch(`${baseUrl}/articles/${id}/content?format=${format}`, {
-        headers: { Authorization: `Bearer ${config.apiKey}` },
-      });
+      const response = await fetch(
+        `${baseUrl}/articles/${id}/content?format=${format}`,
+        {
+          headers: { Authorization: `Bearer ${config.apiKey}` },
+        },
+      );
       if (!response.ok) {
         const body = await readErrorBody(response);
-        throw new ApiError(response.status, friendlyMessage(response.status, body), body?.error?.code);
+        throw new ApiError(
+          response.status,
+          friendlyMessage(response.status, body),
+          body?.error?.code,
+        );
       }
       return response.text();
     },
@@ -167,12 +189,18 @@ export function createClient(config: ClientConfig): RilClient {
     listParaExports: () => request<ParaExport[]>("/para/exports"),
 
     addToPara: (body) =>
-      request<ParaExport>("/para/exports", { method: "POST", body: JSON.stringify(body) }),
+      request<ParaExport>("/para/exports", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
 
     removeFromParaByArticleId: async (articleId) => {
-      await request<void>(`/para/exports?articleId=${encodeURIComponent(articleId)}`, {
-        method: "DELETE",
-      });
+      await request<void>(
+        `/para/exports?articleId=${encodeURIComponent(articleId)}`,
+        {
+          method: "DELETE",
+        },
+      );
     },
 
     removeFromParaByExportId: async (exportId) => {

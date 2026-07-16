@@ -99,11 +99,7 @@ export function ApiKeysSettings() {
               className="shrink-0 border-gray-600"
               aria-label="Copy manifest URL"
               onClick={() =>
-                void copyToClipboard(
-                  manifestUrl,
-                  "manifest",
-                  "Manifest URL",
-                )
+                void copyToClipboard(manifestUrl, "manifest", "Manifest URL")
               }
             >
               {copiedTarget === "manifest" ? (
@@ -134,9 +130,7 @@ export function ApiKeysSettings() {
                 variant="outline"
                 size="icon"
                 aria-label="Copy API key"
-                onClick={() =>
-                  void copyToClipboard(newKey, "key", "API key")
-                }
+                onClick={() => void copyToClipboard(newKey, "key", "API key")}
               >
                 {copiedTarget === "key" ? (
                   <Check className="h-4 w-4 text-emerald-400" />
@@ -225,17 +219,18 @@ export function ApiKeysSettings() {
                 <div>
                   <p className="text-sm font-medium text-white">{key.label}</p>
                   <p className="font-mono text-xs text-gray-400">
-                    ril_{key.keyPrefix}…
-                    {" · "}
+                    ril_{key.keyPrefix}…{" · "}
                     {key.scopes.includes("ril:write")
                       ? "read & write"
                       : "read-only"}
                     {key.revokedAt ? " · revoked" : ""}
                   </p>
                   {key.lastUsedAt && (
-                    <p className="text-xs text-gray-500" suppressHydrationWarning>
-                      Last used{" "}
-                      {new Date(key.lastUsedAt).toLocaleDateString()}
+                    <p
+                      className="text-xs text-gray-500"
+                      suppressHydrationWarning
+                    >
+                      Last used {new Date(key.lastUsedAt).toLocaleDateString()}
                     </p>
                   )}
                 </div>

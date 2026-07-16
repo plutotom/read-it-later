@@ -4,7 +4,9 @@
 
 const PDF_MAGIC = "%PDF-";
 
-export function isPdfContentType(contentType: string | null | undefined): boolean {
+export function isPdfContentType(
+  contentType: string | null | undefined,
+): boolean {
   if (!contentType) return false;
   const mime = contentType.toLowerCase().split(";")[0]?.trim();
   return mime === "application/pdf" || mime === "application/x-pdf";

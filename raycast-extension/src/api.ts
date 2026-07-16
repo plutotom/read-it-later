@@ -51,7 +51,10 @@ export function friendlyMessage(status: number, body?: ApiErrorBody): string {
     case 401:
       return "Invalid or missing API key. Update it in the extension preferences (⌘ ,).";
     case 403:
-      return apiMessage ?? "Your API key is missing the required scope for this action.";
+      return (
+        apiMessage ??
+        "Your API key is missing the required scope for this action."
+      );
     case 404:
       return apiMessage ?? "Not found.";
     case 422:
@@ -61,7 +64,9 @@ export function friendlyMessage(status: number, body?: ApiErrorBody): string {
   }
 }
 
-async function readErrorBody(response: Response): Promise<ApiErrorBody | undefined> {
+async function readErrorBody(
+  response: Response,
+): Promise<ApiErrorBody | undefined> {
   try {
     return (await response.json()) as ApiErrorBody;
   } catch {
@@ -76,7 +81,11 @@ async function readErrorBody(response: Response): Promise<ApiErrorBody | undefin
 export async function parseJsonResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await readErrorBody(response);
-    throw new ApiError(response.status, friendlyMessage(response.status, body), body?.error?.code);
+    throw new ApiError(
+      response.status,
+      friendlyMessage(response.status, body),
+      body?.error?.code,
+    );
   }
   return (await response.json()) as T;
 }
@@ -93,7 +102,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (!response.ok) {
     const body = await readErrorBody(response);
-    throw new ApiError(response.status, friendlyMessage(response.status, body), body?.error?.code);
+    throw new ApiError(
+      response.status,
+      friendlyMessage(response.status, body),
+      body?.error?.code,
+    );
   }
   return (await response.json()) as T;
 }
@@ -129,7 +142,9 @@ export interface ListArticlesParams {
 }
 
 /** List articles (most recent first) or search them. Returns one page. */
-export function listArticles(params: ListArticlesParams = {}): Promise<ArticleList> {
+export function listArticles(
+  params: ListArticlesParams = {},
+): Promise<ArticleList> {
   const { q, ...rest } = params;
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(rest)) {
@@ -148,7 +163,10 @@ export function createArticle(body: ArticleCreate): Promise<Article> {
   });
 }
 
-export function updateArticle(id: string, body: ArticleUpdate): Promise<Article> {
+export function updateArticle(
+  id: string,
+  body: ArticleUpdate,
+): Promise<Article> {
   return request<Article>(`/articles/${id}`, {
     method: "PATCH",
     body: JSON.stringify(body),
@@ -164,13 +182,23 @@ export function shareArticle(id: string): Promise<ShareResponse> {
 }
 
 /** Article body as plain text or HTML (text/plain | text/html response). */
-export async function getArticleContent(id: string, format: "text" | "html" = "text"): Promise<string> {
-  const response = await fetch(`${API_BASE}/articles/${id}/content?format=${format}`, {
-    headers: { Authorization: `Bearer ${getApiKey()}` },
-  });
+export async function getArticleContent(
+  id: string,
+  format: "text" | "html" = "text",
+): Promise<string> {
+  const response = await fetch(
+    `${API_BASE}/articles/${id}/content?format=${format}`,
+    {
+      headers: { Authorization: `Bearer ${getApiKey()}` },
+    },
+  );
   if (!response.ok) {
     const body = await readErrorBody(response);
-    throw new ApiError(response.status, friendlyMessage(response.status, body), body?.error?.code);
+    throw new ApiError(
+      response.status,
+      friendlyMessage(response.status, body),
+      body?.error?.code,
+    );
   }
   return response.text();
 }
@@ -186,12 +214,19 @@ export function addToPara(body: ParaExportCreate): Promise<ParaExport> {
   });
 }
 
-export async function removeFromParaByArticleId(articleId: string): Promise<void> {
-  await request<void>(`/para/exports?articleId=${encodeURIComponent(articleId)}`, {
-    method: "DELETE",
-  });
+export async function removeFromParaByArticleId(
+  articleId: string,
+): Promise<void> {
+  await request<void>(
+    `/para/exports?articleId=${encodeURIComponent(articleId)}`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
-export async function removeFromParaByExportId(exportId: string): Promise<void> {
+export async function removeFromParaByExportId(
+  exportId: string,
+): Promise<void> {
   await request<void>(`/para/exports/${exportId}`, { method: "DELETE" });
 }

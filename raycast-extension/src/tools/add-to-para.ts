@@ -29,6 +29,11 @@ export const confirmation: Tool.Confirmation<Input> = async (input) => {
   return {
     title: "Add to Para",
     message: `Add “${article.title || article.url}” to your Para sync list?`,
-    info: [{ name: "Device sync", value: "Appears on your e-reader after the next sync." }],
+    info: [
+      {
+        name: "Device sync",
+        value: "Appears on your e-reader after the next sync.",
+      },
+    ],
   };
 };

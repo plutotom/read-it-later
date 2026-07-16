@@ -9,7 +9,9 @@ export function isManualArticleUrl(url: string): boolean {
 }
 
 /** Browser-openable URL: RIL reader for manual entries, original URL otherwise. */
-export function getArticleOpenUrl(article: Pick<Article, "id" | "url">): string {
+export function getArticleOpenUrl(
+  article: Pick<Article, "id" | "url">,
+): string {
   if (isManualArticleUrl(article.url)) {
     return `${WEB_BASE}/article/${article.id}`;
   }

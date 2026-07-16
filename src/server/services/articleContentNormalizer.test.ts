@@ -11,7 +11,9 @@ describe("preprocessFlattenedMarkdown", () => {
     const result = preprocessFlattenedMarkdown(FLATTENED_SAMPLE);
     expect(result).toContain("* Scripture — the story of the home\n* Song");
     expect(result).toContain("* Song — the soundtrack of the home\n* Story");
-    expect(result).toContain("### Scripture: The story of the home\n\nEvery father");
+    expect(result).toContain(
+      "### Scripture: The story of the home\n\nEvery father",
+    );
   });
 });
 

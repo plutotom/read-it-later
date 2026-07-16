@@ -39,7 +39,7 @@ export function AppSidebar() {
       <SidebarHeader className="bg-sidebar px-4 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-accent text-[15px] font-bold leading-none text-white shadow-[var(--shadow-soft)]">
+            <div className="bg-accent flex h-7 w-7 items-center justify-center rounded-[8px] text-[15px] leading-none font-bold text-white shadow-[var(--shadow-soft)]">
               <span
                 style={{
                   fontFamily: "var(--font-app-display)",
@@ -50,7 +50,7 @@ export function AppSidebar() {
               </span>
             </div>
             <h2
-              className="text-base font-medium tracking-tight text-foreground"
+              className="text-foreground text-base font-medium tracking-tight"
               style={{ fontFamily: "var(--font-app-display)" }}
             >
               Read It Later
@@ -60,7 +60,7 @@ export function AppSidebar() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+              className="text-muted-foreground hover:bg-foreground/10 hover:text-foreground h-8 w-8 rounded-full"
               onClick={() => setOpenMobile(false)}
             >
               <X className="h-4 w-4" />
@@ -88,7 +88,7 @@ export function AppSidebar() {
           </SidebarGroup>
         ))}
 
-        <div className="mx-3 my-4 h-px bg-rule" />
+        <div className="bg-rule mx-3 my-4 h-px" />
 
         <SidebarGroup className="p-0">
           <SidebarGroupContent>
@@ -96,11 +96,11 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <button
                   type="button"
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground-soft transition-colors hover:bg-foreground/10 hover:text-foreground"
+                  className="text-foreground-soft hover:bg-foreground/10 hover:text-foreground flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors"
                 >
-                  <span className="h-2.5 w-2.5 rounded-[3px] bg-accent/70" />
+                  <span className="bg-accent/70 h-2.5 w-2.5 rounded-[3px]" />
                   <span className="flex-1 text-left">Collections</span>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  <ChevronDown className="text-muted-foreground h-4 w-4" />
                 </button>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -111,11 +111,11 @@ export function AppSidebar() {
       {session?.user && (
         <SidebarFooter className="bg-sidebar px-4 pt-2 pb-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-sm font-medium text-accent-foreground">
+            <div className="bg-accent text-accent-foreground flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium">
               {userInitial}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">
+              <p className="text-foreground truncate text-sm font-medium">
                 {session.user.name ?? "User"}
               </p>
             </div>

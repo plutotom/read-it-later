@@ -99,7 +99,6 @@ export const userPreferences = createTable("user_preferences", (d) => ({
     .notNull(),
 }));
 
-
 // TTS usage tracking table - one row per user per billing period
 export const ttsUsage = createTable(
   "tts_usage",

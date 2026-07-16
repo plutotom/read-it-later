@@ -231,9 +231,7 @@ export const paraExports = createTable(
       .text()
       .notNull()
       .references(() => user.id),
-    articleId: d
-      .uuid()
-      .references(() => articles.id, { onDelete: "set null" }),
+    articleId: d.uuid().references(() => articles.id, { onDelete: "set null" }),
     title: d.text().notNull(),
     filename: d.text().notNull(),
     txtContent: d.text().notNull(),

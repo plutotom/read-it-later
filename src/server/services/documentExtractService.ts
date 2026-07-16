@@ -39,9 +39,7 @@ function isPasswordProtectedError(error: unknown): boolean {
   return /password/i.test(errorMessage(error));
 }
 
-function readMetadataString(
-  value: unknown,
-): string | undefined {
+function readMetadataString(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
@@ -94,17 +92,11 @@ export async function extractDocument(
     }
 
     if (isPasswordProtectedError(error)) {
-      throw new DocumentExtractionError(
-        PASSWORD_PROTECTED_MESSAGE,
-        "password",
-      );
+      throw new DocumentExtractionError(PASSWORD_PROTECTED_MESSAGE, "password");
     }
 
     throw new DocumentExtractionError(CORRUPT_PDF_MESSAGE, "corrupt");
   }
 }
 
-export {
-  CORRUPT_PDF_MESSAGE,
-  PASSWORD_PROTECTED_MESSAGE,
-};
+export { CORRUPT_PDF_MESSAGE, PASSWORD_PROTECTED_MESSAGE };
