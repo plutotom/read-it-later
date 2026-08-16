@@ -33,6 +33,45 @@ describe("paraTextConverter", () => {
     expect(result.sha256).toHaveLength(64);
     expect(result.contentHash).toHaveLength(64);
   });
+
+  it("keeps spaces around inline tags", () => {
+    expect(htmlToPlainText("<p>Hello <em>world</em> today</p>")).toBe(
+      "Hello world today",
+    );
+    expect(
+      htmlToPlainText('<p>See <a href="https://example.com">this</a>.</p>'),
+    ).toBe("See this.");
+    expect(
+      htmlToPlainText(
+        "<p>Bold <strong>and</strong> <span>inline</span> text</p>",
+      ),
+    ).toBe("Bold and inline text");
+  });
+
+  it("does not invent spaces when the HTML had none", () => {
+    expect(htmlToPlainText("<p>one<span>two</span>three</p>")).toBe(
+      "onetwothree",
+    );
+  });
+
+  it("treats divs and sections as paragraph breaks", () => {
+    expect(htmlToPlainText("<div>Hello</div><div>World</div>")).toBe(
+      "Hello\n\nWorld",
+    );
+    expect(
+      htmlToPlainText(
+        "<section><p>One</p></section><section><p>Two</p></section>",
+      ),
+    ).toBe("One\n\nTwo");
+  });
+
+  it("folds nbsp and smart punctuation to ASCII for the device font", () => {
+    expect(htmlToPlainText("<p>Hello&nbsp;world</p>")).toBe("Hello world");
+    expect(htmlToPlainText("<p>She said “hi”—really&hellip;</p>")).toBe(
+      'She said "hi"-really...',
+    );
+    expect(htmlToPlainText("<p>It’s a test</p>")).toBe("It's a test");
+  });
 });
 
 describe("paraFilename", () => {
