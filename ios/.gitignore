@@ -1,0 +1,7 @@
+.build/
+.swiftpm/
+*.xcodeproj/
+App/ReadItLater.entitlements
+ShareExtension/ReadItLaterShare.entitlements
+ShareExtension/Info.plist
+DerivedData/

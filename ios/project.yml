@@ -1,0 +1,70 @@
+name: ReadItLater
+options:
+  bundleIdPrefix: com.isaiahproctor
+  deploymentTarget:
+    iOS: '17.0'
+settings:
+  base:
+    SWIFT_VERSION: '6.0'
+    TARGETED_DEVICE_FAMILY: '1'
+    MARKETING_VERSION: '0.1.0'
+    CURRENT_PROJECT_VERSION: '1'
+    CODE_SIGN_STYLE: Automatic
+    APP_GROUP: group.com.isaiahproctor.readitlater
+    GENERATE_INFOPLIST_FILE: YES
+packages:
+  ReadingCore:
+    path: ReadingCore
+targets:
+  ReadItLater:
+    type: application
+    platform: iOS
+    sources: [App, Shared]
+    dependencies:
+      - package: ReadingCore
+      - target: ReadItLaterShare
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.isaiahproctor.readitlater
+        INFOPLIST_KEY_CFBundleDisplayName: Read It Later
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_ReadingAppGroup: $(APP_GROUP)
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+    entitlements:
+      path: App/ReadItLater.entitlements
+      properties:
+        com.apple.security.application-groups: [$(APP_GROUP)]
+  ReadItLaterShare:
+    type: app-extension
+    platform: iOS
+    sources: [ShareExtension, Shared]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.isaiahproctor.readitlater.share
+        APPLICATION_EXTENSION_API_ONLY: YES
+    info:
+      path: ShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Read It Later
+        ReadingAppGroup: $(APP_GROUP)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+    entitlements:
+      path: ShareExtension/ReadItLaterShare.entitlements
+      properties:
+        com.apple.security.application-groups: [$(APP_GROUP)]
+schemes:
+  ReadItLater:
+    build:
+      targets:
+        ReadItLater: all
+    run:
+      config: Debug
+    archive:
+      config: Release
