@@ -8,8 +8,9 @@ final class ReadingUITests: XCTestCase {
         let article = app.staticTexts["An offline test article"]
         XCTAssertTrue(article.waitForExistence(timeout: 15))
         article.tap()
-        app.buttons["Reading options"].tap()
-        app.buttons["Edit note"].tap()
+        let noteButton = app.buttons["Add a note"]
+        XCTAssertTrue(noteButton.waitForExistence(timeout: 5))
+        noteButton.tap()
         let editor = app.textViews["Article note"]
         XCTAssertTrue(editor.waitForExistence(timeout: 5))
         editor.tap()

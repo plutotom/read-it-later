@@ -86,10 +86,10 @@ import ReadingCore
         } catch { self.error = error.localizedDescription }
     }
 
-    func mutate(_ operation: (Library) throws -> Void) {
-        guard let library else { return }
-        do { try operation(library); refresh() }
-        catch { self.error = error.localizedDescription }
+    @discardableResult func mutate(_ operation: (Library) throws -> Void) -> Bool {
+        guard let library else { return false }
+        do { try operation(library); refresh(); return true }
+        catch { self.error = error.localizedDescription; return false }
     }
 
     func export() -> Data? {

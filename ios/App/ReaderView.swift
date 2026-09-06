@@ -7,6 +7,7 @@ struct ReaderView: View {
     @AppStorage("readerSize") private var readerSize = 19.0
     @State private var editingNote = false
     @State private var note = ""
+    @State private var noteError: String?
     private var article: Article? { model.articles.first { $0.id == id } }
 
     var body: some View {
@@ -16,6 +17,14 @@ struct ReaderView: View {
                     VStack(alignment: .leading, spacing: 22) {
                         Text(URL(string: article.url)?.host ?? "Article").font(.subheadline).foregroundStyle(.secondary)
                         Text(article.title).font(.largeTitle.bold())
+                        HStack {
+                            Button { note = article.note; editingNote = true } label: {
+                                Label("Add a note", systemImage: "square.and.pencil")
+                            }.buttonStyle(.bordered)
+                            Button { model.mutate { try $0.toggleRead(id: id) } } label: {
+                                Label(article.isRead ? "Read" : "Mark read", systemImage: article.isRead ? "checkmark.circle.fill" : "checkmark.circle")
+                            }.buttonStyle(.bordered)
+                        }
                         if let error = article.error {
                             Label(error, systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.orange)
                         }
@@ -47,7 +56,7 @@ struct ReaderView: View {
                             Button("Larger text", systemImage: "textformat.size.larger") { readerSize = min(30, readerSize + 2) }
                             Button("Smaller text", systemImage: "textformat.size.smaller") { readerSize = max(15, readerSize - 2) }
                             if let url = URL(string: article.url) { ShareLink(item: url) }
-                        } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("Reading options")
+                        } label: { Label("Reading options", systemImage: "ellipsis.circle") }
                     }
                 }
             } else { ContentUnavailableView("Article not found", systemImage: "doc") }
@@ -60,10 +69,17 @@ struct ReaderView: View {
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) { Button("Cancel") { editingNote = false } }
                         ToolbarItem(placement: .confirmationAction) { Button("Save") {
-                            model.mutate { try $0.saveNote(id: id, text: note) }
-                            editingNote = false
+                            if model.mutate({ try $0.saveNote(id: id, text: note) }) {
+                                editingNote = false
+                            } else {
+                                noteError = model.error ?? "Could not save your note. Your draft is still here."
+                                model.error = nil
+                            }
                         } }
                     }
+                    .alert("Note was not saved", isPresented: Binding(get: { noteError != nil }, set: { if !$0 { noteError = nil } })) {
+                        Button("OK") { noteError = nil }
+                    } message: { Text(noteError ?? "") }
             }
         }
     }
