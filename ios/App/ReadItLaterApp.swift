@@ -96,4 +96,8 @@ import ReadingCore
         do { return try library?.exportJSON() }
         catch { self.error = error.localizedDescription; return nil }
     }
+
+    func highlights(articleId: String) throws -> [Highlight] {
+        try library?.highlights(articleId: articleId) ?? []
+    }
 }

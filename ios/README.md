@@ -1,4 +1,4 @@
-# Read It Later — native 0.1 developer preview
+# Read It Later — native 0.1.1 developer preview
 
 This is a **local-only, text-only prototype**, not the complete synchronized MVP
 or an App Store-ready release. No web/backend files or database schemas changed.
@@ -9,13 +9,14 @@ or an App Store-ready release. No web/backend files or database schemas changed.
 - Persistent GRDB/SQLite library. Saves URL before attempting download.
 - Direct on-device HTML-to-text extraction using SwiftSoup (no publisher scripts).
 - Offline text reading, search, favorites, read/unread, article-level notes.
+- Local text highlights: select text → Highlight; open Highlights to change color or remove.
 - Safari Share Extension: durable App Group inbox; main app imports and downloads.
 - JSON export, explicit download failures and manual retries.
 - Core tests and macOS CI build of the app and extension.
 
 ## Deliberately not included
 
-Account login/sync, full HTML/images, highlight anchors, reading-position sync,
+Account login/sync, full HTML/images, web highlight synchronization, reading-position sync,
 folders, PDFs, TTS, widgets, background download guarantees, and JSON re-import.
 The final architecture remains the hardened plan; this preview isolates native
 capture/storage/reading before changing the live backend. Text extraction is a
@@ -53,6 +54,8 @@ App Store Connect configuration, app icon, privacy review, and device validation
 - [ ] Paste a public HTTPS article; URL survives a failed download.
 - [ ] Download text, enable airplane mode, force quit, reopen, and read it.
 - [ ] Favorite/mark read; save a note; restart and verify each survives.
+- [ ] Long-press article text, adjust selection, choose Highlight; reopen the article and verify its color remains.
+- [ ] Open Highlights, change color, remove a highlight; check both list and reader update.
 - [ ] Search title, URL, body text, and notes.
 - [ ] Share from Safari while the app is closed; open the app and see the link.
 - [ ] Share the same URL twice; confirm one article and no erased notes.
@@ -101,3 +104,16 @@ local content. No analytics is added. Original websites see normal download requ
 4. Add Apple/Discord account linking, resumable guest import, recovery and deletion.
 5. Finish release accessibility/privacy/icon/signing work; then TestFlight.
 6. Add TTS after the core product is reliable.
+
+## Highlight storage (0.1.1)
+
+An additive `v2-highlights` SQLite migration preserves the existing library.
+Highlights store UTF-16 offsets, exact quote, prefix/suffix, and a SHA-256 hash of
+the extracted plain text. They are local to this reader's text, not interchangeable
+with web HTML anchors yet. If article text changes, the quote is retained in the
+Highlights sheet but not painted at potentially incorrect offsets. Automatic
+re-anchoring and highlight-specific notes remain future work. Overlapping highlights
+are retained; later painted ranges determine the visible overlap color.
+
+JSON export now uses `{formatVersion: 2, articles: [...], highlights: [...]}` instead
+of the initial bare article array. No existing on-device data is rewritten by export.

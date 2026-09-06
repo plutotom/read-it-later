@@ -104,7 +104,7 @@ struct LibraryView: View {
         .sheet(isPresented: $settings) {
             NavigationStack {
                 Form {
-                    Section("Version 0.1 · Local preview") {
+                    Section("Version 0.1.1 · Local preview") {
                         Text("Your library lives on this iPhone. No account, analytics, or cloud sync. Downloads contact the original website directly.")
                         Text("Deleting the app can remove your library. Export a backup before testing upgrades.")
                     }
@@ -117,7 +117,7 @@ struct LibraryView: View {
                             }
                         }
                     }
-                    Section("Coming later") { Text("Account sync, rich HTML/images, highlights, folders, PDFs, and text-to-speech are not included in this test build.") }
+                    Section("Coming later") { Text("Account sync, rich HTML/images, folders, PDFs, and text-to-speech are not included in this test build.") }
                 }.navigationTitle("Settings")
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { settings = false } } }
             }

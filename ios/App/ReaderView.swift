@@ -8,6 +8,9 @@ struct ReaderView: View {
     @State private var editingNote = false
     @State private var note = ""
     @State private var noteError: String?
+    @State private var highlights: [Highlight] = []
+    @State private var showingHighlights = false
+    @State private var highlightError: String?
     private var article: Article? { model.articles.first { $0.id == id } }
 
     var body: some View {
@@ -25,12 +28,22 @@ struct ReaderView: View {
                                 Label(article.isRead ? "Read" : "Mark read", systemImage: article.isRead ? "checkmark.circle.fill" : "checkmark.circle")
                             }.buttonStyle(.bordered)
                         }
+                        if article.isDownloaded {
+                            Button { showingHighlights = true } label: {
+                                Label("Highlights (\(highlights.count))", systemImage: "highlighter")
+                            }.accessibilityIdentifier("showHighlights")
+                            Text("Select text, then choose Highlight from the selection menu.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
                         if let error = article.error {
                             Label(error, systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.orange)
                         }
                         if article.isDownloaded {
-                            Text(article.text).font(.custom("Georgia", size: readerSize, relativeTo: .body))
-                                .lineSpacing(7).textSelection(.enabled)
+                            HighlightTextView(text: article.text, highlights: highlights, fontSize: readerSize) { range in
+                                let saved = model.mutate { _ = try $0.addHighlight(articleId: id, content: article.text, range: range) }
+                                loadHighlights()
+                                return saved
+                            }
                         } else {
                             ContentUnavailableView("Your link is safe", systemImage: "arrow.down.circle", description: Text("Download the text while online, then read it anywhere."))
                         }
@@ -62,6 +75,40 @@ struct ReaderView: View {
             } else { ContentUnavailableView("Article not found", systemImage: "doc") }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .task(id: id) { loadHighlights() }
+        .sheet(isPresented: $showingHighlights) {
+            NavigationStack {
+                List {
+                    if highlights.isEmpty {
+                        ContentUnavailableView("No highlights yet", systemImage: "highlighter", description: Text("Select text in the article and choose Highlight."))
+                    }
+                    ForEach(highlights) { highlight in
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(highlight.text).textSelection(.enabled)
+                                .padding(8).background(Color(uiColor: highlight.color.uiColor).opacity(0.25), in: RoundedRectangle(cornerRadius: 6))
+                            if let article, highlight.range(in: article.text) == nil {
+                                Text("Saved quote — article text has changed. This highlight is not painted in the reader.")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Picker("Color", selection: Binding(get: { highlight.color }, set: { color in
+                                if !model.mutate({ try $0.setHighlightColor(id: highlight.id, color: color) }) { highlightError = model.error; model.error = nil }
+                                loadHighlights()
+                            })) {
+                                ForEach(HighlightColor.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                            }
+                            Button("Remove highlight", role: .destructive) {
+                                if !model.mutate({ try $0.deleteHighlight(id: highlight.id) }) { highlightError = model.error; model.error = nil }
+                                loadHighlights()
+                            }
+                        }.padding(.vertical, 6)
+                    }
+                }.navigationTitle("Highlights")
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showingHighlights = false } } }
+                    .alert("Could not update highlight", isPresented: Binding(get: { highlightError != nil }, set: { if !$0 { highlightError = nil } })) {
+                        Button("OK") { highlightError = nil }
+                    } message: { Text(highlightError ?? "") }
+            }
+        }
         .sheet(isPresented: $editingNote) {
             NavigationStack {
                 TextEditor(text: $note).padding().accessibilityLabel("Article note")
@@ -82,5 +129,10 @@ struct ReaderView: View {
                     } message: { Text(noteError ?? "") }
             }
         }
+    }
+
+    private func loadHighlights() {
+        do { highlights = try model.highlights(articleId: id) }
+        catch { model.error = error.localizedDescription }
     }
 }

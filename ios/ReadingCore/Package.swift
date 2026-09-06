@@ -11,6 +11,6 @@ let package = Package(
     ],
     targets: [
         .target(name: "ReadingCore", dependencies: [.product(name: "GRDB", package: "GRDB.swift"), "SwiftSoup"]),
-        .testTarget(name: "ReadingCoreTests", dependencies: ["ReadingCore"])
+        .testTarget(name: "ReadingCoreTests", dependencies: ["ReadingCore", .product(name: "GRDB", package: "GRDB.swift")])
     ]
 )
