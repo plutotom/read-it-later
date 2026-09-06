@@ -17,6 +17,17 @@ import ReadingCore
 
     init() {
         do {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
+                let testLibrary = try Library()
+                let sample = try testLibrary.saveURL("https://example.com/offline")
+                try testLibrary.saveContent(id: sample.id, title: "An offline test article", text: "This text is already stored on this device. Read it without a network connection, add a note, and mark it read. This fixture belongs only to the UI test process.")
+                library = testLibrary
+                available = true
+                refresh()
+                return
+            }
+            #endif
             let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             library = try Library(path: root.appendingPathComponent("library.sqlite").path)
@@ -62,6 +73,9 @@ import ReadingCore
     }
 
     func importInbox() {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing") { return }
+        #endif
         do {
             let files = try FileManager.default.contentsOfDirectory(at: ShareInbox.directory(), includingPropertiesForKeys: nil)
             for file in files where file.pathExtension == "json" {

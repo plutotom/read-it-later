@@ -35,3 +35,17 @@ jobs:
         with:
           name: ReadItLater-0.1-Simulator
           path: ios/DerivedData/Build/Products/Debug-iphonesimulator/ReadItLater.app
+      - name: Run reader UI smoke test
+        working-directory: ios
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for devices in d["devices"].values() for x in devices if x["name"].startswith("iPhone")))')
+          xcodebuild -project ReadItLater.xcodeproj -scheme ReadItLater \
+            -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_ID" \
+            -derivedDataPath DerivedData -resultBundlePath UITestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO test
+      - name: Upload UI test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReadItLater-UI-Test-Results
+          path: ios/UITestResults.xcresult

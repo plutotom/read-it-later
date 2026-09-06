@@ -10,7 +10,7 @@ final class ReadingCoreTests: XCTestCase {
         XCTAssertNotEqual(try ArticleURL.parse("https://example.com/?page=1"), try ArticleURL.parse("https://example.com/?page=2"))
     }
 
-    @MainActor func testDuplicateDoesNotEraseNotesOrContent() throws {
+    @MainActor func testDuplicateDoesNotEraseNotesOrContent() async throws {
         let library = try Library()
         let article = try library.saveURL("https://example.com/story")
         try library.saveNote(id: article.id, text: "Keep this note")
@@ -22,7 +22,7 @@ final class ReadingCoreTests: XCTestCase {
         XCTAssertEqual(try library.articles().count, 1)
     }
 
-    @MainActor func testPersistenceAndFailurePreservesContent() throws {
+    @MainActor func testPersistenceAndFailurePreservesContent() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }

@@ -20,6 +20,15 @@ targets:
     type: application
     platform: iOS
     sources: [App, Shared]
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Read It Later
+        ReadingAppGroup: $(APP_GROUP)
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
     dependencies:
       - package: ReadingCore
       - target: ReadItLaterShare
@@ -27,15 +36,20 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.isaiahproctor.readitlater
-        INFOPLIST_KEY_CFBundleDisplayName: Read It Later
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_ReadingAppGroup: $(APP_GROUP)
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
     entitlements:
       path: App/ReadItLater.entitlements
       properties:
         com.apple.security.application-groups: [$(APP_GROUP)]
+  ReadItLaterUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: ReadItLater
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.isaiahproctor.readitlater.uitests
+        TEST_TARGET_NAME: ReadItLater
   ReadItLaterShare:
     type: app-extension
     platform: iOS
@@ -66,5 +80,8 @@ schemes:
         ReadItLater: all
     run:
       config: Debug
+    test:
+      config: Debug
+      targets: [ReadItLaterUITests]
     archive:
       config: Release

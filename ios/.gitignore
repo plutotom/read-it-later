@@ -2,6 +2,7 @@
 .swiftpm/
 *.xcodeproj/
 App/ReadItLater.entitlements
+App/Info.plist
 ShareExtension/ReadItLaterShare.entitlements
 ShareExtension/Info.plist
 DerivedData/
