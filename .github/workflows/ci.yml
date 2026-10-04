@@ -35,6 +35,9 @@ jobs:
 
       - name: Lint
         run: pnpm lint
+        # next lint loads next.config.js and env.js, even though it needs no secrets.
+        env:
+          SKIP_ENV_VALIDATION: "1"
 
       - name: Typecheck
         run: pnpm typecheck
