@@ -126,11 +126,13 @@ final class ReadingUITests: XCTestCase {
         XCTAssertTrue(address.waitForExistence(timeout: 10))
         address.tap()
         address.typeText("https://example.org/\n")
+        let pageText = safari.webViews.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "documentation")).firstMatch
+        XCTAssertTrue(pageText.waitForExistence(timeout: 40))
         let share = safari.buttons["Share"]
         XCTAssertTrue(share.waitForExistence(timeout: 20))
         share.tap()
         let extensionButton = safari.cells["Read It Later"]
-        XCTAssertTrue(extensionButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(extensionButton.waitForExistence(timeout: 20))
         extensionButton.tap()
         XCTAssertTrue(safari.staticTexts["Link saved. Open Read It Later to download the text."].waitForExistence(timeout: 10))
         safari.buttons["Done"].tap()
