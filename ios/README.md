@@ -41,7 +41,7 @@ Security; use HTTPS. No ATS exception is enabled.
 8. In Safari, open Share → More and enable Read It Later.
 
 To run on the simulator, select an installed iPhone simulator instead. A successful
-GitHub `iOS preview` workflow provides an unsigned **simulator-only** app artifact;
+GitHub `iOS preview` workflow provides an ad-hoc-signed **simulator-only** app artifact;
 it is not an IPA and cannot be installed directly on an iPhone.
 
 No signing certificates, provisioning profiles, or App Store credentials are in
@@ -49,6 +49,11 @@ this repository. TestFlight distribution requires a separately signed archive,
 App Store Connect configuration, app icon, privacy review, and device validation.
 
 ## Test checklist
+
+The automated simulator suite covers public HTTPS downloads, Safari sharing,
+invalid-link draft recovery, duplicate saves, and notes/read state/favorites/highlights
+surviving app restarts. It also checks highlight color changes and removal. The
+checklist below still needs physical-device validation before distribution.
 
 - [ ] First launch with no account presents an empty library.
 - [ ] Paste a public HTTPS article; URL survives a failed download.
@@ -73,11 +78,14 @@ cd ..
 xcodegen generate
 xcodebuild -project ReadItLater.xcodeproj -scheme ReadItLater \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-  CODE_SIGNING_ALLOWED=NO build
+  CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- build
 ```
 
 Project and entitlement files are generated from `project.yml`. Do not maintain
 manual changes only in a generated project; they will disappear on regeneration.
+Simulator builds use ad-hoc signing (no Apple Developer team is required) so the
+app and Share Extension retain their App Group entitlements. Disabling signing
+produces a build that cannot use the shared inbox on the simulator.
 
 ## Data and security boundaries
 

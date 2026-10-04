@@ -1,10 +1,22 @@
 import XCTest
 
 final class ReadingUITests: XCTestCase {
-    @MainActor func testOfflineReaderAndNote() throws {
+    @MainActor private func launchFreshApp(importSharedLinks: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--reset-ui-test-library"]
+        if importSharedLinks { app.launchArguments.append("--ui-testing-import-inbox") }
+        app.launch()
+        return app
+    }
+
+    @MainActor private func reopen(_ app: XCUIApplication) {
+        app.terminate()
         app.launchArguments = ["--ui-testing"]
         app.launch()
+    }
+
+    @MainActor func testOfflineReaderAndNote() throws {
+        let app = launchFreshApp()
         let article = app.staticTexts["An offline test article"]
         XCTAssertTrue(article.waitForExistence(timeout: 15))
         article.tap()
@@ -17,6 +29,16 @@ final class ReadingUITests: XCTestCase {
         editor.typeText("An offline note")
         app.buttons["Save"].tap()
         XCTAssertTrue(app.staticTexts["An offline note"].waitForExistence(timeout: 5))
+        app.buttons["Mark read"].tap()
+        app.buttons["Reading options"].tap()
+        app.buttons["Favorite"].tap()
+        reopen(app)
+        app.staticTexts["An offline test article"].tap()
+        XCTAssertTrue(app.staticTexts["An offline note"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Read"].exists)
+        app.buttons["Reading options"].tap()
+        XCTAssertTrue(app.buttons["Remove favorite"].waitForExistence(timeout: 5))
+        app.buttons["Remove favorite"].tap()
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Offline reader with note"
         attachment.lifetime = .keepAlways
@@ -24,27 +46,103 @@ final class ReadingUITests: XCTestCase {
     }
 
     @MainActor func testSelectTextHighlightAndRemove() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing"]
-        app.launch()
+        let app = launchFreshApp()
         let article = app.staticTexts["An offline test article"]
         XCTAssertTrue(article.waitForExistence(timeout: 15))
         article.tap()
         let reader = app.textViews["articleText"]
         XCTAssertTrue(reader.waitForExistence(timeout: 5))
         reader.press(forDuration: 1.2)
-        let highlightAction = app.buttons["Highlight"]
+        // UITextView exposes selection actions as menu items, not buttons.
+        let highlightAction = app.menuItems["Highlight"]
         XCTAssertTrue(highlightAction.waitForExistence(timeout: 8))
         highlightAction.tap()
         let highlights = app.buttons["showHighlights"]
         XCTAssertTrue(highlights.waitForExistence(timeout: 5))
         XCTAssertEqual(highlights.label, "Highlights (1)")
         highlights.tap()
+        app.buttons["highlightColor"].tap()
+        app.buttons["Pink"].tap()
+        app.buttons["Done"].tap()
+        reopen(app)
+        app.staticTexts["An offline test article"].tap()
+        XCTAssertTrue(highlights.waitForExistence(timeout: 5))
+        XCTAssertEqual(highlights.label, "Highlights (1)")
+        highlights.tap()
+        XCTAssertTrue(app.buttons["highlightColor"].label.contains("Pink"))
         let remove = app.buttons["Remove highlight"]
         XCTAssertTrue(remove.waitForExistence(timeout: 5))
         remove.tap()
         XCTAssertTrue(app.staticTexts["No highlights yet"].waitForExistence(timeout: 5))
         app.buttons["Done"].tap()
         XCTAssertEqual(app.buttons["showHighlights"].label, "Highlights (0)")
+    }
+
+    @MainActor func testInvalidLinkKeepsDraftAndDuplicateKeepsOfflineText() throws {
+        let app = launchFreshApp()
+        app.buttons["Save a link"].tap()
+        let input = app.textFields["articleURLInput"]
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        input.tap()
+        input.typeText("not a url")
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.alerts["Could not save link"].waitForExistence(timeout: 5))
+        app.alerts.buttons["OK"].tap()
+        XCTAssertEqual(input.value as? String, "not a url")
+        input.tap()
+        input.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "not a url".count))
+        input.typeText("https://example.com/offline#section")
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts["1 saved offline · On this iPhone"].waitForExistence(timeout: 5))
+        reopen(app)
+        app.staticTexts["An offline test article"].tap()
+        XCTAssertTrue(app.textViews["articleText"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Download text"].exists)
+    }
+
+    @MainActor func testDownloadAndReopenArticle() throws {
+        let app = launchFreshApp()
+        app.buttons["Save a link"].tap()
+        let input = app.textFields["articleURLInput"]
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        input.tap()
+        input.typeText("https://example.com/")
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts["Example Domain"].waitForExistence(timeout: 50))
+        reopen(app)
+        app.staticTexts["Example Domain"].tap()
+        let reader = app.textViews["articleText"]
+        XCTAssertTrue(reader.waitForExistence(timeout: 5))
+        XCTAssertTrue((reader.value as? String)?.contains("documentation") == true)
+        XCTAssertFalse(app.buttons["Download text"].exists)
+    }
+
+    @MainActor func testSafariShareImportsLink() throws {
+        let app = launchFreshApp(importSharedLinks: true)
+        let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
+        defer { safari.terminate() }
+        safari.launch()
+        let address = safari.textFields["Address"]
+        XCTAssertTrue(address.waitForExistence(timeout: 10))
+        address.tap()
+        address.typeText("https://example.org/\n")
+        let share = safari.buttons["Share"]
+        XCTAssertTrue(share.waitForExistence(timeout: 20))
+        share.tap()
+        let extensionButton = safari.cells["Read It Later"]
+        XCTAssertTrue(extensionButton.waitForExistence(timeout: 5))
+        extensionButton.tap()
+        XCTAssertTrue(safari.staticTexts["Link saved. Open Read It Later to download the text."].waitForExistence(timeout: 10))
+        safari.buttons["Done"].tap()
+        app.activate()
+        XCTAssertTrue(app.staticTexts["example.org"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Example Domain"].waitForExistence(timeout: 50))
+        reopen(app)
+        app.staticTexts["Example Domain"].tap()
+        XCTAssertTrue(app.textViews["articleText"].waitForExistence(timeout: 5))
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Safari capture reopened for offline reading"
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 }

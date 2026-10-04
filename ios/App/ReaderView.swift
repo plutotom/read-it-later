@@ -96,10 +96,12 @@ struct ReaderView: View {
                             })) {
                                 ForEach(HighlightColor.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
                             }
+                            .pickerStyle(.menu)
+                            .accessibilityIdentifier("highlightColor")
                             Button("Remove highlight", role: .destructive) {
                                 if !model.mutate({ try $0.deleteHighlight(id: highlight.id) }) { highlightError = model.error; model.error = nil }
                                 loadHighlights()
-                            }
+                            }.buttonStyle(.borderless)
                         }.padding(.vertical, 6)
                     }
                 }.navigationTitle("Highlights")

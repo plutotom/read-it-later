@@ -17,18 +17,25 @@ import ReadingCore
 
     init() {
         do {
+            let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
-                let testLibrary = try Library()
+                let testRoot = root.appendingPathComponent("UITestLibrary", isDirectory: true)
+                if ProcessInfo.processInfo.arguments.contains("--reset-ui-test-library"), FileManager.default.fileExists(atPath: testRoot.path) {
+                    try FileManager.default.removeItem(at: testRoot)
+                }
+                try FileManager.default.createDirectory(at: testRoot, withIntermediateDirectories: true)
+                let testLibrary = try Library(path: testRoot.appendingPathComponent("library.sqlite").path)
                 let sample = try testLibrary.saveURL("https://example.com/offline")
-                try testLibrary.saveContent(id: sample.id, title: "An offline test article", text: "This text is already stored on this device. Read it without a network connection, add a note, and mark it read. This fixture belongs only to the UI test process.")
+                if !sample.isDownloaded {
+                    try testLibrary.saveContent(id: sample.id, title: "An offline test article", text: "This text is already stored on this device. Read it without a network connection, add a note, and mark it read. This fixture belongs only to the UI test process.")
+                }
                 library = testLibrary
                 available = true
                 refresh()
                 return
             }
             #endif
-            let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             library = try Library(path: root.appendingPathComponent("library.sqlite").path)
             available = true
@@ -51,7 +58,8 @@ import ReadingCore
     }
 
     func download(_ article: Article) async {
-        guard let library, !downloading.contains(article.id), let url = URL(string: article.url) else { return }
+        guard let library, !article.isDownloaded || article.error != nil,
+              !downloading.contains(article.id), let url = URL(string: article.url) else { return }
         downloading.insert(article.id)
         defer { downloading.remove(article.id); refresh() }
         do {
@@ -74,16 +82,13 @@ import ReadingCore
 
     func importInbox() {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--ui-testing") { return }
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing"),
+           !ProcessInfo.processInfo.arguments.contains("--ui-testing-import-inbox") { return }
         #endif
         do {
-            let files = try FileManager.default.contentsOfDirectory(at: ShareInbox.directory(), includingPropertiesForKeys: nil)
-            for file in files where file.pathExtension == "json" {
-                let input = try JSONDecoder().decode(String.self, from: Data(contentsOf: file))
-                guard add(input) != nil else { continue }
-                try FileManager.default.removeItem(at: file) // Remove only after durable DB commit.
-            }
+            try library?.importInbox(at: ShareInbox.directory())
         } catch { self.error = error.localizedDescription }
+        refresh()
     }
 
     @discardableResult func mutate(_ operation: (Library) throws -> Void) -> Bool {

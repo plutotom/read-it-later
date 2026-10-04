@@ -18,6 +18,7 @@ struct LibraryView: View {
     @State private var adding = false
     @State private var settings = false
     @State private var input = ""
+    @State private var addError: String?
     @State private var deleteTarget: Article?
     @State private var exportDocument = LibraryExport(data: Data())
     @State private var exporting = false
@@ -85,6 +86,7 @@ struct LibraryView: View {
                 Form {
                     TextField("https://example.com/article", text: $input)
                         .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .accessibilityIdentifier("articleURLInput")
                     Text("The link is saved first. Downloading text requires internet. This test version does not download images, PDFs, or audio.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }.navigationTitle("Save a link")
@@ -95,11 +97,18 @@ struct LibraryView: View {
                                 if let article = model.add(input) {
                                     input = ""; adding = false
                                     Task { await model.download(article) }
-                                } else { adding = false }
+                                } else {
+                                    addError = model.error ?? "Could not save your link. Please try again."
+                                    model.error = nil
+                                }
                             }.disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
                     }
-            }.presentationDetents([.medium, .large])
+            }
+            .alert("Could not save link", isPresented: Binding(get: { addError != nil }, set: { if !$0 { addError = nil } })) {
+                Button("OK") { addError = nil }
+            } message: { Text(addError ?? "") }
+            .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $settings) {
             NavigationStack {

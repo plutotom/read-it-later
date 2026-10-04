@@ -3,6 +3,32 @@ import GRDB
 @testable import ReadingCore
 
 final class ReadingCoreTests: XCTestCase {
+    @MainActor func testInboxImportsOtherLinksAfterBadFileAndPreservesDuplicate() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = root.appendingPathComponent("library.sqlite").path
+        let library = try Library(path: path)
+        let existing = try library.saveURL("https://example.com/saved")
+        try library.saveContent(id: existing.id, title: "Saved title", text: "Saved offline text")
+        try library.saveNote(id: existing.id, text: "Keep this note")
+        let bad = root.appendingPathComponent("000-bad.json")
+        let duplicate = root.appendingPathComponent("001-duplicate.json")
+        let fresh = root.appendingPathComponent("002-new.json")
+        try Data("{broken".utf8).write(to: bad)
+        try JSONEncoder().encode("https://example.com/saved#section").write(to: duplicate)
+        try JSONEncoder().encode("https://example.com/new").write(to: fresh)
+        XCTAssertThrowsError(try library.importInbox(at: root))
+        XCTAssertEqual(try library.articles().count, 2)
+        XCTAssertEqual(try Library(path: path).articles().count, 2)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: bad.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: duplicate.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fresh.path))
+        let restored = try library.saveURL(existing.url)
+        XCTAssertEqual(restored.note, "Keep this note")
+        XCTAssertEqual(restored.text, "Saved offline text")
+    }
+
     func testURLValidation() throws {
         XCTAssertEqual(try ArticleURL.parse(" https://example.com/story?q=1#part ").absoluteString, "https://example.com/story?q=1")
         for input in ["javascript:alert(1)", "file:///etc/passwd", "https://user:pass@example.com", "https://localhost/a", "http://127.0.0.1", "not a url"] {
