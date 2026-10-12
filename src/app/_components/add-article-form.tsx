@@ -468,7 +468,8 @@ export function AddArticleForm({
           )}
         >
           <Link className="mr-2 h-4 w-4" />
-          Add from URL
+          <span className="sm:hidden">URL</span>
+          <span className="hidden sm:inline">Add from URL</span>
         </Button>
         <Button
           type="button"
@@ -483,7 +484,8 @@ export function AddArticleForm({
           )}
         >
           <FileText className="mr-2 h-4 w-4" />
-          Add from Text
+          <span className="sm:hidden">Text</span>
+          <span className="hidden sm:inline">Add from Text</span>
         </Button>
       </div>
 

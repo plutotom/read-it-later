@@ -38,7 +38,7 @@ export function ArticleMetadata({ article }: ArticleMetadataProps) {
   return (
     <div className="mb-10">
       <h1
-        className="text-foreground text-[2.6rem] leading-[1.05] font-medium tracking-tight sm:text-[3.4rem]"
+        className="text-foreground text-[2rem] leading-[1.12] font-medium tracking-tight break-words sm:text-[3.4rem] sm:leading-[1.05]"
         style={{ fontFamily: "var(--font-app-display)" }}
       >
         {article.title}

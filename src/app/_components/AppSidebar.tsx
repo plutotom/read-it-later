@@ -15,12 +15,13 @@ import { navGroups, type NavItem } from "~/config/nav-config";
 import { NavLink } from "./navigation/NavLink";
 import { UserMenu } from "./user-menu";
 import { useSession } from "~/lib/auth-client";
-import { ChevronDown, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 
 /**
- * Mobile sidebar navigation with modern glass design
- * Includes navigation links and user menu
+ * Mobile sidebar navigation.
+ * Primary destinations stay in the scrollable body; account/theme live in the
+ * footer so they never overlay the nav.
  */
 export function AppSidebar() {
   const { data: session } = useSession();
@@ -30,16 +31,12 @@ export function AppSidebar() {
     setOpenMobile(false);
   };
 
-  const userInitial = (session?.user.name ?? session?.user.email ?? "U")
-    .charAt(0)
-    .toUpperCase();
-
   return (
     <Sidebar className="border-r-0">
-      <SidebarHeader className="bg-sidebar px-4 pt-4 pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="bg-accent flex h-7 w-7 items-center justify-center rounded-[8px] text-[15px] leading-none font-bold text-white shadow-[var(--shadow-soft)]">
+      <SidebarHeader className="bg-sidebar px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="bg-accent flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] text-[15px] leading-none font-bold text-white shadow-[var(--shadow-soft)]">
               <span
                 style={{
                   fontFamily: "var(--font-app-display)",
@@ -50,7 +47,7 @@ export function AppSidebar() {
               </span>
             </div>
             <h2
-              className="text-foreground text-base font-medium tracking-tight"
+              className="text-foreground truncate text-base font-medium tracking-tight"
               style={{ fontFamily: "var(--font-app-display)" }}
             >
               Read It Later
@@ -60,20 +57,21 @@ export function AppSidebar() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-muted-foreground hover:bg-foreground/10 hover:text-foreground h-8 w-8 rounded-full"
+              className="text-muted-foreground hover:bg-foreground/10 hover:text-foreground h-10 w-10 shrink-0 rounded-full"
               onClick={() => setOpenMobile(false)}
+              aria-label="Close menu"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </Button>
           )}
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="bg-sidebar px-3 py-2">
+      <SidebarContent className="bg-sidebar px-3 py-3">
         {navGroups.map((group) => (
           <SidebarGroup key={group.title} className="p-0">
             <SidebarGroupContent>
-              <SidebarMenu className="space-y-1">
+              <SidebarMenu className="space-y-1.5">
                 {group.items.map((item: NavItem) => (
                   <SidebarMenuItem key={item.title}>
                     <NavLink
@@ -87,42 +85,11 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
-
-        <div className="bg-rule mx-3 my-4 h-px" />
-
-        <SidebarGroup className="p-0">
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-1">
-              <SidebarMenuItem>
-                <button
-                  type="button"
-                  className="text-foreground-soft hover:bg-foreground/10 hover:text-foreground flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors"
-                >
-                  <span className="bg-accent/70 h-2.5 w-2.5 rounded-[3px]" />
-                  <span className="flex-1 text-left">Collections</span>
-                  <ChevronDown className="text-muted-foreground h-4 w-4" />
-                </button>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
       {session?.user && (
-        <SidebarFooter className="bg-sidebar px-4 pt-2 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-accent text-accent-foreground flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium">
-              {userInitial}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-foreground truncate text-sm font-medium">
-                {session.user.name ?? "User"}
-              </p>
-            </div>
-            <div className="shrink-0">
-              <UserMenu showName={false} variant="sidebar" />
-            </div>
-          </div>
+        <SidebarFooter className="bg-sidebar border-rule border-t px-3 pt-3 pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
+          <UserMenu showName={false} variant="sidebar" />
         </SidebarFooter>
       )}
     </Sidebar>

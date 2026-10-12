@@ -196,7 +196,7 @@ export default function ParaPage() {
 
   return (
     <Layout pageTitle="Para">
-      <div className="container mx-auto max-w-3xl p-6">
+      <div className="container mx-auto max-w-3xl p-4 pb-28 sm:p-6">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-white">Para Device</h1>
           <p className="text-gray-400">

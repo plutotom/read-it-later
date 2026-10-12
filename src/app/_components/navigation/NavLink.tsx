@@ -34,7 +34,7 @@ export function NavLink({ item, variant = "desktop", onClick }: NavLinkProps) {
       <button
         onClick={handleClick}
         className={cn(
-          "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
+          "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200",
           "text-foreground-soft hover:bg-foreground/10 hover:text-foreground",
           isActive && "bg-foreground/10 text-foreground font-semibold",
         )}

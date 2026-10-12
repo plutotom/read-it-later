@@ -42,7 +42,7 @@ export function InboxView() {
 
   return (
     <Layout pageTitle="Inbox">
-      <div className="mx-auto w-full max-w-5xl flex-1 p-4 sm:p-6">
+      <div className="mx-auto w-full max-w-5xl flex-1 p-4 pb-8 sm:p-6">
         <ArticleList
           articles={articles ?? []}
           isLoading={isLoading}
