@@ -102,44 +102,44 @@ export function ArticleReaderHeader({
 
   return (
     <div className="bg-background/90 border-rule sticky top-0 z-20 border-b backdrop-blur-xl">
-      <div className="flex items-center justify-between px-4 py-3 sm:px-8">
+      <div className="flex items-center justify-between gap-1 px-3 py-2 sm:px-8 sm:py-3">
         <Button
           variant="ghost"
           size="sm"
           asChild
-          className="text-foreground-soft hover:bg-foreground/10 hover:text-foreground rounded-full px-2.5 text-sm"
+          className="text-foreground-soft hover:bg-foreground/10 hover:text-foreground h-10 shrink-0 rounded-full px-2.5 text-sm sm:h-9"
         >
           <Link
             href={returnTo}
             onClick={handleBackClick}
             aria-label={getReturnToLabel(returnTo)}
           >
-            <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
-            Close
+            <ArrowLeft className="h-4 w-4 sm:mr-1.5" aria-hidden />
+            <span className="hidden sm:inline">Close</span>
           </Link>
         </Button>
 
-        <div className="text-muted-foreground min-w-0 px-3 text-center text-xs">
-          <div className="flex items-center justify-center gap-2 truncate">
+        <div className="text-muted-foreground min-w-0 flex-1 px-1 text-center text-xs sm:px-3">
+          <div className="flex min-w-0 items-center justify-center gap-1.5 truncate sm:gap-2">
             <span
-              className="bg-accent text-accent-foreground inline-flex h-4 w-4 items-center justify-center rounded-[4px] text-[9px] font-bold"
+              className="bg-accent text-accent-foreground inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] text-[9px] font-bold"
               aria-hidden
             >
               {domain.charAt(0).toUpperCase()}
             </span>
             <span className="truncate">{domain}</span>
-            <span>·</span>
-            <span>{readingTime}</span>
+            <span aria-hidden>·</span>
+            <span className="shrink-0">{readingTime}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
           {hasToc && !isTocOpen && onOpenToc && (
             <Button
               variant="ghost"
               size="icon"
               onClick={onOpenToc}
-              className="text-foreground-soft hover:bg-foreground/10 hover:text-foreground hidden h-8 w-8 rounded-full lg:inline-flex"
+              className="text-foreground-soft hover:bg-foreground/10 hover:text-foreground hidden h-10 w-10 rounded-full lg:inline-flex"
               aria-label="Show table of contents"
             >
               <List className="h-4 w-4" />
@@ -151,7 +151,7 @@ export function ArticleReaderHeader({
             size="icon"
             onClick={onToggleSettings}
             className={cn(
-              "h-8 w-8 rounded-full",
+              "h-10 w-10 rounded-full sm:h-8 sm:w-8",
               showSettings
                 ? "bg-background-deep text-foreground"
                 : "text-foreground-soft hover:bg-foreground/10 hover:text-foreground",

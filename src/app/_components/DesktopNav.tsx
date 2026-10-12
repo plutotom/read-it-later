@@ -17,19 +17,16 @@ interface DesktopNavProps {
  */
 export function DesktopNav({ pageTitle }: DesktopNavProps) {
   const { data: session } = useSession();
-  const userInitial = (session?.user.name ?? session?.user.email ?? "U")
-    .charAt(0)
-    .toUpperCase();
 
   return (
-    <header className="bg-background/90 border-rule sticky top-0 z-40 border-b backdrop-blur-xl">
+    <header className="bg-background/90 border-rule sticky top-0 z-40 border-b pt-[env(safe-area-inset-top,0px)] backdrop-blur-xl">
       <div className="flex h-14 items-center justify-between px-4 md:px-6">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           <div className="md:hidden">
-            <SidebarTrigger className="text-muted-foreground hover:bg-foreground/10 hover:text-foreground h-8 w-8 rounded-full" />
+            <SidebarTrigger className="text-muted-foreground hover:bg-foreground/10 hover:text-foreground h-10 w-10 rounded-full" />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <div className="bg-accent hidden h-7 w-7 items-center justify-center rounded-[8px] text-white shadow-[var(--shadow-soft)] md:flex">
               <span
                 className="text-[15px] leading-none font-bold"
@@ -42,7 +39,7 @@ export function DesktopNav({ pageTitle }: DesktopNavProps) {
               </span>
             </div>
             <h1
-              className="text-foreground text-lg font-medium tracking-tight"
+              className="text-foreground truncate text-lg font-medium tracking-tight"
               style={{ fontFamily: "var(--font-app-display)" }}
             >
               <span className="hidden md:inline">Read It Later</span>
@@ -64,16 +61,6 @@ export function DesktopNav({ pageTitle }: DesktopNavProps) {
             </>
           )}
         </nav>
-
-        <div className="flex items-center md:hidden">
-          {session?.user && (
-            <div className="bg-accent flex h-7 w-7 items-center justify-center rounded-full">
-              <span className="text-accent-foreground text-xs font-medium">
-                {userInitial}
-              </span>
-            </div>
-          )}
-        </div>
       </div>
     </header>
   );

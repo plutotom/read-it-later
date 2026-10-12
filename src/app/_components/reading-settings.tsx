@@ -26,7 +26,7 @@ export function ReadingSettings({
             variant="ghost"
             size="icon"
             onClick={() => onFontSizeChange(Math.max(12, fontSize - 2))}
-            className="text-foreground-soft hover:bg-background-deep hover:text-foreground h-7 w-7 rounded-full"
+            className="text-foreground-soft hover:bg-background-deep hover:text-foreground h-10 w-10 rounded-full sm:h-8 sm:w-8"
           >
             <Minus className="h-4 w-4" />
           </Button>
@@ -37,7 +37,7 @@ export function ReadingSettings({
             variant="ghost"
             size="icon"
             onClick={() => onFontSizeChange(Math.min(24, fontSize + 2))}
-            className="text-foreground-soft hover:bg-background-deep hover:text-foreground h-7 w-7 rounded-full"
+            className="text-foreground-soft hover:bg-background-deep hover:text-foreground h-10 w-10 rounded-full sm:h-8 sm:w-8"
           >
             <Plus className="h-4 w-4" />
           </Button>

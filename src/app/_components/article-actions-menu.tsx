@@ -73,7 +73,7 @@ export function ArticleActionsMenu({
             variant="ghost"
             size="icon"
             className={cn(
-              "text-muted-foreground hover:bg-foreground/10 hover:text-foreground h-8 w-8 rounded-full",
+              "text-muted-foreground hover:bg-foreground/10 hover:text-foreground h-10 w-10 rounded-full sm:h-8 sm:w-8",
               !alwaysVisible &&
                 "opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100",
               className,

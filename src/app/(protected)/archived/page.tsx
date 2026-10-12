@@ -36,13 +36,19 @@ export default function ArchivedPage() {
 
   if (isLoading)
     return (
-      <div className="p-4 text-center text-gray-500">
-        Loading archived articles...
-      </div>
+      <Layout pageTitle="Archived Articles">
+        <div className="text-muted-foreground p-4 text-center">
+          Loading archived articles...
+        </div>
+      </Layout>
     );
   if (error)
     return (
-      <div className="p-4 text-center text-red-500">Error: {error.message}</div>
+      <Layout pageTitle="Archived Articles">
+        <div className="p-4 text-center text-red-400">
+          Error: {error.message}
+        </div>
+      </Layout>
     );
 
   return (

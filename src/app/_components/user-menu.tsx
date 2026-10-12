@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Settings, LogOut, ChevronDown, MoreHorizontal } from "lucide-react";
+import { Settings, LogOut, ChevronDown } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
   DropdownMenu,
@@ -19,13 +20,13 @@ import { cn } from "~/lib/utils";
 interface UserMenuProps {
   /** Whether to show the username next to the icon */
   showName?: boolean;
-  /** Display variant - dropdown for headers, sidebar for inline display */
+  /** Display variant - dropdown for headers, sidebar for an in-drawer panel */
   variant?: "dropdown" | "sidebar";
 }
 
 /**
  * Shared user menu component
- * Supports dropdown (header) and sidebar (inline) variants
+ * Supports dropdown (header) and sidebar (inline expandable) variants
  */
 export function UserMenu({
   showName = true,
@@ -33,6 +34,7 @@ export function UserMenu({
 }: UserMenuProps) {
   const router = useRouter();
   const { data: session } = useSession();
+  const [accountOpen, setAccountOpen] = useState(false);
 
   const handleSignOut = async () => {
     await authClient.signOut();
@@ -46,51 +48,67 @@ export function UserMenu({
   const userInitial = (session.user.name ?? session.user.email ?? "U")
     .charAt(0)
     .toUpperCase();
+  const displayName = session.user.name ?? session.user.email ?? "User";
 
-  // Sidebar variant - compact menu trigger for the Matter footer row
+  // Sidebar variant — expand in place so the theme picker never overlays nav
   if (variant === "sidebar") {
     return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground hover:bg-foreground/10 hover:text-foreground h-8 w-8 rounded-full"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          className="border-rule bg-surface text-foreground w-56 shadow-[var(--shadow-soft)]"
+      <div className="flex flex-col">
+        <button
+          type="button"
+          onClick={() => setAccountOpen((open) => !open)}
+          className={cn(
+            "flex min-h-12 w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors",
+            "hover:bg-foreground/10",
+            accountOpen && "bg-foreground/10",
+          )}
+          aria-expanded={accountOpen}
+          aria-controls="sidebar-account-panel"
         >
-          <DropdownMenuLabel className="text-foreground flex items-center gap-3">
-            <div className="bg-accent text-accent-foreground flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold">
-              {userInitial}
-            </div>
-            <span className="truncate">
-              {session.user.name ?? session.user.email}
-            </span>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator className="bg-rule" />
-          <ThemeSwitcher className="px-2 py-1" />
-          <DropdownMenuSeparator className="bg-rule" />
-          <DropdownMenuItem
-            onClick={() => router.push("/preferences")}
-            className="text-foreground-soft focus:bg-background-deep focus:text-foreground cursor-pointer"
+          <div className="bg-accent text-accent-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium">
+            {userInitial}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-foreground truncate text-sm font-medium">
+              {displayName}
+            </p>
+            <p className="text-muted-foreground text-xs">
+              {accountOpen ? "Hide account" : "Account & theme"}
+            </p>
+          </div>
+          <ChevronDown
+            className={cn(
+              "text-muted-foreground h-4 w-4 shrink-0 transition-transform",
+              accountOpen && "rotate-180",
+            )}
+          />
+        </button>
+
+        {accountOpen && (
+          <div
+            id="sidebar-account-panel"
+            className="border-rule mt-2 space-y-1 border-t pt-3"
           >
-            <Settings className="mr-2 h-4 w-4" />
-            Preferences
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => void handleSignOut()}
-            className="text-foreground-soft focus:bg-background-deep focus:text-foreground cursor-pointer"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <ThemeSwitcher variant="panel" />
+            <button
+              type="button"
+              onClick={() => router.push("/preferences")}
+              className="text-foreground-soft hover:bg-foreground/10 hover:text-foreground flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm"
+            >
+              <Settings className="h-4 w-4" />
+              Preferences
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleSignOut()}
+              className="text-foreground-soft hover:bg-foreground/10 hover:text-foreground flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -128,7 +146,6 @@ export function UserMenu({
         </DropdownMenuLabel>
         <DropdownMenuSeparator className="bg-rule" />
 
-        {/* TTS Usage Progress Bar */}
         <TTSUsageDisplay compact />
 
         <DropdownMenuSeparator className="bg-rule" />
