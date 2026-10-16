@@ -84,7 +84,7 @@ struct LibraryView: View {
         .sheet(isPresented: $adding) {
             NavigationStack {
                 Form {
-                    TextField("Article URL", text: $input, prompt: Text("e.g. https://example.com/article").foregroundStyle(.secondary))
+                    TextField("Article URL", text: $input, prompt: Text(verbatim: "e.g. https://example.com/article").foregroundStyle(.secondary))
                         .foregroundStyle(.primary)
                         .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                         .accessibilityIdentifier("articleURLInput")

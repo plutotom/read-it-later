@@ -84,6 +84,10 @@ final class ReadingUITests: XCTestCase {
         let input = app.textFields["articleURLInput"]
         XCTAssertTrue(input.waitForExistence(timeout: 5))
         input.tap()
+        let placeholder = XCTAttachment(screenshot: app.screenshot())
+        placeholder.name = "Save link placeholder"
+        placeholder.lifetime = .keepAlways
+        add(placeholder)
         input.typeText("not a url")
         app.buttons["Save"].tap()
         XCTAssertTrue(app.alerts["Could not save link"].waitForExistence(timeout: 5))
