@@ -12,6 +12,8 @@ struct LibraryExport: FileDocument {
 
 struct LibraryView: View {
     @Bindable var model: LibraryModel
+    @Environment(ListeningPlayer.self) private var player
+    @State private var showingPlayer = false
     @Environment(\.scenePhase) private var phase
     @State private var search = ""
     @State private var filter = "All"
@@ -79,8 +81,15 @@ struct LibraryView: View {
             }
             .refreshable { await model.resume() }
         }
+        .safeAreaInset(edge: .bottom) {
+            if player.document != nil { MiniListeningPlayer(player: player) { showingPlayer = true } }
+        }
+        .sheet(isPresented: $showingPlayer) { ListeningPlayerView(player: player) }
         .task { await model.resume() }
-        .onChange(of: phase) { _, value in if value == .active { Task { await model.resume() } } }
+        .onChange(of: phase) { _, value in
+            if value == .active { Task { await model.resume() } }
+            else if value == .background { player.pause() }
+        }
         .sheet(isPresented: $adding) {
             NavigationStack {
                 Form {
@@ -127,7 +136,7 @@ struct LibraryView: View {
                             }
                         }
                     }
-                    Section("Coming later") { Text("Account sync, rich HTML/images, folders, PDFs, and text-to-speech are not included in this test build.") }
+                    Section("Coming later") { Text("Account sync, rich HTML/images, folders, and PDFs are coming later. The listening preview is silent; a speech service has not been connected.") }
                 }.navigationTitle("Settings")
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { settings = false } } }
             }
@@ -140,7 +149,7 @@ struct LibraryView: View {
         } message: { Text(model.error ?? "") }
         .confirmationDialog("Delete article and its note from this iPhone?", isPresented: Binding(get: { deleteTarget != nil }, set: { if !$0 { deleteTarget = nil } }), titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
-                if let article = deleteTarget { model.mutate { try $0.delete(id: article.id) } }
+                if let article = deleteTarget, model.mutate({ try $0.delete(id: article.id) }), player.document?.articleID == article.id { player.close() }
                 deleteTarget = nil
             }
         }

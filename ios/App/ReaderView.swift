@@ -3,6 +3,7 @@ import ReadingCore
 
 struct ReaderView: View {
     @Bindable var model: LibraryModel
+    @Environment(ListeningPlayer.self) private var player
     let id: String
     @AppStorage("readerSize") private var readerSize = 19.0
     @State private var editingNote = false
@@ -32,14 +33,26 @@ struct ReaderView: View {
                             Button { showingHighlights = true } label: {
                                 Label("Highlights (\(highlights.count))", systemImage: "highlighter")
                             }.accessibilityIdentifier("showHighlights")
-                            Text("Select text, then choose Highlight from the selection menu.")
+                            Button {
+                                player.start(ListeningDocument(articleID: id, title: article.title, text: article.text))
+                            } label: { Label("Try listening preview", systemImage: "headphones") }
+                                .buttonStyle(.bordered).accessibilityIdentifier("startListening")
+                            Text("Silent preview · Tap a paragraph to play from there. Long-press to select and highlight text.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         if let error = article.error {
                             Label(error, systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.orange)
                         }
                         if article.isDownloaded {
-                            HighlightTextView(text: article.text, highlights: highlights, fontSize: readerSize) { range in
+                            HighlightTextView(text: article.text, highlights: highlights, fontSize: readerSize,
+                                              activeRange: player.document?.articleID == id ? player.currentChunk?.range : nil,
+                                              wordRange: player.document?.articleID == id ? player.wordRange : nil,
+                                              play: { offset in
+                                let document = ListeningDocument(articleID: id, title: article.title, text: article.text)
+                                if let chunk = document.chunk(atUTF16Offset: offset) {
+                                    player.start(document, paragraph: document.chunks[chunk].paragraph)
+                                }
+                            }) { range in
                                 let saved = model.mutate { _ = try $0.addHighlight(articleId: id, content: article.text, range: range) }
                                 loadHighlights()
                                 return saved

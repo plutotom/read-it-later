@@ -15,6 +15,43 @@ final class ReadingUITests: XCTestCase {
         app.launch()
     }
 
+    @MainActor func testSilentListeningPlayerAndParagraphAction() throws {
+        let app = launchFreshApp()
+        let article = app.staticTexts["An offline test article"]
+        XCTAssertTrue(article.waitForExistence(timeout: 15))
+        article.tap()
+        let text = app.textViews["articleText"]
+        XCTAssertTrue(text.waitForExistence(timeout: 5))
+        text.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.04)).tap()
+        let play = app.menuItems["Play from paragraph"]
+        XCTAssertTrue(play.waitForExistence(timeout: 5))
+        play.tap()
+        let expand = app.buttons["expandPlayer"]
+        XCTAssertTrue(expand.waitForExistence(timeout: 5))
+        expand.tap()
+        XCTAssertTrue(app.staticTexts["Silent listening preview"].waitForExistence(timeout: 5))
+        app.buttons["playerPlayPause"].tap()
+        XCTAssertEqual(app.staticTexts["playbackStatus"].label, "Paused")
+        app.buttons["playbackSpeed"].tap()
+        app.buttons["1.5×"].tap()
+        app.buttons["playbackVoice"].tap()
+        app.buttons["Preview B"].tap()
+        XCTAssertEqual(app.staticTexts["playbackStatus"].label, "Paused")
+        app.buttons["sleepTimer"].tap()
+        app.buttons["5 minutes"].tap()
+        app.sliders["playbackPosition"].adjust(toNormalizedSliderPosition: 0.65)
+        XCTAssertTrue(app.buttons["Pause preview"].waitForExistence(timeout: 5))
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Silent listening player"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        app.buttons["Done"].tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(expand.waitForExistence(timeout: 5))
+        app.buttons["Close listening player"].tap()
+        XCTAssertFalse(expand.exists)
+    }
+
     @MainActor func testOfflineReaderAndNote() throws {
         let app = launchFreshApp()
         let article = app.staticTexts["An offline test article"]
