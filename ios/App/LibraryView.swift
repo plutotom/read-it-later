@@ -84,7 +84,8 @@ struct LibraryView: View {
         .sheet(isPresented: $adding) {
             NavigationStack {
                 Form {
-                    TextField("https://example.com/article", text: $input)
+                    TextField("Article URL", text: $input, prompt: Text("e.g. https://example.com/article").foregroundStyle(.secondary))
+                        .foregroundStyle(.primary)
                         .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                         .accessibilityIdentifier("articleURLInput")
                     Text("The link is saved first. Downloading text requires internet. This test version does not download images, PDFs, or audio.")
