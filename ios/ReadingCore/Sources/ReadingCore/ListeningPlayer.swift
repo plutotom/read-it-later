@@ -175,15 +175,15 @@ import OSLog
         }
     }
 
-    private struct Bookmark: Codable { let fingerprint: String; let offset: Int; let rate: Double; let voice: String }
+    private struct Bookmark: Codable { let fingerprint: String; let offset: Int; let rate: Double; let voice: String; let time: Double?; let chunkStart: Int?; let descriptor: SpeechDescriptor?; let configuration: String?; let finished: Bool? }
     private func contentFingerprint(_ text: String) -> String { SpeechDiskCache.key(SpeechRequest(text: text, voice: SpeechVoice(id: "content", name: "", language: ""), configurationID: "bookmark-content-v1")) }
     private func bookmarkKey(_ id: String) -> String { "speech-bookmark-" + id }
     private func saveBookmark() {
         guard automaticallyTick else { return }
         guard let document, let chunk = currentChunk else { return }
         let fraction = duration(at: chunkIndex) > 0 ? chunkTime / duration(at: chunkIndex) : 0
-        let offset = chunk.range.location + Int(Double(chunk.range.length) * min(1, max(0, fraction)))
-        let value = Bookmark(fingerprint: contentFingerprint(document.text), offset: offset, rate: rate, voice: voice.id)
+        let offset = chunk.range.location + min(max(0, chunk.range.length - 1), Int(Double(chunk.range.length) * min(1, max(0, fraction))))
+        let value = Bookmark(fingerprint: contentFingerprint(document.text), offset: offset, rate: rate, voice: voice.id, time: chunkTime, chunkStart: chunk.range.location, descriptor: voice.descriptor, configuration: service.configurationID, finished: state == .finished)
         if let data = try? JSONEncoder().encode(value) { UserDefaults.standard.set(data, forKey: bookmarkKey(document.articleID)) }
     }
     private func restoreBookmark(_ document: ListeningDocument) {
@@ -193,7 +193,13 @@ import OSLog
         guard fingerprint == value.fingerprint, let index = document.chunk(atUTF16Offset: value.offset) else { return }
         if let savedVoice = voices.first(where: { $0.id == value.voice }) { voice = savedVoice }
         rate = min(3, max(0.5, value.rate)); chunkIndex = index
-        let chunk = document.chunks[index]; chunkTime = Double(value.offset - chunk.range.location) / Double(max(1, chunk.range.length)) * chunk.estimatedDuration
+        if value.finished == true { state = .finished; chunkIndex = 0; chunkTime = 0; return }
+        let chunk = document.chunks[index]
+        if let time = value.time, time.isFinite, time >= 0, time <= 3600,
+           value.chunkStart == chunk.range.location, value.descriptor == voice.descriptor,
+           value.configuration == service.configurationID {
+            chunkTime = time
+        } else { chunkTime = 0 }
     }
     private func failPlayback(_ message: String) {
         if loaded { chunkTime = transport.position }

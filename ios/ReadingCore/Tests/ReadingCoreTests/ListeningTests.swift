@@ -222,3 +222,29 @@ final class ListeningTests: XCTestCase {
         ] { XCTAssertThrowsError(try response.validate(for: request)) }
     }
 }
+
+extension ListeningTests {
+    @MainActor func testBookmarkRestoresActualTimeAndSpeedAcrossPlayerInstances() async {
+        let id = UUID().uuidString
+        let doc = ListeningDocument(articleID: id, title: "Bookmark", text: "A first paragraph.\n\nA second paragraph.\n\nA third paragraph.")
+        defer { UserDefaults.standard.removeObject(forKey: "speech-bookmark-" + id) }
+        let service = ControlledSpeechService(), transport = ManualTransport()
+        let player = ListeningPlayer(service: service, transport: transport)
+        player.start(doc)
+        await wait { await service.count() == 3 }
+        await service.complete(0, duration: 10)
+        await wait { player.state == .playing }
+        transport.position = 4; player.setRate(1.5); player.pause(); player.close()
+        await service.finishAll()
+        let reopenedService = ControlledSpeechService(), reopenedTransport = ManualTransport()
+        let reopened = ListeningPlayer(service: reopenedService, transport: reopenedTransport)
+        reopened.start(doc)
+        await wait { await reopenedService.count() == 3 }
+        await reopenedService.complete(0, duration: 10)
+        await wait { reopened.state == .playing }
+        XCTAssertEqual(reopened.chunkIndex, 0)
+        XCTAssertEqual(reopenedTransport.position, 4, accuracy: 0.01)
+        XCTAssertEqual(reopened.rate, 1.5)
+        reopened.close(); await reopenedService.finishAll()
+    }
+}
