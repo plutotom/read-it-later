@@ -58,3 +58,4 @@ public/swe-worker*
 public/pdfjs/
 /public/pdfjs/*
 
+.env*

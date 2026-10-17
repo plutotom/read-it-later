@@ -417,3 +417,17 @@ export {
   accountRelations,
   userPreferencesRelations,
 };
+
+// Native speech is a separate, private artifact cache. No article text is stored here.
+export const nativeSpeechCache = createTable("native_speech_cache", (d) => ({
+  id: d.varchar({ length: 64 }).primaryKey(),
+  state: d.text().notNull(),
+  fence: d.uuid().notNull(),
+  leaseUntil: d.timestamp({ withTimezone: true }).notNull(),
+  blobUrl: d.text(),
+  updatedAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+}));
+export const nativeSpeechOrphans = createTable("native_speech_orphan", (d) => ({
+  url: d.text().primaryKey(),
+  createdAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+}));
