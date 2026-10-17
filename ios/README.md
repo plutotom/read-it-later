@@ -1,4 +1,4 @@
-# Read It Later — native 0.2 developer preview
+# Paper Drive — native 0.2 developer preview
 
 This is a **native reader with streaming speech support**. The library remains local to the iPhone; listening uses the separate native speech API. Account sync and public release remain later milestones.
 
@@ -28,10 +28,10 @@ Security; use HTTPS. The only ATS exception is localhost for simulator developme
 1. On a Mac, install Xcode 16 or newer and its iOS SDK; open Xcode once.
 2. Check out `feature/native-ios-rebuild` and install XcodeGen (`brew install xcodegen`).
 3. From `ios`, run `xcodegen generate` and open `ReadItLater.xcodeproj`.
-4. In both targets' Signing & Capabilities, select your Apple Developer team.
-5. The provisional bundle IDs are `com.isaiahproctor.readitlater` and
-   `com.isaiahproctor.readitlater.share`. If unavailable, change them in
-   `project.yml` and regenerate. Update `APP_GROUP` at the same time.
+4. Sign into Xcode's Settings → Accounts with the Apple account that has access to
+   **isaiah proctor — 3CVY7K9AJ6**. Both targets are pinned to this team in `project.yml`.
+5. The registered bundle IDs are `com.isaiahproctor.readitlater` and
+   `com.isaiahproctor.readitlater.share`. Keep them unchanged when updating this app.
 6. Register/enable the **same** App Group for both targets:
    `group.com.isaiahproctor.readitlater` (or your replacement). App Group support
    requires appropriate Apple Developer provisioning. There is no silent fallback
@@ -44,8 +44,51 @@ GitHub `iOS preview` workflow provides an ad-hoc-signed **simulator-only** app a
 it is not an IPA and cannot be installed directly on an iPhone.
 
 No signing certificates, provisioning profiles, or App Store credentials are in
-this repository. TestFlight distribution requires a separately signed archive,
-App Store Connect configuration, app icon, privacy review, and device validation.
+this repository. Automatic signing uses the account signed into Xcode.
+
+## Internal TestFlight
+
+The [Paper Drive app record](https://appstoreconnect.apple.com/apps/6823970694/distribution/info)
+belongs only to **isaiah proctor — 3CVY7K9AJ6**. The main app and extension are assigned
+to `group.com.isaiahproctor.readitlater`. Display names use Paper Drive; bundle IDs,
+App Group, and on-device storage remain unchanged so existing libraries survive updates.
+
+1. Sign into Xcode → Settings → Accounts using the account for that team.
+2. Generate/open the project as above. Select the ReadItLater scheme and **Any iOS Device**.
+3. Choose **Product → Archive**, then **Distribute App → App Store Connect** in Organizer.
+4. After processing, resolve the build's export-compliance questions in App Store Connect.
+5. Add the build to an internal testing group and install it through TestFlight.
+
+Use an Xcode/SDK release currently accepted by App Store Connect. The current version
+is 0.2.0 (4); increment `CURRENT_PROJECT_VERSION` in `project.yml` for each new upload.
+Equivalent commands from the repository root (no credentials in command arguments):
+
+```sh
+xcodegen generate --spec ios/project.yml
+xcodebuild -project ios/ReadItLater.xcodeproj -scheme ReadItLater \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -archivePath /private/tmp/PaperDrive.xcarchive -allowProvisioningUpdates archive
+xcodebuild -exportArchive -archivePath /private/tmp/PaperDrive.xcarchive \
+  -exportOptionsPlist ios/ExportOptions-TestFlight.plist \
+  -exportPath /private/tmp/PaperDrive-export -allowProvisioningUpdates
+```
+
+The supplied export settings pin the same team and upload an **internal-testing-only**
+build. These builds cannot later be used for external testing or App Store release;
+create another build with the appropriate export setting for those milestones.
+
+The beta icon reuses `public/favicon.svg`, rendered as an opaque 1024px asset; it is
+temporary artwork pending Paper Drive's own icon. Main-app privacy declarations cover
+app-only UserDefaults (settings/bookmarks) and user content sent for speech functionality,
+without tracking or account linkage. The extension saves links locally and makes no
+network requests. Review App Store privacy disclosures again when accounts or analytics
+are added; the manifest is separate from App Store Connect's privacy questionnaire.
+
+Live listening requires a reachable HTTPS speech server. The app starts in silent
+preview until one is configured. An iPhone cannot use the simulator's localhost server,
+and native requests cannot pass the current Vercel preview protection automatically.
+Configure beta backend access separately; never place provider keys or a deployment
+bypass secret in the app. The local reader and share extension do not require that server.
 
 ## Test checklist
 

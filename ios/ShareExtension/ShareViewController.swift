@@ -50,7 +50,7 @@ import UniformTypeIdentifiers
                         return
                     }
                     try ShareInbox.save(url)
-                    self.status.text = "Link saved. Open Read It Later to download the text."
+                    self.status.text = "Link saved. Open Paper Drive to download the text."
                 } catch { self.status.text = "Could not save: \(error.localizedDescription)" }
             }
         }

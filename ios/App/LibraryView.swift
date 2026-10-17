@@ -73,7 +73,7 @@ struct LibraryView: View {
                     }
                 }
             }
-            .navigationTitle("Read It Later")
+            .navigationTitle("Paper Drive")
             .searchable(text: $search, prompt: "Search your library")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button { settings = true } label: { Image(systemName: "gearshape") }.accessibilityLabel("Settings") }
@@ -141,7 +141,7 @@ struct LibraryView: View {
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { settings = false } } }
             }
         }
-        .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .json, defaultFilename: "read-it-later-backup") { result in
+        .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .json, defaultFilename: "paper-drive-backup") { result in
             if case .failure(let error) = result { model.error = error.localizedDescription }
         }
         .alert("Something needs attention", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {

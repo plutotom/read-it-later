@@ -8,8 +8,9 @@ settings:
     SWIFT_VERSION: '6.0'
     TARGETED_DEVICE_FAMILY: '1'
     MARKETING_VERSION: '0.2.0'
-    CURRENT_PROJECT_VERSION: '3'
+    CURRENT_PROJECT_VERSION: '4'
     CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: 3CVY7K9AJ6
     APP_GROUP: group.com.isaiahproctor.readitlater
     GENERATE_INFOPLIST_FILE: YES
 packages:
@@ -23,7 +24,7 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: Read It Later
+        CFBundleDisplayName: Paper Drive
         ReadingAppGroup: $(APP_GROUP)
         UILaunchScreen: {}
         UIBackgroundModes: [audio]
@@ -41,6 +42,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.isaiahproctor.readitlater
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     entitlements:
       path: App/ReadItLater.entitlements
       properties:
@@ -66,7 +68,7 @@ targets:
     info:
       path: ShareExtension/Info.plist
       properties:
-        CFBundleDisplayName: Read It Later
+        CFBundleDisplayName: Paper Drive
         ReadingAppGroup: $(APP_GROUP)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services

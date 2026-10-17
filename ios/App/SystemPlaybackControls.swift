@@ -56,7 +56,7 @@ import ReadingCore
         guard let player, let document = player.document, !player.isSilentPreview else { MPNowPlayingInfoCenter.default().nowPlayingInfo = nil; return }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = [
             MPMediaItemPropertyTitle: document.title,
-            MPMediaItemPropertyArtist: "Read It Later",
+            MPMediaItemPropertyArtist: "Paper Drive",
             MPMediaItemPropertyPlaybackDuration: player.total,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: player.elapsed,
             MPNowPlayingInfoPropertyPlaybackRate: player.isPlaying ? player.rate : 0,

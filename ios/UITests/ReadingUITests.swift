@@ -230,10 +230,10 @@ final class ReadingUITests: XCTestCase {
         let share = safari.buttons["Share"]
         XCTAssertTrue(share.waitForExistence(timeout: 20))
         share.tap()
-        let extensionButton = safari.cells["Read It Later"]
+        let extensionButton = safari.cells["Paper Drive"]
         XCTAssertTrue(extensionButton.waitForExistence(timeout: 20))
         extensionButton.tap()
-        XCTAssertTrue(safari.staticTexts["Link saved. Open Read It Later to download the text."].waitForExistence(timeout: 10))
+        XCTAssertTrue(safari.staticTexts["Link saved. Open Paper Drive to download the text."].waitForExistence(timeout: 10))
         safari.buttons["Done"].tap()
         app.activate()
         XCTAssertTrue(app.staticTexts["example.org"].waitForExistence(timeout: 10))
