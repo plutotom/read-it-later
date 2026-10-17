@@ -86,7 +86,7 @@ import ReadingCore
                     for i in 0..<length { channel[i] = Float(Int16(littleEndian: raw.loadUnaligned(fromByteOffset: segment.scheduled + i * 2, as: Int16.self))) / 32768 }
                 }
                 scheduledFrames += Int64(length); let boundary = scheduledFrames; let token = epoch
-                node.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+                node.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { @Sendable [weak self] _ in
                     Task { @MainActor [weak self] in
                         guard let self, self.epoch == token else { return }
                         self.renderedFrames = max(self.renderedFrames, boundary)

@@ -6,6 +6,9 @@ on:
   pull_request:
     paths: ['ios/**', '.github/workflows/ios.yml']
   workflow_dispatch:
+concurrency:
+  group: ios-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -33,7 +36,7 @@ jobs:
       - name: Upload simulator preview
         uses: actions/upload-artifact@v4
         with:
-          name: ReadItLater-0.1-Simulator
+          name: ReadItLater-0.2-Simulator
           path: ios/DerivedData/Build/Products/Debug-iphonesimulator/ReadItLater.app
       - name: Run reader UI smoke test
         working-directory: ios
@@ -41,7 +44,7 @@ jobs:
           DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for devices in d["devices"].values() for x in devices if x["name"].startswith("iPhone")))')
           xcodebuild -project ReadItLater.xcodeproj -scheme ReadItLater \
             -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_ID" \
-            -derivedDataPath DerivedData -resultBundlePath UITestResults.xcresult \
+            -derivedDataPath DerivedData -resultBundlePath UITestResults.xcresult -parallel-testing-enabled NO \
             CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- test
       - name: Upload UI test evidence
         if: always()
