@@ -7,6 +7,7 @@ import ReadingCore
     private var task: Task<Void, Never>?
     private var observers: [NSObjectProtocol] = []
     private var resumeAfterInterruption = false
+    private var interruptionToken: UUID?
     init(player: ListeningPlayer) {
         self.player = player
         let center = MPRemoteCommandCenter.shared()
@@ -31,8 +32,14 @@ import ReadingCore
             let options = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
             Task { @MainActor [weak self] in
                 guard let self, let player = self.player else { return }
-                if type == AVAudioSession.InterruptionType.began.rawValue { self.resumeAfterInterruption = player.isPlaying; player.pause() }
-                else if options & AVAudioSession.InterruptionOptions.shouldResume.rawValue != 0, self.resumeAfterInterruption { self.resumeAfterInterruption = false; player.resume() }
+                if type == AVAudioSession.InterruptionType.began.rawValue {
+                    self.resumeAfterInterruption = player.isPlaying; player.pause(); self.interruptionToken = player.intentToken
+                } else if type == AVAudioSession.InterruptionType.ended.rawValue {
+                    let unchanged = self.interruptionToken == player.intentToken
+                    let resume = self.resumeAfterInterruption && unchanged && options & AVAudioSession.InterruptionOptions.shouldResume.rawValue != 0
+                    self.resumeAfterInterruption = false; self.interruptionToken = nil
+                    if resume { player.resume() }
+                }
             }
         })
         observers.append(NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak player] notification in

@@ -6,6 +6,7 @@ import OSLog
     public enum State: Equatable { case idle, buffering, playing, paused, finished, failed(String) }
     public private(set) var document: ListeningDocument?
     public private(set) var state: State = .idle
+    public private(set) var intentToken = UUID()
     public private(set) var chunkIndex = 0
     public private(set) var chunkTime: TimeInterval = 0
     public private(set) var voice: SpeechVoice
@@ -80,6 +81,7 @@ import OSLog
         wantsPlayback ? pause() : resume()
     }
     public func resume() {
+        intentToken = UUID()
         Logger(subsystem: "com.isaiahproctor.readitlater.speech", category: "controls").notice("resume chunk=\(self.chunkIndex)")
         guard document != nil else { return }
         if state == .finished { move(to: 0, offset: 0, play: true); return }
@@ -88,6 +90,7 @@ import OSLog
         schedule(); startTicker()
     }
     public func pause() {
+        intentToken = UUID()
         Logger(subsystem: "com.isaiahproctor.readitlater.speech", category: "controls").notice("pause chunk=\(self.chunkIndex)")
         if loaded { chunkTime = transport.position }
         saveBookmark()
@@ -96,6 +99,7 @@ import OSLog
         updateWord(); startTicker()
     }
     public func close() {
+        intentToken = UUID()
         saveBookmark(); invalidate(); wantsPlayback = false; document = nil; state = .idle
         chunkIndex = 0; chunkTime = 0; durations = [:]; wordRange = nil
         sleepDeadline = nil; sleepAtEnd = false
@@ -202,6 +206,7 @@ import OSLog
         } else { chunkTime = 0 }
     }
     private func failPlayback(_ message: String) {
+        intentToken = UUID()
         if loaded { chunkTime = transport.position }
         invalidate(); wantsPlayback = false; state = .failed(message); startTicker()
     }
@@ -219,6 +224,7 @@ import OSLog
         requests.removeAll(); transport.unload(); loaded = false; activeResponse = nil; partials = [:]; timings = [:]; sentBytes = [:]; prepared = []; completed = []
     }
     private func move(to index: Int, offset: TimeInterval, play: Bool) {
+        intentToken = UUID()
         guard let chunks = document?.chunks, chunks.indices.contains(index) else { return }
         invalidate(); chunkIndex = index; chunkTime = max(0, offset); wordRange = nil
         wantsPlayback = play; state = play ? .buffering : .paused
