@@ -129,6 +129,9 @@ of the initial bare article array. No existing on-device data is rewritten by ex
 
 ## Silent listening prototype
 
+The next implementation is specified in the [native iOS speech plan](../docs/plans/native-ios-speech.md).
+It is awaiting review; the description below documents the current silent build.
+
 Open a downloaded article and choose **Try listening preview**, or tap a paragraph
 and choose **Play from paragraph**. The bottom player stays available in the library;
 tap it to expand. It supports pause/resume, ±15 seconds, scrubbing, 0.5–3× speed,
@@ -164,8 +167,9 @@ saved articles, notes, and highlights remain persistent as before.
 - Inject both adapters in the `ListeningPlayer` initializer in `ReadItLaterApp.swift`.
   The controller handles preparation, buffering, retry, transitions, voice changes,
   cancellation/stale-response rejection, word mapping, sleep and completion.
-  Provider credentials must stay on an authenticated backend, with server-side usage
-  limits. This prototype does not add an unauthenticated speech endpoint.
+  Provider credentials stay on the backend. The plan allows unrestricted private
+  testing, with account verification and server-side usage limits required before
+  public release. The current silent prototype has no speech endpoint.
 
 `ListeningDocument` preserves original UTF-16 offsets, separates paragraphs, and
 splits requests at roughly 30–60 words with a 2,000 UTF-16-unit cap (except a single
