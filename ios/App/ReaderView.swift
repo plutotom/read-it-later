@@ -35,9 +35,9 @@ struct ReaderView: View {
                             }.accessibilityIdentifier("showHighlights")
                             Button {
                                 player.start(ListeningDocument(articleID: id, title: article.title, text: article.text))
-                            } label: { Label("Try listening preview", systemImage: "headphones") }
+                            } label: { Label(player.isSilentPreview ? "Try listening preview" : "Listen", systemImage: "headphones") }
                                 .buttonStyle(.bordered).accessibilityIdentifier("startListening")
-                            Text("Silent preview · Tap a paragraph to play from there. Long-press to select and highlight text.")
+                            Text("\(player.isSilentPreview ? "Silent preview · " : "")Tap a paragraph to play from there. Long-press to select and highlight text.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         if let error = article.error {

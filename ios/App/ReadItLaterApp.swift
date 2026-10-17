@@ -4,8 +4,9 @@ import ReadingCore
 @main struct ReadItLaterApp: App {
     @State private var model = LibraryModel()
     @State private var player = ListeningPlayer()
+    @State private var speech = SpeechSetup()
     var body: some Scene {
-        WindowGroup { LibraryView(model: model).environment(player).tint(.indigo) }
+        WindowGroup { LibraryView(model: model).environment(player).environment(speech).tint(.indigo).task { await speech.bootstrap(player) } }
     }
 }
 

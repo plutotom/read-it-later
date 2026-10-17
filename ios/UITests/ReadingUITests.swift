@@ -15,6 +15,64 @@ final class ReadingUITests: XCTestCase {
         app.launch()
     }
 
+    @MainActor func testLiveSpeechBackendPlayback() throws {
+        guard ProcessInfo.processInfo.environment["NATIVE_SPEECH_LIVE_TEST"] == "1" else { throw XCTSkip("Live backend test is opt-in and needs a configured local server") }
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--reset-ui-test-library", "--ui-testing-server"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["An offline test article"].waitForExistence(timeout: 15))
+        app.staticTexts["An offline test article"].tap()
+        XCTAssertTrue(app.buttons["Listen"].waitForExistence(timeout: 15))
+        app.buttons["Listen"].tap()
+        XCTAssertTrue(app.buttons["expandPlayer"].waitForExistence(timeout: 10))
+        app.buttons["expandPlayer"].tap()
+        let status = app.staticTexts["playbackStatus"]
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Playing"), object: status)], timeout: 30), .completed)
+        XCTAssertFalse(app.otherElements["playbackError"].exists)
+        app.buttons["playerPlayPause"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Paused"), object: status)], timeout: 3), .completed)
+        app.buttons["playbackVoice"].tap()
+        XCTAssertTrue(app.buttons["Alicia · Speechify"].waitForExistence(timeout: 5))
+        app.buttons["Alicia · Speechify"].tap()
+        XCTAssertEqual(status.label, "Paused")
+        app.buttons["playerPlayPause"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Playing"), object: status)], timeout: 30), .completed)
+        let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = "Live Speechify playback"; attachment.lifetime = .keepAlways; add(attachment)
+        app.buttons["Done"].tap(); app.buttons["Close listening player"].tap()
+    }
+
+    @MainActor func testRealPCMRendererContinuesInBackgroundAndSeeks() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--reset-ui-test-library", "--ui-testing-audio"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["An offline test article"].waitForExistence(timeout: 15))
+        app.staticTexts["An offline test article"].tap()
+        app.buttons["Listen"].tap()
+        XCTAssertTrue(app.buttons["expandPlayer"].waitForExistence(timeout: 10))
+        app.buttons["expandPlayer"].tap()
+        let playing = app.staticTexts["playbackStatus"]
+        XCTAssertTrue(NSPredicate(format: "label == %@", "Playing").evaluate(with: playing) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Playing"), object: playing)], timeout: 10) == .completed)
+        app.buttons["playerPlayPause"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Paused"), object: playing)], timeout: 3), .completed, "Pause before background")
+        app.buttons["playerPlayPause"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let before = app.staticTexts["playbackElapsed"].label
+        XCUIDevice.shared.press(.home)
+        // The audio session keeps its render clock running while the scene is inactive.
+        let delay = expectation(description: "Background audio progresses")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { delay.fulfill() }
+        wait(for: [delay], timeout: 5)
+        app.activate()
+        XCTAssertEqual(app.state, .runningForeground)
+        XCTAssertNotEqual(app.staticTexts["playbackElapsed"].label, before)
+        XCTAssertEqual(playing.label, "Playing")
+        app.buttons["playerPlayPause"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Paused"), object: playing)], timeout: 3), .completed)
+        app.sliders["playbackPosition"].adjust(toNormalizedSliderPosition: 0.65)
+        XCTAssertTrue(app.buttons["Pause audio"].waitForExistence(timeout: 10))
+        app.buttons["Done"].tap()
+        app.buttons["Close listening player"].tap()
+    }
+
     @MainActor func testSilentListeningPlayerAndParagraphAction() throws {
         let app = launchFreshApp()
         let article = app.staticTexts["An offline test article"]

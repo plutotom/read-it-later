@@ -1,6 +1,6 @@
 # Native iOS speech implementation plan
 
-Status: Ready for review. Implementation requires the user's approval.
+Status: Approved for implementation. Implementation requires the user's approval.
 
 Updated: October 16, 2026.
 
@@ -211,4 +211,12 @@ Provider subscriptions, infrastructure purchases, public release, accounts, and 
 
 ## Approval record
 
-The architecture, unrestricted private-prototype access, 200 MB local cache, 28-day local inactivity cleanup, and backend reuse are recorded decisions. The proposed Speechify-first/Inworld-second implementation sequence and the implementation itself await review. Record approval and any changes here before beginning Milestone 1.
+The architecture, unrestricted private-prototype access, 200 MB local cache, 28-day local inactivity cleanup, and backend reuse are recorded decisions. The user approved full implementation after Astra’s review on October 16, 2026. The Speechify-first/Inworld-second sequence is accepted; real provider and physical-device validation remain explicit setup dependencies.
+
+## Astra review decisions (October 16, 2026)
+
+- Replace completed-response-only playback with incremental events and a PCM render queue. Audio EOF is distinct from archive acknowledgment; never wait for Blob to advance playback.
+- Cache acquisition uses an atomic database lease, renewed while working, with a unique fencing token. Duplicate requests receive pending/retry status. Once admitted, a bounded job finishes its already-paid chunk even if a subscriber disconnects; subscribers never own the shared job. Provider timeouts and explicit deletion stop publication. A crashed dispatch may be charged twice after lease takeover; exactly-once billing cannot be guaranteed.
+- Word alignment is conservative and monotonic against the original UTF-16 source. If normalization or an expansion cannot be mapped confidently, stop word highlighting and retain paragraph highlighting.
+- Synthesis identity includes exact text and resolved voice/model/language/normalization/rate. Catalog, wire protocol, archive encoding, and app versions do not invalidate paid audio. Persist resolved descriptors for offline replay.
+- Server deletion targets a cache artifact, not an article reference. A later explicit play can recreate it with a new fence. Tombstones reject stale workers; failed orphan deletion remains recorded for retry.

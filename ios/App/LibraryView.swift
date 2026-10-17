@@ -84,11 +84,10 @@ struct LibraryView: View {
         .safeAreaInset(edge: .bottom) {
             if player.document != nil { MiniListeningPlayer(player: player) { showingPlayer = true } }
         }
-        .sheet(isPresented: $showingPlayer) { ListeningPlayerView(player: player) }
+        .fullScreenCover(isPresented: $showingPlayer) { ListeningPlayerView(player: player) }
         .task { await model.resume() }
         .onChange(of: phase) { _, value in
             if value == .active { Task { await model.resume() } }
-            else if value == .background { player.pause() }
         }
         .sheet(isPresented: $adding) {
             NavigationStack {
@@ -97,7 +96,7 @@ struct LibraryView: View {
                         .foregroundStyle(.primary)
                         .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                         .accessibilityIdentifier("articleURLInput")
-                    Text("The link is saved first. Downloading text requires internet. This test version does not download images, PDFs, or audio.")
+                    Text("The link is saved first. Downloading text requires internet. Images and PDFs are not downloaded. Audio is prepared when you listen.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }.navigationTitle("Save a link")
                     .toolbar {
@@ -123,10 +122,11 @@ struct LibraryView: View {
         .sheet(isPresented: $settings) {
             NavigationStack {
                 Form {
-                    Section("Version 0.1.1 · Local preview") {
-                        Text("Your library lives on this iPhone. No account, analytics, or cloud sync. Downloads contact the original website directly.")
+                    Section("Version 0.2 · Native reader") {
+                        Text("Your library lives on this iPhone. No account or library sync. Downloads contact the original website directly.")
                         Text("Deleting the app can remove your library. Export a backup before testing upgrades.")
                     }
+                    SpeechSettings()
                     Section("Backup") {
                         Button("Export library as JSON") {
                             if let data = model.export() {
@@ -136,7 +136,7 @@ struct LibraryView: View {
                             }
                         }
                     }
-                    Section("Coming later") { Text("Account sync, rich HTML/images, folders, and PDFs are coming later. The listening preview is silent; a speech service has not been connected.") }
+                    Section("Coming later") { Text("Account sync, rich HTML/images, folders, and PDFs are coming later. Configure your speech server in Listening to enable audio.") }
                 }.navigationTitle("Settings")
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { settings = false } } }
             }

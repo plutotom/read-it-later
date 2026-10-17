@@ -1,11 +1,12 @@
 import Foundation
 
-public struct SpeechVoice: Identifiable, Hashable, Sendable {
+public struct SpeechVoice: Identifiable, Hashable, Codable, Sendable {
     public let id: String
     public let name: String
     public let language: String
-    public init(id: String, name: String, language: String) {
-        self.id = id; self.name = name; self.language = language
+    public let descriptor: SpeechDescriptor?
+    public init(id: String, name: String, language: String, descriptor: SpeechDescriptor? = nil) {
+        self.id = id; self.name = name; self.language = language; self.descriptor = descriptor
     }
 }
 
@@ -67,8 +68,10 @@ public struct SpeechResponse: Equatable, Sendable {
 public enum SpeechError: LocalizedError {
     case invalidResponse
     case unsupportedAudio
+    case backend(String)
     public var errorDescription: String? {
         switch self {
+        case .backend(let message): message
         case .invalidResponse: "The speech service returned an invalid audio response. Try again."
         case .unsupportedAudio: "This preview only supports simulated audio. Connect an audio transport before using a speech service."
         }
@@ -81,6 +84,19 @@ public protocol SpeechService: Sendable {
     var voices: [SpeechVoice] { get }
     var configurationID: String { get }
     func generate(_ request: SpeechRequest) async throws -> SpeechResponse
+    func stream(_ request: SpeechRequest) -> AsyncThrowingStream<SpeechEvent, any Error>
+}
+
+public extension SpeechService {
+    func stream(_ request: SpeechRequest) -> AsyncThrowingStream<SpeechEvent, any Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do { continuation.yield(.response(try await generate(request))); continuation.finish() }
+                catch { continuation.finish(throwing: error) }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
 }
 
 public struct SimulatedSpeechService: SpeechService {

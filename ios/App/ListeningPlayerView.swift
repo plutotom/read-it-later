@@ -16,15 +16,15 @@ struct MiniListeningPlayer: View {
                     Image(systemName: "waveform").font(.title2).frame(width: 36)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(player.document?.title ?? "Listening").font(.subheadline.bold()).lineLimit(1)
-                        Text(player.state == .buffering ? "Preparing section…" : "Silent preview · \(listeningTime(player.remaining)) left")
+                        Text(player.state == .buffering ? "Preparing section…" : "\(player.isSilentPreview ? "Silent preview" : "Listening") · \(listeningTime(player.remaining)) left")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 0)
                 }.contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityLabel("Expand listening player").accessibilityIdentifier("expandPlayer")
             Button { player.toggle() } label: {
-                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill").frame(width: 44, height: 44)
-            }.accessibilityLabel(player.isPlaying ? "Pause preview" : "Play preview")
+                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill").frame(width: 44, height: 44).contentShape(Rectangle())
+            }.accessibilityLabel(player.isPlaying ? (player.isSilentPreview ? "Pause preview" : "Pause audio") : (player.isSilentPreview ? "Play preview" : "Play audio"))
             Button { player.close() } label: { Image(systemName: "xmark").frame(width: 32, height: 44) }
                 .accessibilityLabel("Close listening player")
         }
@@ -44,7 +44,7 @@ struct ListeningPlayerView: View {
         switch player.state {
         case .idle: "Ready"
         case .buffering: "Preparing this section…"
-        case .playing: "Preview running"
+        case .playing: player.isSilentPreview ? "Preview running" : "Playing"
         case .paused: "Paused"
         case .finished: "Finished"
         case .failed: "Could not prepare audio"
@@ -66,7 +66,7 @@ struct ListeningPlayerView: View {
                     .frame(maxWidth: 300).frame(height: 230).accessibilityHidden(true)
                     VStack(spacing: 8) {
                         Text(player.document?.title ?? "Listening").font(.title2.bold()).multilineTextAlignment(.center)
-                        Text("Silent listening preview").font(.subheadline).foregroundStyle(.secondary)
+                        Text(player.isSilentPreview ? "Silent listening preview" : "Listening").font(.subheadline).foregroundStyle(.secondary)
                         Text(status).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("playbackStatus")
                     }
                     VStack(spacing: 6) {
@@ -77,7 +77,7 @@ struct ListeningPlayerView: View {
                         })
                         .accessibilityLabel("Playback position").accessibilityIdentifier("playbackPosition")
                         HStack {
-                            Text(listeningTime(scrubbing ? scrubTime : player.elapsed))
+                            Text(listeningTime(scrubbing ? scrubTime : player.elapsed)).accessibilityIdentifier("playbackElapsed")
                             Spacer()
                             Text("−" + listeningTime(player.remaining))
                         }.font(.caption.monospacedDigit()).foregroundStyle(.secondary)
@@ -91,8 +91,9 @@ struct ListeningPlayerView: View {
                             ZStack {
                                 Circle().fill(.indigo).frame(width: 76, height: 76)
                                 Image(systemName: player.isPlaying ? "pause.fill" : "play.fill").font(.title).foregroundStyle(.white)
-                            }
-                        }.accessibilityLabel(player.isPlaying ? "Pause preview" : "Play preview").accessibilityIdentifier("playerPlayPause")
+                            }.frame(width: 76, height: 76).contentShape(Circle())
+                        }.accessibilityLabel(player.isPlaying ? (player.isSilentPreview ? "Pause preview" : "Pause audio") : (player.isSilentPreview ? "Play preview" : "Play audio")).accessibilityIdentifier("playerPlayPause")
+
                         Button { player.skip(15) } label: { Image(systemName: "goforward.15").font(.title) }
                             .accessibilityLabel("Forward 15 seconds")
                     }.buttonStyle(.plain)
@@ -112,7 +113,7 @@ struct ListeningPlayerView: View {
                                 }
                             }
                         } label: { controlLabel(player.voice.name, icon: "person.wave.2") }
-                        .accessibilityLabel("Preview voice").accessibilityValue(player.voice.name).accessibilityIdentifier("playbackVoice")
+                        .accessibilityLabel(player.isSilentPreview ? "Preview voice" : "Voice").accessibilityValue(player.voice.name).accessibilityIdentifier("playbackVoice")
                         Menu {
                             Button("Off") { player.setSleep(minutes: nil) }
                             ForEach([5, 10, 15, 30, 45, 60], id: \.self) { minutes in
@@ -139,7 +140,7 @@ struct ListeningPlayerView: View {
                         }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
                             .background(.quaternary, in: RoundedRectangle(cornerRadius: 16))
                     }
-                    Text("No speech service is connected. Text stays on this device. Progress and word timing are simulated.")
+                    Text(player.isSilentPreview ? "No speech service is connected. Text stays on this device. Progress and word timing are simulated." : "Audio is prepared a section at a time. Saved sections can play offline.")
                         .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }.padding(24).frame(maxWidth: 560).frame(maxWidth: .infinity)
             }
