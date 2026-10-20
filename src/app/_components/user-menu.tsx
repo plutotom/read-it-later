@@ -16,6 +16,7 @@ import { authClient, useSession } from "~/lib/auth-client";
 import { TTSUsageDisplay } from "./tts-usage-display";
 import { ThemeSwitcher } from "./theme-switcher";
 import { cn } from "~/lib/utils";
+import { useBrowserStorage } from "./browser-storage-provider";
 
 interface UserMenuProps {
   /** Whether to show the username next to the icon */
@@ -35,8 +36,16 @@ export function UserMenu({
   const router = useRouter();
   const { data: session } = useSession();
   const [accountOpen, setAccountOpen] = useState(false);
+  const storage = useBrowserStorage();
 
   const handleSignOut = async () => {
+    // Storage failure must not prevent server-side sign-out.
+    try {
+      await storage?.clear(true, true);
+    } catch {
+      /* Browser may deny storage. */
+    }
+    storage?.dispose();
     await authClient.signOut();
     router.push("/login");
   };

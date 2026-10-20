@@ -1,6 +1,15 @@
 "use client";
 
-import { FileText, Pause, Play, RotateCcw, RotateCw } from "lucide-react";
+import {
+  Check,
+  Download,
+  FileText,
+  Loader2,
+  Pause,
+  Play,
+  RotateCcw,
+  RotateCw,
+} from "lucide-react";
 import { getDomainFromUrl } from "~/lib/article-url";
 import { cn } from "~/lib/utils";
 import {
@@ -25,6 +34,10 @@ export interface AudioPlayerExpandedProps {
   onSelectSpeed: (speed: number) => void;
   onSkip: (deltaSeconds: number) => void;
   onJumpToReadingPosition?: () => void;
+  onDownload?: () => Promise<void>;
+  downloaded?: boolean;
+  isDownloading?: boolean;
+  downloadError?: string;
 }
 
 function ArticleArtwork({
@@ -87,6 +100,10 @@ export function AudioPlayerExpanded({
   onSelectSpeed,
   onSkip,
   onJumpToReadingPosition,
+  onDownload,
+  downloaded,
+  isDownloading,
+  downloadError,
 }: AudioPlayerExpandedProps) {
   const domain = getDomainFromUrl(url);
   const metaLine = [domain, author].filter(Boolean).join(" · ");
@@ -188,6 +205,40 @@ export function AudioPlayerExpanded({
           <FileText className="size-5" strokeWidth={1.75} />
         </button>
       </div>
+      {onDownload && (
+        <div
+          className="audio-player-sheet__section mt-5 space-y-2 text-center"
+          data-sheet-no-drag
+        >
+          <button
+            type="button"
+            onClick={() => void onDownload()}
+            disabled={!!disabled || !!downloaded || !!isDownloading}
+            className="border-rule text-foreground-soft hover:bg-background-deep mx-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-4 text-sm disabled:opacity-60"
+          >
+            {isDownloading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : downloaded ? (
+              <Check className="size-4" />
+            ) : (
+              <Download className="size-4" />
+            )}
+            {isDownloading
+              ? "Downloading…"
+              : downloaded
+                ? "Kept on this browser"
+                : "Keep audio on this browser"}
+          </button>
+          <p className="text-muted-foreground text-xs">
+            Opening your library still needs an internet connection.
+          </p>
+          {downloadError && (
+            <p role="alert" className="text-destructive text-xs">
+              {downloadError}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
