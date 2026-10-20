@@ -11,7 +11,15 @@ import {
 } from "~/components/ui/card";
 import { Label } from "~/components/ui/label";
 import { Switch } from "~/components/ui/switch";
-import { Moon, Sun, Loader2, Volume2 } from "lucide-react";
+import {
+  Moon,
+  Sun,
+  Loader2,
+  Volume2,
+  HardDrive,
+  ChevronRight,
+} from "lucide-react";
+import Link from "next/link";
 import { DEFAULT_VOICE } from "~/lib/tts-voices";
 import { TTSUsageDisplay } from "~/app/_components/tts-usage-display";
 import { VoiceSelector } from "~/app/_components/voice-selector";
@@ -191,6 +199,20 @@ export default function PreferencesPage() {
             </div>
           </CardContent>
         </Card>
+
+        <Link
+          href="/preferences/storage"
+          className="border-rule bg-surface hover:bg-background-deep text-foreground mt-6 flex min-h-20 items-center gap-4 rounded-xl border px-6 py-5 transition-colors"
+        >
+          <HardDrive className="text-muted-foreground size-5 shrink-0" />
+          <div className="flex-1">
+            <h2 className="font-medium">Manage storage</h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Cache limits, local audio, and downloads.
+            </p>
+          </div>
+          <ChevronRight className="text-muted-foreground size-4" />
+        </Link>
 
         <ApiKeysSettings />
 
