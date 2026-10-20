@@ -17,6 +17,9 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    # Next loads env validation during lint as well as build. CI needs no secrets.
+    env:
+      SKIP_ENV_VALIDATION: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -47,5 +50,3 @@ jobs:
       # Vercel deployment instead.
       - name: Build
         run: pnpm build
-        env:
-          SKIP_ENV_VALIDATION: "1"
