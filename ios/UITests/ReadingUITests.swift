@@ -275,6 +275,10 @@ final class ReadingUITests: XCTestCase {
         let pageText = safari.webViews.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "documentation")).firstMatch
         XCTAssertTrue(pageText.waitForExistence(timeout: 40))
         let share = safari.buttons["Share"]
+        // Safari's compact iOS 26 toolbar moves Share into the More menu.
+        if !share.waitForExistence(timeout: 3), safari.buttons["MoreMenuButton"].exists {
+            safari.buttons["MoreMenuButton"].tap()
+        }
         XCTAssertTrue(share.waitForExistence(timeout: 20))
         share.tap()
         let extensionButton = safari.cells["Paper Drive"]
