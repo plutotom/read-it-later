@@ -12,7 +12,7 @@ This is a **native reader with streaming speech support**. The library remains l
 - Safari Share Extension: durable App Group inbox; main app imports and downloads.
 - JSON export, explicit download failures and manual retries.
 - Streaming Speechify/Inworld adapters, paragraph playback, mini/full-screen player, speed/voice controls, scrubbing, sleep, background audio, and lock-screen controls.
-- Persistent audio cache: 200 MB on-device, 28-day inactivity cleanup, and durable private backend reuse. Silent mode remains available for testing.
+- Persistent audio cache: configurable on-device limit (200 MB by default), 28-day inactivity cleanup, and durable private backend reuse. Silent mode remains available for testing.
 - Core tests and macOS CI build of the app and extension.
 
 ## Deliberately not included
@@ -128,6 +128,24 @@ manual changes only in a generated project; they will disappear on regeneration.
 Simulator builds use ad-hoc signing (no Apple Developer team is required) so the
 app and Share Extension retain their App Group entitlements. Disabling signing
 produces a build that cannot use the shared inbox on the simulator.
+
+## Manage storage
+
+Open **Settings → Manage storage** for current cached audio usage, downloaded text
+usage, and a cache limit of 50 MB, 100 MB, 200 MB (default), 500 MB, 1 GB, or Unlimited.
+The chosen limit persists on this iPhone. Lowering it immediately evicts the least
+recently used audio; automatic eviction never removes downloaded article text.
+Unlimited still respects the 28-day inactivity cleanup and available device space.
+
+**Clear cache** stops playback and removes local audio, preserving offline text.
+**Remove all cached files & downloads** requires confirmation and removes audio
+and extracted text. Saved links, titles, notes, read/favorite state, and highlight
+quotes remain local. Removed text stays removed across relaunches; use **Download
+text** in an article to restore it. Quotes remain visible in Highlights and can be
+painted again if the same text is downloaded. Neither action deletes backend audio.
+Usage reports encoded audio files and UTF-8 article text, excluding database and
+index overhead. The additive `v3-download-storage` migration preserves existing
+content and annotations.
 
 ## Data and security boundaries
 

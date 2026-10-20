@@ -12,6 +12,7 @@ public struct Article: Codable, FetchableRecord, PersistableRecord, Identifiable
     public var isFavorite: Bool
     public var createdAt: Date
     public var error: String?
+    public var downloadSuppressed: Bool = false
     public var isDownloaded: Bool { !text.isEmpty }
 }
 
@@ -83,6 +84,11 @@ public enum ArticleURL {
                 t.uniqueKey(["articleId", "anchorContentHash", "startOffset", "endOffset"])
             }
         }
+        migrator.registerMigration("v3-download-storage") { db in
+            try db.alter(table: "article") { t in
+                t.add(column: "downloadSuppressed", .boolean).notNull().defaults(to: false)
+            }
+        }
         try migrator.migrate(database)
     }
 
@@ -117,7 +123,14 @@ public enum ArticleURL {
     }
 
     public func saveContent(id: String, title: String, text: String) throws {
-        try database.write { try $0.execute(sql: "UPDATE article SET title = ?, text = ?, error = NULL WHERE id = ?", arguments: [title, text, id]) }
+        try database.write { try $0.execute(sql: "UPDATE article SET title = ?, text = ?, error = NULL, downloadSuppressed = 0 WHERE id = ?", arguments: [title, text, id]) }
+    }
+    /// Removes only downloaded text. Links, metadata, notes, and highlight quotes survive.
+    /// Suppression is durable so resuming the app does not immediately undo cleanup.
+    public func removeDownloads() throws {
+        try database.write { try $0.execute(sql: "UPDATE article SET text = '', error = NULL, downloadSuppressed = 1") }
+        // Reclaim freed SQLite pages without deleting the library or its annotations.
+        try? database.writeWithoutTransaction { try $0.execute(sql: "VACUUM") }
     }
     public func saveError(id: String, message: String) throws {
         try database.write { try $0.execute(sql: "UPDATE article SET error = ? WHERE id = ?", arguments: [message, id]) }

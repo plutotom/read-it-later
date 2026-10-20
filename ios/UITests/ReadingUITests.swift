@@ -15,6 +15,53 @@ final class ReadingUITests: XCTestCase {
         app.launch()
     }
 
+    @MainActor private func openStorage(_ app: XCUIApplication) {
+        app.buttons["Settings"].tap()
+        let storage = app.buttons["Manage storage"]
+        for _ in 0..<5 where !storage.isHittable { app.swipeUp() }
+        XCTAssertTrue(storage.waitForExistence(timeout: 5))
+        storage.tap()
+        XCTAssertTrue(app.navigationBars["Manage storage"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testStorageLimitClearAndDownloadRemovalSurviveRestart() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--reset-ui-test-library", "--ui-testing-storage"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["An offline test article"].waitForExistence(timeout: 15))
+        openStorage(app)
+        let picker = app.buttons["cacheLimit"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        XCTAssertTrue(picker.label.contains("200 MB"))
+        XCTAssertFalse(app.staticTexts["cacheUsage"].label.contains("Zero"))
+        picker.tap()
+        app.buttons["500 MB"].tap()
+        XCTAssertTrue(picker.label.contains("500 MB"))
+        app.buttons["clearCache"].tap()
+        XCTAssertTrue(app.staticTexts["Cache cleared. Downloaded text is still available offline."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["cacheUsage"].label.contains("Zero"))
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Manage storage after clearing audio"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        reopen(app)
+        XCTAssertTrue(app.staticTexts["1 saved offline · On this iPhone"].waitForExistence(timeout: 10))
+        openStorage(app)
+        XCTAssertTrue(app.buttons["cacheLimit"].label.contains("500 MB"))
+        let remove = app.buttons["removeAllDownloads"]
+        for _ in 0..<3 where !remove.isHittable { app.swipeUp() }
+        remove.tap()
+        app.buttons["Cancel"].tap()
+        XCTAssertFalse(app.staticTexts["Cache and downloads removed. Your library and annotations are safe."].exists)
+        remove.tap()
+        app.buttons["Remove caches & downloads"].tap()
+        XCTAssertTrue(app.staticTexts["Cache and downloads removed. Your library and annotations are safe."].waitForExistence(timeout: 5))
+        reopen(app)
+        XCTAssertTrue(app.staticTexts["0 saved offline · On this iPhone"].waitForExistence(timeout: 10))
+        app.staticTexts["An offline test article"].tap()
+        XCTAssertTrue(app.buttons["Download text"].waitForExistence(timeout: 5))
+    }
+
     @MainActor func testLiveSpeechBackendPlayback() throws {
         guard ProcessInfo.processInfo.environment["NATIVE_SPEECH_LIVE_TEST"] == "1" else { throw XCTSkip("Live backend test is opt-in and needs a configured local server") }
         let app = XCUIApplication()

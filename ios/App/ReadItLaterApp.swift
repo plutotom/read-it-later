@@ -16,6 +16,8 @@ import ReadingCore
     var downloading: Set<String> = []
     var available = false
     private var library: Library?
+    private var downloadGeneration = UUID()
+    var removingDownloads = false
 
     init() {
         do {
@@ -28,8 +30,8 @@ import ReadingCore
                 }
                 try FileManager.default.createDirectory(at: testRoot, withIntermediateDirectories: true)
                 let testLibrary = try Library(path: testRoot.appendingPathComponent("library.sqlite").path)
-                let sample = try testLibrary.saveURL("https://example.com/offline")
-                if !sample.isDownloaded {
+                if try testLibrary.articles().isEmpty {
+                    let sample = try testLibrary.saveURL("https://example.com/offline")
                     try testLibrary.saveContent(id: sample.id, title: "An offline test article", text: "This text is already stored on this device. Read it without a network connection, add a note, and mark it read. This fixture belongs only to the UI test process.\n\nTap this second paragraph to start the silent listening preview from here. The player can prepare this section without waiting for the whole article.\n\nA final paragraph lets us test jumping, scrubbing, and moving between sections while keeping the original text intact.")
                 }
                 library = testLibrary
@@ -60,14 +62,17 @@ import ReadingCore
     }
 
     func download(_ article: Article) async {
-        guard let library, !article.isDownloaded || article.error != nil,
+        guard let library, !removingDownloads, !article.isDownloaded || article.error != nil,
               !downloading.contains(article.id), let url = URL(string: article.url) else { return }
         downloading.insert(article.id)
+        let generation = downloadGeneration
         defer { downloading.remove(article.id); refresh() }
         do {
             let result = try await ArticleDownloader.download(url: url)
+            guard generation == downloadGeneration else { return }
             try library.saveContent(id: article.id, title: result.title, text: result.text)
         } catch {
+            guard generation == downloadGeneration else { return }
             do { try library.saveError(id: article.id, message: error.localizedDescription) }
             catch { self.error = error.localizedDescription }
         }
@@ -75,11 +80,17 @@ import ReadingCore
 
     func resume() async {
         importInbox()
+        let generation = downloadGeneration
         // Sequential, bounded requests. Failed pages retry only on an explicit user action.
-        for article in articles where !article.isDownloaded && article.error == nil {
-            if Task.isCancelled { break }
+        for article in articles where !article.isDownloaded && article.error == nil && !article.downloadSuppressed {
+            if Task.isCancelled || generation != downloadGeneration { break }
             await download(article)
         }
+    }
+
+    func removeDownloads() -> Bool {
+        downloadGeneration = UUID()
+        return mutate { try $0.removeDownloads() }
     }
 
     func importInbox() {

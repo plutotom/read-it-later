@@ -127,6 +127,11 @@ struct LibraryView: View {
                         Text("Deleting the app can remove your library. Export a backup before testing upgrades.")
                     }
                     SpeechSettings()
+                    Section("Storage") {
+                        NavigationLink {
+                            ManageStorageView(model: model)
+                        } label: { Label("Manage storage", systemImage: "internaldrive") }
+                    }
                     Section("Backup") {
                         Button("Export library as JSON") {
                             if let data = model.export() {

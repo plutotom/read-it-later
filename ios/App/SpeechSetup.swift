@@ -7,16 +7,41 @@ import ReadingCore
     var connecting = false
     var cacheBytes = 0
     var cacheCount = 0
+    private(set) var cacheLimit: CacheLimit
+    var storageError: String?
+    var changingStorage = false
+    private let defaults: UserDefaults
     let cache: SpeechDiskCache
     private var controls: SystemPlaybackControls?
     init() {
-        let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("SpeechAudio", isDirectory: true)
-        cache = SpeechDiskCache(directory: root)
+        var directoryName = "SpeechAudio"
+        var storageDefaults = UserDefaults.standard
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
+            directoryName = "SpeechAudioUITests"
+            storageDefaults = UserDefaults(suiteName: "PaperDriveStorageUITests")!
+            if ProcessInfo.processInfo.arguments.contains("--reset-ui-test-library") {
+                storageDefaults.removePersistentDomain(forName: "PaperDriveStorageUITests")
+            }
+        }
+        #endif
+        defaults = storageDefaults
+        let selectedLimit = (storageDefaults.object(forKey: "audio-cache-limit") as? Int).flatMap(CacheLimit.init(rawValue:)) ?? .mb200
+        cacheLimit = selectedLimit
+        let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent(directoryName, isDirectory: true)
+        cache = SpeechDiskCache(directory: root, limit: selectedLimit.bytes)
     }
     func bootstrap(_ player: ListeningPlayer) async {
         controls = SystemPlaybackControls(player: player)
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
+            if ProcessInfo.processInfo.arguments.contains("--ui-testing-storage") {
+                try? await cache.clear()
+                let request = SpeechRequest(text: "Storage test.", voice: SpeechVoice(id: "storage-test", name: "Test", language: "en"), configurationID: "storage-test")
+                let response = SpeechResponse(audio: .encoded(Data(repeating: 0, count: 48000), contentType: "audio/pcm"), duration: 1, marks: [])
+                try? await cache.put(response, for: request)
+                await refreshStats()
+            }
             if ProcessInfo.processInfo.arguments.contains("--ui-testing-server") { address = "http://localhost:4114"; await connect(player); return }
             if ProcessInfo.processInfo.arguments.contains("--ui-testing-audio") { player.configure(service: FixtureStreamingSpeech(), transport: PCMPlaybackTransport()) }
             return
@@ -47,11 +72,30 @@ import ReadingCore
         UserDefaults.standard.removeObject(forKey: "speech-server"); UserDefaults.standard.removeObject(forKey: "speech-catalog")
         status = "Silent preview enabled"
     }
-    func refreshStats() async { if let value = try? await cache.stats() { cacheBytes = value.bytes; cacheCount = value.chunks } }
-    func clear(_ player: ListeningPlayer) async {
+    func refreshStats() async {
+        do {
+            let value = try await cache.stats()
+            cacheBytes = value.bytes; cacheCount = value.chunks
+        } catch { storageError = error.localizedDescription }
+    }
+    func setCacheLimit(_ value: CacheLimit) async {
+        guard !changingStorage else { return }
+        changingStorage = true; storageError = nil
+        defer { changingStorage = false }
+        do {
+            try await cache.setLimit(value.bytes)
+            defaults.set(value.rawValue, forKey: "audio-cache-limit")
+            cacheLimit = value
+            await refreshStats()
+        } catch { storageError = error.localizedDescription }
+    }
+    @discardableResult func clear(_ player: ListeningPlayer) async -> Bool {
         player.close()
-        do { try await cache.clear(); await refreshStats(); status = "Audio removed from this iPhone. Server copies remain available for redownload." }
-        catch { status = error.localizedDescription }
+        storageError = nil
+        do {
+            try await cache.clear(); await refreshStats()
+            return true
+        } catch { storageError = error.localizedDescription; return false }
     }
 }
 
@@ -67,11 +111,6 @@ struct SpeechSettings: View {
             Text("Article sections are sent to your server and its selected speech provider when you listen. Saved audio can play offline.").font(.footnote).foregroundStyle(.secondary)
             Button("Use silent preview") { setup.preview(player) }
         }
-        Section("Audio storage") {
-            Text("\(setup.cacheCount) sections · \(ByteCountFormatter.string(fromByteCount: Int64(setup.cacheBytes), countStyle: .decimal)) of 200 MB")
-            Text("Unused audio is removed from this iPhone after 28 days. Server copies are retained so replay can download them again.").font(.footnote).foregroundStyle(.secondary)
-            Button("Clear audio from this iPhone", role: .destructive) { Task { await setup.clear(player) } }
-        }.task { await setup.refreshStats() }
     }
 }
 

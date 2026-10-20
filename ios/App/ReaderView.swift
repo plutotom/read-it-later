@@ -29,10 +29,12 @@ struct ReaderView: View {
                                 Label(article.isRead ? "Read" : "Mark read", systemImage: article.isRead ? "checkmark.circle.fill" : "checkmark.circle")
                             }.buttonStyle(.bordered)
                         }
-                        if article.isDownloaded {
+                        if article.isDownloaded || !highlights.isEmpty {
                             Button { showingHighlights = true } label: {
                                 Label("Highlights (\(highlights.count))", systemImage: "highlighter")
                             }.accessibilityIdentifier("showHighlights")
+                        }
+                        if article.isDownloaded {
                             Button {
                                 player.start(ListeningDocument(articleID: id, title: article.title, text: article.text))
                             } label: { Label(player.isSilentPreview ? "Try listening preview" : "Listen", systemImage: "headphones") }

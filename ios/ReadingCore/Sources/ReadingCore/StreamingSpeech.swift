@@ -34,7 +34,8 @@ public actor SpeechDiskCache {
     struct Stored: Codable { var data: Data; var duration: Double; var marks: [WireMark] }
     public struct Stats: Sendable { public let bytes: Int; public let chunks: Int }
     private let directory: URL
-    private let limit: Int
+    private var limit: Int
+    private var generation = UUID()
     private let maxAge: TimeInterval
     private var entries: [Entry] = []
     private var loaded = false
@@ -55,7 +56,7 @@ public actor SpeechDiskCache {
         for entry in entries where now.timeIntervalSince(entry.lastUsed) >= maxAge { try? FileManager.default.removeItem(at: file(entry.key)) }
         entries.removeAll { now.timeIntervalSince($0.lastUsed) >= maxAge || !FileManager.default.fileExists(atPath: file($0.key).path) }
         while entries.reduce(0, { $0 + $1.size }) > limit, let oldest = entries.min(by: { $0.lastUsed < $1.lastUsed }) {
-            try? FileManager.default.removeItem(at: file(oldest.key)); entries.removeAll { $0.key == oldest.key }
+            try FileManager.default.removeItem(at: file(oldest.key)); entries.removeAll { $0.key == oldest.key }
         }
         try persist()
     }
@@ -71,7 +72,17 @@ public actor SpeechDiskCache {
             entries[index].lastUsed = now; try persist(); return response
         } catch { try? FileManager.default.removeItem(at: file(key)); entries.removeAll { $0.key == key }; try persist(); return nil }
     }
-    public func put(_ response: SpeechResponse, for request: SpeechRequest, now: Date = Date()) throws {
+    public func writeGeneration() -> UUID { generation }
+    public func setLimit(_ bytes: Int, now: Date = Date()) throws {
+        guard bytes >= 0 else { throw SpeechError.invalidResponse }
+        let previous = limit
+        limit = bytes
+        do { try prepare(now: now) }
+        catch { limit = previous; throw error }
+    }
+    public func put(_ response: SpeechResponse, for request: SpeechRequest, now: Date = Date(), expectedGeneration: UUID? = nil) throws {
+        // An in-flight stream from before Clear must never repopulate the cache.
+        guard expectedGeneration == nil || expectedGeneration == generation else { return }
         try response.validate(for: request)
         guard case .encoded(let bytes, let type) = response.audio, type == "audio/pcm" else { return }
         try prepare(now: now)
@@ -82,7 +93,11 @@ public actor SpeechDiskCache {
         entries.removeAll { $0.key == key }; entries.append(Entry(key: key, lastUsed: now, size: data.count)); try prepare(now: now)
     }
     public func stats(now: Date = Date()) throws -> Stats { try prepare(now: now); return Stats(bytes: entries.reduce(0) { $0 + $1.size }, chunks: entries.count) }
-    public func clear() throws { if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }; entries = []; loaded = false }
+    public func clear() throws {
+        generation = UUID()
+        if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
+        entries = []; loaded = false
+    }
 }
 struct WireMark: Codable, Sendable {
     let offset: Int; let length: Int; let start: Double; let end: Double
@@ -140,6 +155,7 @@ public struct BackendSpeechService: SpeechService {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
+                    let cacheGeneration = await cache.writeGeneration()
                     if let saved = try? await cache.get(request) { continuation.yield(.response(saved)); continuation.finish(); return }
                     try SpeechCatalog.validate(base)
                     guard let descriptor = request.voice.descriptor else { throw SpeechError.invalidResponse }
@@ -176,7 +192,8 @@ public struct BackendSpeechService: SpeechService {
                                 try response.validate(for: request); complete = true
                                 continuation.yield(.complete(duration: duration))
                                 // Save independently of the backend's archive acknowledgment.
-                                try? await cache.put(response, for: request)
+                                try Task.checkCancellation()
+                                try? await cache.put(response, for: request, expectedGeneration: cacheGeneration)
                                 continuation.finish(); return
                             case "error": throw SpeechError.backend(frame.message ?? "Speech generation failed.")
                             case "archive": break
