@@ -83,6 +83,7 @@ export function useCachedAudio(
   }, [url, title, storage, audioRef, local?.url]);
 
   useEffect(() => {
+    let active = true;
     const changed = (event: Event) => {
       const change = (event as CustomEvent<StorageChange>).detail;
       if (change?.owner !== storage?.owner) return;
@@ -96,11 +97,16 @@ export function useCachedAudio(
       if (url && storage)
         void storage
           .get(url)
-          .then((file) => setDownloaded(!!file?.downloaded))
+          .then((file) => {
+            if (active) setDownloaded(!!file?.downloaded);
+          })
           .catch(() => undefined);
     };
     window.addEventListener(STORAGE_EVENT, changed);
-    return () => window.removeEventListener(STORAGE_EVENT, changed);
+    return () => {
+      active = false;
+      window.removeEventListener(STORAGE_EVENT, changed);
+    };
   }, [url, storage, audioRef]);
 
   const download = useCallback(async () => {
