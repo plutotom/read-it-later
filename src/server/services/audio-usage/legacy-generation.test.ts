@@ -74,10 +74,39 @@ describe("legacy paid chunk accounting", () => {
     expect(mocks.synthesize).toHaveBeenCalledTimes(chunks.length);
     expect(mocks.finish.mock.calls.every((c) => c[1] === true)).toBe(true);
     expect(mocks.put).toHaveBeenCalledTimes(3);
+    expect(new Set(mocks.put.mock.calls.map((call) => call[0])).size).toBe(1);
     expect(
       mocks.put.mock.calls.every(
         (c) => Buffer.compare(c[1], mocks.put.mock.calls[0]![1]) === 0,
       ),
     ).toBe(true);
+  });
+  it("recovers a lost upload acknowledgement at the same fenced path without another synthesis", async () => {
+    const files = new Map<string, Buffer>();
+    let uploads = 0;
+    mocks.synthesize.mockResolvedValue([{ audioContent: Buffer.alloc(10) }]);
+    mocks.put.mockImplementation(async (path, bytes, options) => {
+      expect(options).toMatchObject({
+        addRandomSuffix: false,
+        allowOverwrite: true,
+      });
+      files.set(path, Buffer.from(bytes));
+      if (uploads++ === 0) throw new Error("lost upload acknowledgement");
+      return { url: "https://synthetic.test/" + path };
+    });
+    const result = await generateAudioForArticle("synthetic", html, voice, {
+      userId: "owner",
+      jobId: "job",
+      fence: "unique-fence",
+      onDispatched: vi.fn(),
+    });
+    expect(mocks.put).toHaveBeenCalledTimes(2);
+    expect(files.size).toBe(1);
+    expect(result.audioUrl).toBe(
+      "https://synthetic.test/article-audio/synthetic/unique-fence.mp3",
+    );
+    expect(mocks.synthesize).toHaveBeenCalledTimes(
+      prepareArticleAudio(html, voice).length,
+    );
   });
 });

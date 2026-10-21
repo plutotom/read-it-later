@@ -4,6 +4,7 @@
  * Supports chunking for long articles and caching via Vercel Blob
  */
 
+import { randomUUID } from "node:crypto";
 import type { TextToSpeechClient } from "@google-cloud/text-to-speech";
 import { put } from "@vercel/blob";
 import { env } from "~/env";
@@ -304,13 +305,17 @@ export async function generateAudioForArticle(
   const finalAudio = concatenateAudioBuffers(audioBuffers);
 
   // Upload to Vercel Blob
-  const filename = `article-audio/${articleId}.mp3`;
+  // One immutable identity per generation; old database clones may still use
+  // earlier MP3s. Reuse this path and these bytes for ambiguous upload retries.
+  const filename = `article-audio/${articleId}/${accounting?.fence ?? randomUUID()}.mp3`;
   let blob: Awaited<ReturnType<typeof put>> | undefined;
   for (let retry = 0; retry < 3; retry++) {
     try {
       blob = await put(filename, finalAudio, {
         access: "public",
         contentType: AUDIO_CONTENT_TYPE,
+        addRandomSuffix: false,
+        allowOverwrite: true,
       });
       break;
     } catch (error) {

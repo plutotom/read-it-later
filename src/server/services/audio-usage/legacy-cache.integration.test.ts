@@ -35,9 +35,14 @@ vi.mock("../google-tts-client", () => ({
   }),
 }));
 vi.mock("@vercel/blob", () => ({
-  put: async (_path: string, bytes: Buffer) => {
-    const url =
-      "https://synthetic.blob.vercel-storage.com/" + randomUUID() + ".mp3";
+  put: async (
+    path: string,
+    bytes: Buffer,
+    options: { allowOverwrite?: boolean },
+  ) => {
+    const url = "https://synthetic.blob.vercel-storage.com/" + path;
+    if (blobs.has(url) && !options.allowOverwrite)
+      throw new Error("Blob already exists");
     blobs.set(url, Buffer.from(bytes));
     return { url };
   },
@@ -110,7 +115,9 @@ describe.skipIf(!url)(
     async function cloneRecording() {
       const articleId = randomUUID();
       const audioUrl =
-        "https://synthetic.blob.vercel-storage.com/paid-" + articleId + ".mp3";
+        "https://synthetic.blob.vercel-storage.com/article-audio/" +
+        articleId +
+        ".mp3";
       blobs.set(audioUrl, Buffer.from("existing paid bytes"));
       await connection`insert into "read-it-later_article" values (${articleId})`;
       const row = { userId, articleId, audioUrl, voiceName: voice };
@@ -142,6 +149,31 @@ describe.skipIf(!url)(
       );
       expect(storage.synthesize).toHaveBeenCalledTimes(1);
       expect(await db.select().from(schema.audioAttempts)).toHaveLength(1);
+      const next = await legacyAudio({
+        userId,
+        articleId,
+        voice,
+        content: "<p>Another synthetic paragraph.</p>",
+        regenerate: true,
+      });
+      expect(next.audio.audioUrl).not.toBe(result.audio.audioUrl);
+      expect(blobs.has(result.audio.audioUrl)).toBe(true);
+      expect(blobs.has(next.audio.audioUrl)).toBe(true);
+      expect(await db.select().from(schema.audioAttempts)).toHaveLength(2);
+      await expectOriginalPlayable(articleId, audioUrl);
+    });
+    it("generates after deleting a historical reference without colliding with its retained MP3", async () => {
+      const { articleId, audioUrl } = await cloneRecording();
+      await deleteLegacyAudio(userId, articleId);
+      const result = await legacyAudio({
+        userId,
+        articleId,
+        voice,
+        content: "<p>Synthetic generation after deletion.</p>",
+        regenerate: false,
+      });
+      expect(result.audio.audioUrl).not.toBe(audioUrl);
+      expect(blobs.has(result.audio.audioUrl)).toBe(true);
       await expectOriginalPlayable(articleId, audioUrl);
     });
     it("deletes B's reference without deleting A's original URL or bytes", async () => {
