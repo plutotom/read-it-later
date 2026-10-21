@@ -1,3 +1,4 @@
+import { speechifyInput } from "../audio-usage/metering";
 import { z } from "zod";
 import {
   type Adapter,
@@ -29,7 +30,9 @@ const inworldChunk = z.object({
     .object({
       audioContent: z.string().optional(),
       usage: z
-        .object({ processedCharactersCount: z.number().optional() })
+        .object({
+          processedCharactersCount: z.number().int().nonnegative().optional(),
+        })
         .optional(),
       timestampInfo: z
         .object({
@@ -101,13 +104,7 @@ export function providerAdapter(
           body: JSON.stringify(
             provider === "speechify"
               ? {
-                  input:
-                    "<speak>" +
-                    text
-                      .replaceAll("&", "&amp;")
-                      .replaceAll("<", "&lt;")
-                      .replaceAll(">", "&gt;") +
-                    "</speak>",
+                  input: speechifyInput(text),
                   voice_id: d.voice,
                   model: d.model,
                   output_format: "pcm_24000",
@@ -137,7 +134,7 @@ export function providerAdapter(
         );
       let lastMarkEnd = 0;
       let bytes = 0,
-        billed = 0,
+        billed: number | undefined,
         done = false,
         event = "";
       let sseData: string[] = [];
@@ -150,9 +147,15 @@ export function providerAdapter(
         if (name === "speech.done") {
           done = true;
           const end = z
-            .object({ billable_characters_count: z.number().optional() })
+            .object({
+              billable_characters_count: z
+                .number()
+                .int()
+                .nonnegative()
+                .optional(),
+            })
             .parse(JSON.parse(raw));
-          billed = end.billable_characters_count ?? text.length;
+          billed = end.billable_characters_count;
           return undefined;
         }
         if (name !== "speech.chunk") return undefined;
@@ -189,7 +192,9 @@ export function providerAdapter(
               "Speech generation failed. Please retry.",
             );
           audio = chunk.result.audioContent;
-          billed += chunk.result.usage?.processedCharactersCount ?? 0;
+          const units = chunk.result.usage?.processedCharactersCount;
+          if (units !== undefined) billed = (billed ?? 0) + units;
+          if (billed !== undefined) yield { type: "usage", units: billed };
           const words = chunk.result.timestampInfo?.wordAlignment;
           if (words)
             marks = words.words.map((word, i) =>
@@ -218,6 +223,8 @@ export function providerAdapter(
       // SSE can omit its final blank line.
       if (provider === "speechify" && sseData.length)
         decodeSpeechify(event, sseData.join("\n"));
+      if (provider === "speechify" && billed !== undefined)
+        yield { type: "usage", units: billed };
       if (
         (provider === "speechify" && !done) ||
         bytes === 0 ||
@@ -231,7 +238,7 @@ export function providerAdapter(
       yield {
         type: "audioComplete",
         duration: bytes / 48000,
-        billableCharacters: billed || text.length,
+        billableCharacters: billed ?? text.length,
       };
     },
   };

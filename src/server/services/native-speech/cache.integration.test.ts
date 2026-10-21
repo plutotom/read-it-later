@@ -82,6 +82,8 @@ describe.skipIf(!testURL)("real Postgres native speech fencing", () => {
     expect(await artifacts.save(id, owner, "old")).toBe(false);
     expect(await artifacts.save(id, takeover, "new")).toBe(true);
     expect(await artifacts.read(id)).toBe("new");
+    expect(await artifacts.save(id, takeover, "new")).toBe(true);
+    expect(await artifacts.read(id)).toBe("new");
   });
   it("deletion fences a worker already uploading; explicit later playback can recreate", async () => {
     const id = "b".repeat(64),

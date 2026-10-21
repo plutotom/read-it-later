@@ -22,6 +22,10 @@ export const env = createEnv({
       .min(1)
       .default("placeholder-discord-client-secret"),
     BETTER_AUTH_SECRET: z.string().min(1).default("dev-secret-change-me"),
+    AUDIO_USAGE_ADMIN_IDS: z.string().optional(),
+    // JSON rate cards for non-default contracts; server-owned, never accepted from clients.
+    AUDIO_USAGE_RATE_CARDS: z.string().optional(),
+    AUDIO_USAGE_PROVIDER_ACCOUNT: z.string().default("default"),
     // Google Cloud TTS
     GOOGLE_CLOUD_TTS_CREDENTIALS: z.string().optional(),
     TTS_VOICE_NAME: z.string().default("en-US-Chirp3-HD-Charon"),
@@ -71,6 +75,9 @@ export const env = createEnv({
     DISCORD_CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET,
     NEXT_PUBLIC_AUTH_URL: process.env.NEXT_PUBLIC_AUTH_URL,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    AUDIO_USAGE_ADMIN_IDS: process.env.AUDIO_USAGE_ADMIN_IDS,
+    AUDIO_USAGE_RATE_CARDS: process.env.AUDIO_USAGE_RATE_CARDS,
+    AUDIO_USAGE_PROVIDER_ACCOUNT: process.env.AUDIO_USAGE_PROVIDER_ACCOUNT,
     // Google Cloud TTS
     GOOGLE_CLOUD_TTS_CREDENTIALS: process.env.GOOGLE_CLOUD_TTS_CREDENTIALS,
     TTS_VOICE_NAME: process.env.TTS_VOICE_NAME,

@@ -34,6 +34,10 @@ describe.skipIf(!url)("web listening upgrade from an existing database", () => {
         "articleId" uuid NOT NULL, text text NOT NULL,
         "startOffset" integer NOT NULL, "endOffset" integer NOT NULL
       );
+      CREATE TABLE "read-it-later_tts_usage" (
+        "userId" text NOT NULL, "billingPeriod" text NOT NULL,
+        "charactersUsed" integer NOT NULL, "rawCharactersUsed" integer NOT NULL
+      );
       CREATE TABLE __drizzle_migrations (
         id serial PRIMARY KEY, hash text NOT NULL, created_at bigint
       );
@@ -73,12 +77,12 @@ describe.skipIf(!url)("web listening upgrade from an existing database", () => {
     expect(
       await sql`SELECT * FROM "read-it-later_listening_usage"`,
     ).toHaveLength(0);
-    expect(await sql`SELECT * FROM __drizzle_migrations`).toHaveLength(14);
+    expect(await sql`SELECT * FROM __drizzle_migrations`).toHaveLength(15);
 
     // New usage accepts existing users without touching legacy audio/progress.
     await sql`INSERT INTO "read-it-later_listening_usage" ("userId", "window", characters, requests) VALUES ('synthetic-upgrade-user', 'month:2026-10', 42, 1)`;
     await migrate(drizzle(sql), options);
-    expect(await sql`SELECT * FROM __drizzle_migrations`).toHaveLength(14);
+    expect(await sql`SELECT * FROM __drizzle_migrations`).toHaveLength(15);
     expect(
       await sql`SELECT characters, requests FROM "read-it-later_listening_usage"`,
     ).toEqual([{ characters: 42, requests: 1 }]);

@@ -87,6 +87,13 @@ export const artifacts: ArtifactStore = {
     }).toString("utf8");
   },
   async save(id, fence, frames) {
+    const [before] = await db
+      .select()
+      .from(table)
+      .where(eq(table.id, id))
+      .limit(1);
+    if (before?.state === "stored" && before.fence === fence) return true;
+    if (before?.state !== "generating" || before.fence !== fence) return false;
     const blob = await put(
       `native-speech/${id}/${fence}.ndjson.gz`,
       gzipSync(frames),
@@ -95,6 +102,7 @@ export const artifacts: ArtifactStore = {
         token: env.NATIVE_SPEECH_BLOB_TOKEN,
         storeId: env.NATIVE_SPEECH_BLOB_STORE_ID,
         addRandomSuffix: false,
+        allowOverwrite: true,
         contentType: "application/gzip",
         abortSignal: AbortSignal.timeout(20_000),
       },
@@ -105,6 +113,17 @@ export const artifacts: ArtifactStore = {
       .where(owned(id, fence))
       .returning({ id: table.id });
     if (result.length === 0) {
+      const [current] = await db
+        .select()
+        .from(table)
+        .where(eq(table.id, id))
+        .limit(1);
+      if (
+        current?.state === "stored" &&
+        current.fence === fence &&
+        current.blobUrl === blob.url
+      )
+        return true;
       // Keep an orphan record before attempting cleanup, so failed deletion is retryable.
       await recordOrphan(blob.url);
       await cleanupOrphans();
@@ -136,6 +155,12 @@ export async function cleanupOrphans() {
   const { nativeSpeechOrphans } = await import("~/server/db/schema");
   const rows = await db.select().from(nativeSpeechOrphans).limit(20);
   for (const row of rows) {
+    const [referenced] = await db
+      .select({ id: table.id })
+      .from(table)
+      .where(and(eq(table.blobUrl, row.url), eq(table.state, "stored")))
+      .limit(1);
+    if (referenced) continue;
     try {
       await del(row.url, {
         token: env.NATIVE_SPEECH_BLOB_TOKEN,

@@ -23,6 +23,7 @@ export interface ListeningSnapshot {
   paragraph: { start: number; end: number } | null;
   word: { start: number; end: number } | null;
   error: string | null;
+  cacheStatus: "stored" | "failed" | null;
 }
 interface AudioRecord {
   parts: Uint8Array[];
@@ -30,6 +31,7 @@ interface AudioRecord {
   bytes: number;
   sent: number;
   duration?: number;
+  cacheStatus?: "stored" | "failed";
 }
 export interface ListeningBookmark {
   revision: string;
@@ -76,6 +78,7 @@ export class ListeningController {
       paragraph: null,
       word: null,
       error: null,
+      cacheStatus: null,
     };
     this.publish({});
     transport.onPosition = (position) => this.render(position);
@@ -88,6 +91,12 @@ export class ListeningController {
     };
   };
   getSnapshot = () => this.snapshot;
+  private regenerationSegment: number | null = null;
+  regenerateCurrent() {
+    this.regenerationSegment = this.snapshot.segment;
+    this.cache.delete(this.key(this.snapshot.segment));
+    void this.playFrom(this.snapshot.segment, this.snapshot.time);
+  }
   private key(index: number) {
     return (
       this.snapshot.voice.id + ":" + this.snapshot.voice.model + ":" + index
@@ -158,6 +167,7 @@ export class ListeningController {
     this.offset = Math.max(0, offset);
     this.publish({
       state: "buffering",
+      cacheStatus: null,
       wantsPlayback: true,
       segment: index,
       time: this.offset,
@@ -325,9 +335,12 @@ export class ListeningController {
   ) {
     const segment = this.document.segments[index]!;
     const voice = this.snapshot.voice;
+    const regenerate = this.regenerationSegment === index;
+    if (regenerate) this.regenerationSegment = null;
     try {
       for await (const event of this.source.stream(
         {
+          regenerate,
           articleId: this.articleId,
           revision: this.document.revision,
           segment: index,
@@ -337,7 +350,11 @@ export class ListeningController {
       )) {
         if (epoch !== this.epoch || abort.signal.aborted || this.disposed)
           return;
-        if (event.type === "audio") {
+        if (event.type === "archive") {
+          record.cacheStatus = event.state;
+          if (index === this.snapshot.segment)
+            this.publish({ cacheStatus: event.state });
+        } else if (event.type === "audio") {
           record.parts.push(event.data);
           record.bytes += event.data.length;
           if (index === this.snapshot.segment)
@@ -409,6 +426,7 @@ export class ListeningController {
       position.ended && position.segment === this.document.segments.length - 1;
     this.publish({
       segment: position.segment,
+      cacheStatus: this.records.get(position.segment)?.cacheStatus ?? null,
       time,
       state: finished ? "finished" : position.waiting ? "buffering" : "playing",
       wantsPlayback: !finished,

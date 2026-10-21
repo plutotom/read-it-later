@@ -1,3 +1,4 @@
+import type { PreparedSpeech } from "../audio-usage/metering";
 import type { google } from "@google-cloud/text-to-speech/build/protos/protos";
 import { env } from "~/env";
 import { DEFAULT_VOICE, TTS_VOICE_OPTIONS } from "~/lib/tts-voices";
@@ -5,7 +6,7 @@ import {
   MAX_AUDIO_BYTES,
   SAMPLE_RATE,
   type ListeningVoice,
-  type ProviderEvent,
+  type MeteredProviderEvent,
 } from "~/lib/listening/protocol";
 import { getGoogleTTSClient } from "../google-tts-client";
 import { providerAdapter, voices } from "../native-speech/providers";
@@ -17,7 +18,8 @@ export interface ListeningProvider {
     text: string,
     voice: ListeningVoice,
     signal: AbortSignal,
-  ): AsyncGenerator<ProviderEvent>;
+    prepared?: PreparedSpeech,
+  ): AsyncGenerator<MeteredProviderEvent>;
 }
 
 export function listeningVoices(): ListeningVoice[] {
@@ -64,10 +66,10 @@ export function defaultListeningVoice(
 }
 
 export const googleProvider: ListeningProvider = {
-  async *stream(text, voice, signal) {
+  async *stream(text, voice, signal, prepared) {
     signal.throwIfAborted();
     const client = getGoogleTTSClient();
-    const stream = client.streamingSynthesize({ timeout: 90_000 });
+    const stream = client.streamingSynthesize({ timeout: 90_000, retry: null });
     const cancel = () => stream.cancel();
     signal.addEventListener("abort", cancel, { once: true });
     let bytes = 0;
@@ -86,7 +88,9 @@ export const googleProvider: ListeningProvider = {
       });
       // Short sentences also avoid Chirp's limit on an unpunctuated run.
       const { enforceMaxSentenceLength } = await import("../tts-text");
-      stream.write({ input: { text: enforceMaxSentenceLength(text) } });
+      stream.write({
+        input: { text: prepared?.submitted ?? enforceMaxSentenceLength(text) },
+      });
       stream.end();
       for await (const raw of stream) {
         signal.throwIfAborted();
@@ -115,7 +119,7 @@ export const googleProvider: ListeningProvider = {
     } finally {
       signal.removeEventListener("abort", cancel);
       stream.cancel();
-      await client.close();
+      await client.close().catch(() => undefined);
     }
   },
 };

@@ -9,7 +9,8 @@ import {
 export type SpeechPacket =
   | { type: "audio"; data: Uint8Array }
   | { type: "marks"; marks: WordMark[] }
-  | { type: "complete"; duration: number };
+  | { type: "complete"; duration: number }
+  | { type: "archive"; state: "stored" | "failed" };
 export interface SpeechSource {
   stream(
     request: StreamRequest,
@@ -81,10 +82,19 @@ export class HttpSpeechSource implements SpeechSource {
       !response.headers.get("content-type")?.startsWith("application/x-ndjson")
     )
       throw new Error("The speech service returned an unexpected response.");
+    let complete = false;
     let started = false,
       bytes = 0,
       lastMarkEnd = 0;
     for await (const event of readEvents(response.body, signal)) {
+      if (event.type === "archive") {
+        if (!complete)
+          throw new Error("Speech archive arrived before completion.");
+        globalThis.dispatchEvent?.(new Event("audio-usage-settled"));
+        yield event;
+        continue;
+      }
+      if (complete) throw new Error("Speech arrived after completion.");
       if (event.type === "error") throw new Error(event.message);
       if (event.type === "start") {
         if (started || event.voiceId !== request.voiceId)
@@ -125,9 +135,13 @@ export class HttpSpeechSource implements SpeechSource {
           throw new Error(
             "Speech ended before a complete segment was received.",
           );
+        complete = true;
         yield event;
-        return;
       }
+    }
+    if (complete) {
+      globalThis.dispatchEvent?.(new Event("audio-usage-settled"));
+      return;
     }
     throw new Error("The speech connection ended early. Retry this paragraph.");
   }

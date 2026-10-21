@@ -45,6 +45,7 @@ export async function generateArtifact(
       cached: false,
     });
     for await (const event of adapter.stream(input, abort.signal)) {
+      if (event.type === "usage") continue;
       if (event.type === "audio" && !firstAudio) {
         firstAudio = true;
         console.info("native_speech", {

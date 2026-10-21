@@ -25,7 +25,7 @@ describe("Google streaming adapter", () => {
         yield { audioContent: Buffer.alloc(24000) };
       },
     };
-    const close = vi.fn();
+    const close = vi.fn().mockResolvedValue(undefined);
     mocks.client.mockReturnValue({ streamingSynthesize: () => stream, close });
     const voice = listeningVoices()[0]!;
     const events = [];

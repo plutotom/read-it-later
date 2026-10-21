@@ -53,13 +53,14 @@ describe("native provider boundary", () => {
     expect(events.map((e) => e.type)).toEqual([
       "audio",
       "marks",
+      "usage",
       "audioComplete",
     ]);
     expect(events[1]).toEqual({
       type: "marks",
       marks: [{ offset: 0, length: 5, start: 0, end: 0.45 }],
     });
-    expect(events[2]).toEqual({
+    expect(events.at(-1)).toEqual({
       type: "audioComplete",
       duration: 1,
       billableCharacters: 11,
@@ -99,13 +100,46 @@ describe("native provider boundary", () => {
         }),
       { ...input, descriptor: voices("inworld")[0]!.descriptor },
     );
-    expect(result[1]).toEqual({
+    expect(result.find((event) => event.type === "marks")).toEqual({
       type: "marks",
       marks: [
         { offset: 0, length: 5, start: 0, end: 0.4 },
         { offset: 6, length: 5, start: 0.5, end: 0.9 },
       ],
     });
+  });
+  it("preserves explicit zero and retains first Inworld HTTP usage through zero-valued later chunks", async () => {
+    const audio = Buffer.alloc(48).toString("base64");
+    const zero = await collect(
+      "speechify",
+      `event: speech.chunk\ndata: ${JSON.stringify({ audio })}\n\nevent: speech.done\ndata: {"billable_characters_count":0}\n\n`,
+    );
+    expect(zero.find((e) => e.type === "usage")).toEqual({
+      type: "usage",
+      units: 0,
+    });
+    expect(zero.at(-1)).toMatchObject({ billableCharacters: 0 });
+    const result = await collect(
+      "inworld",
+      JSON.stringify({
+        result: {
+          audioContent: audio,
+          usage: { processedCharactersCount: 11 },
+        },
+      }) +
+        "\n" +
+        JSON.stringify({
+          result: {
+            audioContent: audio,
+            usage: { processedCharactersCount: 0 },
+          },
+        }),
+      { ...input, descriptor: voices("inworld")[0]!.descriptor },
+    );
+    expect(result.at(-1)).toMatchObject({ billableCharacters: 11 });
+    expect(
+      result.filter((e) => e.type === "usage").map((e) => e.units),
+    ).toEqual([11, 11]);
   });
   it("maps repeated words and Unicode to original UTF-16; expansions fall back conservatively", () => {
     const align = new SourceAlignment("🌍 café café $12 on Oct. 16");

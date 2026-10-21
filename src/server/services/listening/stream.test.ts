@@ -188,6 +188,32 @@ describe("stream generation lifecycle", () => {
     await job;
     expect(cache.fail).not.toHaveBeenCalled();
   });
+  it("retries archive persistence without another paid stream and acknowledges failure separately", async () => {
+    const cache = store(),
+      events: ListeningEvent[] = [];
+    cache.save.mockRejectedValue(new Error("storage outage"));
+    const stream = vi.fn(async function* () {
+      yield {
+        type: "audio" as const,
+        data: Buffer.alloc(48).toString("base64"),
+      };
+      yield { type: "complete" as const, duration: 0.001 };
+    });
+    await generateListeningArtifact({
+      id: "id",
+      fence: "fence",
+      requestId: "request",
+      text: "Hi",
+      voice,
+      store: cache,
+      emit: (e) => events.push(e),
+      provider: { stream },
+    });
+    expect(stream).toHaveBeenCalledTimes(1);
+    expect(cache.save).toHaveBeenCalledTimes(3);
+    expect(events.at(-1)).toEqual({ type: "archive", state: "failed" });
+    expect(events.some((e) => e.type === "complete")).toBe(true);
+  });
   it("does not cache truncated audio or expose provider error details", async () => {
     const events: ListeningEvent[] = [],
       cache = store();
