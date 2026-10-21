@@ -86,6 +86,39 @@ function setup(count = 6) {
   return { player, transport, source, document };
 }
 describe("listening playback controller", () => {
+  it.each([false, true])(
+    "preserves playback and memory cache after missing archive ack (reset=%s)",
+    async (reset) => {
+      const { document } = setup(1);
+      const transport = new Transport();
+      const stream = vi.fn(async function* () {
+        yield { type: "audio" as const, data: new Uint8Array(48000) };
+        yield { type: "complete" as const, duration: 1 };
+        if (reset) throw new Error("archive reset");
+      });
+      const player = new ListeningController(
+        "article",
+        document,
+        voice,
+        { stream },
+        transport,
+      );
+      await player.playFrom(0);
+      const pauses = transport.pause.mock.calls.length;
+      await turn();
+      transport.render(0, 0.2);
+      expect(player.getSnapshot()).toMatchObject({
+        state: "playing",
+        wantsPlayback: true,
+        error: null,
+        cacheStatus: "failed",
+      });
+      expect(transport.pause).toHaveBeenCalledTimes(pauses);
+      await player.playFrom(0);
+      expect(stream).toHaveBeenCalledTimes(1);
+      player.dispose();
+    },
+  );
   it("starts at the selected section, streams before EOF, and bounds lookahead", async () => {
     const { player, source, transport } = setup();
     await player.playFrom(2);

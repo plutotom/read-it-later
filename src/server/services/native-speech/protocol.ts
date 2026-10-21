@@ -37,7 +37,12 @@ export type Event =
     }
   | { type: "audio"; data: string }
   | { type: "marks"; marks: Mark[] }
-  | { type: "audioComplete"; duration: number; billableCharacters: number }
+  | { type: "usage"; units: number }
+  | {
+      type: "audioComplete";
+      duration: number;
+      billableCharacters: number;
+    }
   | { type: "archive"; state: "stored" | "failed"; id: string }
   | { type: "error"; code: string; message: string };
 export type ProviderEvent = Exclude<

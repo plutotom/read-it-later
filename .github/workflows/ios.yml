@@ -45,6 +45,7 @@ jobs:
           xcodebuild -project ReadItLater.xcodeproj -scheme ReadItLater \
             -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_ID" \
             -derivedDataPath DerivedData -resultBundlePath UITestResults.xcresult -parallel-testing-enabled NO \
+            -retry-tests-on-failure -test-iterations 2 -test-repetition-relaunch-enabled YES \
             CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- test
       - name: Upload UI test evidence
         if: always()

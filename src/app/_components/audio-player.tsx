@@ -245,7 +245,10 @@ export function AudioPlayer({
         clearTtsGenerationPending(articleId);
       }
       const serverUrl = audioStatus.audio.audioUrl;
-      if (playback?.audioUrl === serverUrl && playerState === "ready") {
+      if (
+        playback?.audioUrl === serverUrl &&
+        (playerState === "ready" || playerState === "error")
+      ) {
         return;
       }
 
@@ -314,7 +317,9 @@ export function AudioPlayer({
 
     const handleError = () => {
       setPlayerState("error");
-      setErrorMessage("Failed to load audio. Try generating again.");
+      setErrorMessage(
+        "Could not load saved audio. Retry playback to reconnect.",
+      );
     };
 
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
@@ -371,6 +376,14 @@ export function AudioPlayer({
         return;
       }
 
+      if (
+        options?.regenerate &&
+        !window.confirm(
+          "Generate a new recording? This calls the speech provider again and uses your recording allowance.",
+        )
+      )
+        return;
+
       markTtsGenerationPending(articleId);
       setPlayerState("generating");
       setErrorMessage(null);
@@ -378,7 +391,7 @@ export function AudioPlayer({
 
       try {
         let data;
-        if (options?.regenerate || audioStatus?.hasAudio) {
+        if (options?.regenerate) {
           data = await regenerateAudio.mutateAsync({
             articleId,
             voiceName: voiceName,
@@ -402,6 +415,8 @@ export function AudioPlayer({
         setDuration(info.durationSeconds);
         clearTtsGenerationPending(articleId);
         setPlayerState("loading");
+        // A recovered recording may have the same URL after a failed download.
+        audioRef.current?.load();
         void utils.tts.getStatus.invalidate({ articleId });
         void utils.tts.getUsage.invalidate();
       } catch (err) {
@@ -520,6 +535,7 @@ export function AudioPlayer({
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Generate audio"
             onClick={() => void handleGenerateAudio()}
             className="bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground h-10 w-10 rounded-full"
           >
@@ -572,7 +588,7 @@ export function AudioPlayer({
 
     if (!isPublicShare && playerState === "error") {
       return (
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="bg-background-deep text-muted-foreground flex h-10 w-10 items-center justify-center rounded-full">
             <AlertCircle className="size-4" />
           </div>
@@ -587,10 +603,18 @@ export function AudioPlayer({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => void handleGenerateAudio({ regenerate: true })}
+            onClick={() => void handleGenerateAudio()}
             className="border-rule text-foreground-soft hover:bg-background-deep hover:text-foreground rounded-full border px-3 text-xs"
           >
-            Retry
+            Retry playback
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void handleGenerateAudio({ regenerate: true })}
+            className="text-muted-foreground shrink-0 text-xs"
+          >
+            Generate new audio…
           </Button>
         </div>
       );

@@ -9,7 +9,8 @@ import {
 export type SpeechPacket =
   | { type: "audio"; data: Uint8Array }
   | { type: "marks"; marks: WordMark[] }
-  | { type: "complete"; duration: number };
+  | { type: "complete"; duration: number }
+  | { type: "archive"; state: "stored" | "failed" };
 export interface SpeechSource {
   stream(
     request: StreamRequest,
@@ -81,53 +82,74 @@ export class HttpSpeechSource implements SpeechSource {
       !response.headers.get("content-type")?.startsWith("application/x-ndjson")
     )
       throw new Error("The speech service returned an unexpected response.");
+    let complete = false;
     let started = false,
       bytes = 0,
       lastMarkEnd = 0;
-    for await (const event of readEvents(response.body, signal)) {
-      if (event.type === "error") throw new Error(event.message);
-      if (event.type === "start") {
-        if (started || event.voiceId !== request.voiceId)
-          throw new Error(
-            "Speech configuration did not match the requested voice.",
-          );
-        started = true;
-        continue;
-      }
-      if (!started)
-        throw new Error("Speech arrived without its configuration.");
-      if (event.type === "audio") {
-        if (
-          !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
-            event.data,
-          )
-        )
-          throw new Error("Invalid speech audio.");
-        const data = Uint8Array.from(atob(event.data), (c) => c.charCodeAt(0));
-        bytes += data.length;
-        if (bytes > MAX_AUDIO_BYTES)
-          throw new Error("Speech exceeded its audio limit.");
-        if (data.length) yield { type: "audio", data };
-      } else if (event.type === "marks") {
-        for (const mark of event.marks) {
-          if (mark.start < lastMarkEnd || mark.end <= mark.start)
-            throw new Error("Invalid speech timestamps.");
-          lastMarkEnd = mark.end;
+    try {
+      for await (const event of readEvents(response.body, signal)) {
+        if (event.type === "archive") {
+          if (!complete)
+            throw new Error("Speech archive arrived before completion.");
+          globalThis.dispatchEvent?.(new Event("audio-usage-settled"));
+          yield event;
+          return;
         }
-        yield event;
-      } else {
-        if (
-          !bytes ||
-          bytes % 2 ||
-          Math.abs(event.duration - bytes / (SAMPLE_RATE * 2)) > 0.001 ||
-          lastMarkEnd > event.duration + 0.05
-        )
-          throw new Error(
-            "Speech ended before a complete segment was received.",
+        if (complete) throw new Error("Speech arrived after completion.");
+        if (event.type === "error") throw new Error(event.message);
+        if (event.type === "start") {
+          if (started || event.voiceId !== request.voiceId)
+            throw new Error(
+              "Speech configuration did not match the requested voice.",
+            );
+          started = true;
+          continue;
+        }
+        if (!started)
+          throw new Error("Speech arrived without its configuration.");
+        if (event.type === "audio") {
+          if (
+            !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
+              event.data,
+            )
+          )
+            throw new Error("Invalid speech audio.");
+          const data = Uint8Array.from(atob(event.data), (c) =>
+            c.charCodeAt(0),
           );
-        yield event;
-        return;
+          bytes += data.length;
+          if (bytes > MAX_AUDIO_BYTES)
+            throw new Error("Speech exceeded its audio limit.");
+          if (data.length) yield { type: "audio", data };
+        } else if (event.type === "marks") {
+          for (const mark of event.marks) {
+            if (mark.start < lastMarkEnd || mark.end <= mark.start)
+              throw new Error("Invalid speech timestamps.");
+            lastMarkEnd = mark.end;
+          }
+          yield event;
+        } else {
+          if (
+            !bytes ||
+            bytes % 2 ||
+            Math.abs(event.duration - bytes / (SAMPLE_RATE * 2)) > 0.001 ||
+            lastMarkEnd > event.duration + 0.05
+          )
+            throw new Error(
+              "Speech ended before a complete segment was received.",
+            );
+          complete = true;
+          yield event;
+        }
       }
+    } catch (error) {
+      if (!complete || signal.aborted) throw error;
+      // Audio was already validated. Losing the archive ack cannot invalidate it.
+    }
+    if (complete) {
+      globalThis.dispatchEvent?.(new Event("audio-usage-settled"));
+      yield { type: "archive", state: "failed" };
+      return;
     }
     throw new Error("The speech connection ended early. Retry this paragraph.");
   }

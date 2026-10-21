@@ -16,7 +16,7 @@ export interface TTSVoiceOption {
   description: string;
   gender: "male" | "female";
   tier: VoiceTier;
-  priceMultiplier: number; // 1x = base price, 4x = 4 times the cost
+  priceMultiplier: number; // Historical allowance weight; current USD rates live in audio-usage/metering.ts
 }
 
 /**
@@ -46,9 +46,8 @@ export const VOICE_TIER_INFO: Record<
 };
 
 /**
- * All available voice options with pricing
- * Standard: 1x ($4/1M chars), WaveNet/Neural2: 4x ($16/1M chars),
- * Chirp 3 HD: 8x ($30/1M chars), Studio: 16x ($160/1M chars)
+ * Available voices with stable application allowance weights.
+ * These multipliers preserve entitlements and are not live provider USD pricing.
  */
 export const TTS_VOICE_OPTIONS: TTSVoiceOption[] = [
   // Chirp 3 HD voices (8x price, natural narration + pause markup)

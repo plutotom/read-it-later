@@ -197,9 +197,32 @@ export function StreamingAudioPlayer({
             />
           </div>
         )}
+        {snapshot.cacheStatus === "failed" && (
+          <p role="status" className="text-muted-foreground mt-2 text-xs">
+            Saving this audio was not confirmed. It remains available during
+            this session. Later playback will check for a saved copy before
+            offering regeneration.
+          </p>
+        )}
         {snapshot.error && (
           <p role="alert" className="text-destructive mt-2 text-xs">
             {snapshot.error}
+            {snapshot.error.includes("explicitly regenerate") && (
+              <button
+                type="button"
+                className="ml-2 underline"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Generate this passage again? This can incur another provider charge and use your allowance.",
+                    )
+                  )
+                    controller.regenerateCurrent();
+                }}
+              >
+                Regenerate passage
+              </button>
+            )}
           </p>
         )}
       </div>

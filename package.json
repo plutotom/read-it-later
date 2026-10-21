@@ -26,7 +26,8 @@
     "copy-pdfjs-assets": "node scripts/copy-pdfjs-assets.mjs",
     "postinstall": "node scripts/copy-pdfjs-assets.mjs && node scripts/copy-listening-assets.mjs",
     "speech:maintenance": "node scripts/native-speech-maintenance.mjs",
-    "db:migrate:speech": "node scripts/migrate-native-speech.mjs"
+    "db:migrate:speech": "node scripts/migrate-native-speech.mjs",
+    "audio:billing:import": "node scripts/import-audio-billing.mjs"
   },
   "dependencies": {
     "@extractus/article-extractor": "^8.0.20",

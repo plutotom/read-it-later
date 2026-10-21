@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   createTRPCRouter,
@@ -12,16 +12,13 @@ import {
   ttsUsage,
   userPreferences,
 } from "~/server/db/schema";
+import { DEFAULT_VOICE, TTS_FREE_TIER_LIMIT } from "~/lib/tts-voices";
 import {
-  generateAudioForArticle,
-  deleteAudioFromBlob,
-} from "~/server/services/tts";
-import {
-  DEFAULT_VOICE,
-  TTS_FREE_TIER_LIMIT,
-  toWeightedCharacters,
-} from "~/lib/tts-voices";
-import { nanoid } from "nanoid";
+  legacyAudio,
+  recordLegacyReplay,
+  deleteLegacyAudio,
+} from "~/server/services/audio-usage/legacy";
+import { month } from "~/server/services/audio-usage/metering";
 import {
   isDocumentArticle,
   hasExtractedText,
@@ -32,42 +29,7 @@ import {
  * Get the current billing period in YYYY-MM format
  */
 function getCurrentBillingPeriod(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-}
-
-type DbInsertClient = Pick<typeof import("~/server/db").db, "insert">;
-
-/**
- * Record TTS character usage with atomic upsert (standard-equivalent weighted quota)
- */
-async function recordTTSUsage(
-  db: DbInsertClient,
-  userId: string,
-  rawCharactersUsed: number,
-  voiceName: string,
-): Promise<void> {
-  const billingPeriod = getCurrentBillingPeriod();
-  const weightedCharacters = toWeightedCharacters(rawCharactersUsed, voiceName);
-
-  await db
-    .insert(ttsUsage)
-    .values({
-      id: nanoid(),
-      userId,
-      billingPeriod,
-      charactersUsed: weightedCharacters,
-      rawCharactersUsed,
-    })
-    .onConflictDoUpdate({
-      target: [ttsUsage.userId, ttsUsage.billingPeriod],
-      set: {
-        charactersUsed: sql`${ttsUsage.charactersUsed} + ${weightedCharacters}`,
-        rawCharactersUsed: sql`${ttsUsage.rawCharactersUsed} + ${rawCharactersUsed}`,
-      },
-    });
+  return month();
 }
 
 /**
@@ -143,6 +105,7 @@ export const ttsRouter = createTRPCRouter({
       });
 
       if (existingAudio) {
+        await recordLegacyReplay(ctx.session.user.id, input.articleId);
         return toArticleAudioPlaybackResponse(existingAudio, true);
       }
 
@@ -165,39 +128,14 @@ export const ttsRouter = createTRPCRouter({
         input.voiceName ??
         (await getUserVoicePreference(ctx.db, ctx.session.user.id));
 
-      // Generate audio (external API — outside transaction)
-      const result = await generateAudioForArticle(
-        input.articleId,
-        article.content,
-        voiceName,
-      );
-
-      // Persist usage + audio atomically
-      const newAudio = await ctx.db.transaction(async (tx) => {
-        await recordTTSUsage(
-          tx,
-          ctx.session.user.id,
-          result.rawCharactersUsed,
-          result.voiceName,
-        );
-
-        const [audio] = await tx
-          .insert(articleAudio)
-          .values({
-            userId: ctx.session.user.id,
-            articleId: input.articleId,
-            audioUrl: result.audioUrl,
-            voiceName: result.voiceName,
-            durationSeconds: result.durationSeconds,
-            fileSizeBytes: result.fileSizeBytes,
-            generatedAt: new Date(),
-          })
-          .returning();
-
-        return audio!;
+      const { audio, cached } = await legacyAudio({
+        userId: ctx.session.user.id,
+        articleId: input.articleId,
+        content: article.content,
+        voice: voiceName,
+        regenerate: false,
       });
-
-      return toArticleAudioPlaybackResponse(newAudio, false);
+      return toArticleAudioPlaybackResponse(audio, cached);
     }),
 
   /**
@@ -239,33 +177,6 @@ export const ttsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Check for existing audio and delete from blob storage
-      const existingAudio = await ctx.db.query.articleAudio.findFirst({
-        where: and(
-          eq(articleAudio.articleId, input.articleId),
-          eq(articleAudio.userId, ctx.session.user.id),
-        ),
-      });
-
-      if (existingAudio) {
-        // Delete from blob storage
-        try {
-          await deleteAudioFromBlob(existingAudio.audioUrl);
-        } catch {
-          // Ignore blob deletion errors (might already be deleted)
-        }
-
-        // Delete from database
-        await ctx.db
-          .delete(articleAudio)
-          .where(
-            and(
-              eq(articleAudio.articleId, input.articleId),
-              eq(articleAudio.userId, ctx.session.user.id),
-            ),
-          );
-      }
-
       // Fetch article content (ensure user owns it)
       const article = await ctx.db.query.articles.findFirst({
         where: and(
@@ -285,39 +196,14 @@ export const ttsRouter = createTRPCRouter({
         input.voiceName ??
         (await getUserVoicePreference(ctx.db, ctx.session.user.id));
 
-      // Generate new audio (external API — outside transaction)
-      const result = await generateAudioForArticle(
-        input.articleId,
-        article.content,
-        voiceName,
-      );
-
-      // Persist usage + audio atomically
-      const newAudio = await ctx.db.transaction(async (tx) => {
-        await recordTTSUsage(
-          tx,
-          ctx.session.user.id,
-          result.rawCharactersUsed,
-          result.voiceName,
-        );
-
-        const [audio] = await tx
-          .insert(articleAudio)
-          .values({
-            userId: ctx.session.user.id,
-            articleId: input.articleId,
-            audioUrl: result.audioUrl,
-            voiceName: result.voiceName,
-            durationSeconds: result.durationSeconds,
-            fileSizeBytes: result.fileSizeBytes,
-            generatedAt: new Date(),
-          })
-          .returning();
-
-        return audio!;
+      const { audio, cached } = await legacyAudio({
+        userId: ctx.session.user.id,
+        articleId: input.articleId,
+        content: article.content,
+        voice: voiceName,
+        regenerate: true,
       });
-
-      return toArticleAudioPlaybackResponse(newAudio, false);
+      return toArticleAudioPlaybackResponse(audio, cached);
     }),
 
   /**
@@ -326,35 +212,7 @@ export const ttsRouter = createTRPCRouter({
   deleteAudio: protectedProcedure
     .input(z.object({ articleId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const existingAudio = await ctx.db.query.articleAudio.findFirst({
-        where: and(
-          eq(articleAudio.articleId, input.articleId),
-          eq(articleAudio.userId, ctx.session.user.id),
-        ),
-      });
-
-      if (!existingAudio) {
-        return { success: true, deleted: false };
-      }
-
-      // Delete from blob storage
-      try {
-        await deleteAudioFromBlob(existingAudio.audioUrl);
-      } catch {
-        // Ignore blob deletion errors
-      }
-
-      // Delete from database
-      await ctx.db
-        .delete(articleAudio)
-        .where(
-          and(
-            eq(articleAudio.articleId, input.articleId),
-            eq(articleAudio.userId, ctx.session.user.id),
-          ),
-        );
-
-      return { success: true, deleted: true };
+      return deleteLegacyAudio(ctx.session.user.id, input.articleId);
     }),
 
   /**
@@ -421,7 +279,9 @@ export const ttsRouter = createTRPCRouter({
 
     // Calculate the reset date (first day of next month)
     const now = new Date();
-    const resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const resetDate = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+    );
 
     return {
       billingPeriod,

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
-import { del, get, put } from "@vercel/blob";
+import { get, put } from "@vercel/blob";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "./database";
 import { nativeSpeechCache as table } from "~/server/db/schema";
@@ -87,6 +87,13 @@ export const artifacts: ArtifactStore = {
     }).toString("utf8");
   },
   async save(id, fence, frames) {
+    const [before] = await db
+      .select()
+      .from(table)
+      .where(eq(table.id, id))
+      .limit(1);
+    if (before?.state === "stored" && before.fence === fence) return true;
+    if (before?.state !== "generating" || before.fence !== fence) return false;
     const blob = await put(
       `native-speech/${id}/${fence}.ndjson.gz`,
       gzipSync(frames),
@@ -95,6 +102,7 @@ export const artifacts: ArtifactStore = {
         token: env.NATIVE_SPEECH_BLOB_TOKEN,
         storeId: env.NATIVE_SPEECH_BLOB_STORE_ID,
         addRandomSuffix: false,
+        allowOverwrite: true,
         contentType: "application/gzip",
         abortSignal: AbortSignal.timeout(20_000),
       },
@@ -105,9 +113,19 @@ export const artifacts: ArtifactStore = {
       .where(owned(id, fence))
       .returning({ id: table.id });
     if (result.length === 0) {
-      // Keep an orphan record before attempting cleanup, so failed deletion is retryable.
+      const [current] = await db
+        .select()
+        .from(table)
+        .where(eq(table.id, id))
+        .limit(1);
+      if (
+        current?.state === "stored" &&
+        current.fence === fence &&
+        current.blobUrl === blob.url
+      )
+        return true;
+      // Retain the unreferenced upload for eventual store-wide reconciliation.
       await recordOrphan(blob.url);
-      await cleanupOrphans();
     }
     return result.length === 1;
   },
@@ -126,29 +144,14 @@ export async function removeArtifact(id: string) {
     .where(eq(table.id, id))
     .returning({ blobUrl: table.blobUrl });
   for (const row of rows) if (row.blobUrl) await recordOrphan(row.blobUrl);
-  await cleanupOrphans();
 }
 async function recordOrphan(url: string) {
   const { nativeSpeechOrphans } = await import("~/server/db/schema");
   await db.insert(nativeSpeechOrphans).values({ url }).onConflictDoNothing();
 }
-export async function cleanupOrphans() {
-  const { nativeSpeechOrphans } = await import("~/server/db/schema");
-  const rows = await db.select().from(nativeSpeechOrphans).limit(20);
-  for (const row of rows) {
-    try {
-      await del(row.url, {
-        token: env.NATIVE_SPEECH_BLOB_TOKEN,
-        storeId: env.NATIVE_SPEECH_BLOB_STORE_ID,
-      });
-      await db
-        .delete(nativeSpeechOrphans)
-        .where(eq(nativeSpeechOrphans.url, row.url));
-    } catch {
-      /* Retained for the next generation/deletion or maintenance run. */
-    }
-  }
-}
+// Orphan rows are retained for store-wide reconciliation. A row in this database
+// cannot prove exclusivity: a cloned/independent database can still reference the
+// same paid artifact. Neither request handlers nor maintenance delete these blobs.
 export function cachedFrames(raw: string): string {
   // A replay is the same audio, with explicit cache provenance and a fresh archive ack.
   return raw

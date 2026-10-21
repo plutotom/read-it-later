@@ -4,15 +4,22 @@
  * Supports chunking for long articles and caching via Vercel Blob
  */
 
+import { randomUUID } from "node:crypto";
 import type { TextToSpeechClient } from "@google-cloud/text-to-speech";
-import { put, del } from "@vercel/blob";
+import { put } from "@vercel/blob";
 import { env } from "~/env";
-import { DEFAULT_VOICE, isChirp3Voice } from "~/lib/tts-voices";
+import {
+  DEFAULT_VOICE,
+  isChirp3Voice,
+  toWeightedCharacters,
+} from "~/lib/tts-voices";
 import { htmlToChirpMarkup } from "~/server/services/tts-markup";
 import { JSDOM } from "jsdom";
 import type { google } from "@google-cloud/text-to-speech/build/protos/protos";
 import { getGoogleTTSClient } from "./google-tts-client";
 import { enforceMaxSentenceLength } from "./tts-text";
+import { beginAttempt, finishAttempt } from "./audio-usage/ledger";
+import { googleModel, prepareSpeech } from "./audio-usage/metering";
 export { enforceMaxSentenceLength } from "./tts-text";
 
 // Max characters per chunk (Google Cloud TTS limit is 5000 bytes, ~4000 chars to be safe)
@@ -141,16 +148,19 @@ async function synthesizeChunk(
     ? { markup: chunk }
     : { text: chunk };
 
-  const [response] = await client.synthesizeSpeech({
-    input,
-    voice: {
-      languageCode,
-      name: voiceName,
+  const [response] = await client.synthesizeSpeech(
+    {
+      input,
+      voice: {
+        languageCode,
+        name: voiceName,
+      },
+      audioConfig: {
+        audioEncoding: AUDIO_ENCODING,
+      },
     },
-    audioConfig: {
-      audioEncoding: AUDIO_ENCODING,
-    },
-  });
+    { retry: null, timeout: 90_000 },
+  );
 
   if (!response.audioContent) {
     throw new Error("No audio content received from TTS API");
@@ -199,10 +209,31 @@ export interface GenerateAudioResult {
  * Generate audio for an article
  * Handles chunking, synthesis, concatenation, and blob upload
  */
+export function prepareArticleAudio(htmlContent: string, voiceName: string) {
+  const speakableText = isChirp3Voice(voiceName)
+    ? htmlToChirpMarkup(htmlContent)
+    : stripHtmlToPlainText(htmlContent);
+
+  if (!speakableText.trim()) {
+    throw new Error("Article content is empty after HTML processing");
+  }
+
+  // Split any over-long sentence so Google TTS doesn't reject the request.
+  const safeText = enforceMaxSentenceLength(speakableText);
+
+  return chunkText(safeText);
+}
+
 export async function generateAudioForArticle(
   articleId: string,
   htmlContent: string,
   voiceNameOverride?: string,
+  accounting?: {
+    userId: string;
+    jobId: string;
+    fence: string;
+    onDispatched: (units: number) => void;
+  },
 ): Promise<GenerateAudioResult> {
   // Check if Blob token is available
   if (!env.BLOB_READ_WRITE_TOKEN) {
@@ -215,42 +246,83 @@ export async function generateAudioForArticle(
   // Derive language code from voice name (e.g., "en-US-Neural2-A" -> "en-US")
   const languageCode = voiceName.split("-").slice(0, 2).join("-");
 
-  const speakableText = isChirp3Voice(voiceName)
-    ? htmlToChirpMarkup(htmlContent)
-    : stripHtmlToPlainText(htmlContent);
-
-  if (!speakableText.trim()) {
-    throw new Error("Article content is empty after HTML processing");
-  }
-
-  // Split any over-long sentence so Google TTS doesn't reject the request.
-  const safeText = enforceMaxSentenceLength(speakableText);
-
-  const chunks = chunkText(safeText);
+  const chunks = prepareArticleAudio(htmlContent, voiceName);
 
   // Synthesize each chunk
   const audioBuffers: Buffer[] = [];
   let rawCharactersUsed = 0;
-  for (const chunk of chunks) {
-    const { buffer, charactersUsed } = await synthesizeChunk(
-      client,
-      chunk,
-      voiceName,
-      languageCode,
-    );
-    rawCharactersUsed += charactersUsed;
-    audioBuffers.push(buffer);
+  try {
+    for (const chunk of chunks) {
+      const prepared = prepareSpeech(
+        chunk,
+        "google",
+        googleModel(voiceName),
+        voiceName,
+      );
+      const attempt = accounting
+        ? await beginAttempt(
+            accounting.jobId,
+            accounting.userId,
+            accounting.fence,
+            prepared,
+            undefined,
+            {
+              units: toWeightedCharacters(chunk.length, voiceName),
+              raw: chunk.length,
+            },
+          )
+        : undefined;
+      accounting?.onDispatched(chunk.length);
+      let buffer: Buffer;
+      try {
+        const result = await synthesizeChunk(
+          client,
+          prepared.submitted,
+          voiceName,
+          languageCode,
+        );
+        buffer = result.buffer;
+        rawCharactersUsed += chunk.length;
+        if (attempt)
+          await finishAttempt(attempt, true, buffer.length).catch(() =>
+            console.error("audio_accounting", {
+              attempt,
+              event: "settlement_failed",
+            }),
+          );
+      } catch (error) {
+        if (attempt)
+          await finishAttempt(attempt, false, 0).catch(() => undefined);
+        throw error;
+      }
+      audioBuffers.push(buffer);
+    }
+  } finally {
+    await client.close().catch(() => undefined);
   }
 
   // Concatenate all audio
   const finalAudio = concatenateAudioBuffers(audioBuffers);
 
   // Upload to Vercel Blob
-  const filename = `article-audio/${articleId}.mp3`;
-  const blob = await put(filename, finalAudio, {
-    access: "public",
-    contentType: AUDIO_CONTENT_TYPE,
-  });
+  // One immutable identity per generation; old database clones may still use
+  // earlier MP3s. Reuse this path and these bytes for ambiguous upload retries.
+  const filename = `article-audio/${articleId}/${accounting?.fence ?? randomUUID()}.mp3`;
+  let blob: Awaited<ReturnType<typeof put>> | undefined;
+  for (let retry = 0; retry < 3; retry++) {
+    try {
+      blob = await put(filename, finalAudio, {
+        access: "public",
+        contentType: AUDIO_CONTENT_TYPE,
+        addRandomSuffix: false,
+        allowOverwrite: true,
+      });
+      break;
+    } catch (error) {
+      if (retry === 2) throw error;
+    }
+  }
+  if (!blob) throw new Error("Audio could not be saved");
 
   return {
     audioUrl: blob.url,
@@ -259,11 +331,4 @@ export async function generateAudioForArticle(
     voiceName,
     rawCharactersUsed,
   };
-}
-
-/**
- * Delete audio from Vercel Blob
- */
-export async function deleteAudioFromBlob(audioUrl: string): Promise<void> {
-  await del(audioUrl);
 }

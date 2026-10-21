@@ -24,7 +24,17 @@ import {
   resolveProvider,
   type ListeningProvider,
 } from "./providers";
-import { reserveListeningUsage } from "./quota";
+import { reserveListeningUsageInTransaction } from "./quota";
+import { prepareSpeech, googleModel } from "../audio-usage/metering";
+import {
+  beginAttempt,
+  checkpointUsage,
+  claimJob,
+  finishAttempt,
+  finishJob,
+  recordReplay,
+  renewJob,
+} from "../audio-usage/ledger";
 
 export async function listeningSession(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers });
@@ -58,7 +68,7 @@ export async function listeningCatalog(request: Request) {
 }
 
 /** The non-hex prefix keeps these artifacts outside the prototype's cache API. */
-export function listeningArtifactId(
+export function legacyListeningArtifactId(
   userId: string,
   text: string,
   voice: ListeningVoice,
@@ -80,6 +90,37 @@ export function listeningArtifactId(
   );
 }
 
+/** Scoped identities keep new environment/provider-account caches independent; old paid audio is a read fallback. */
+export function listeningArtifactId(
+  userId: string,
+  text: string,
+  voice: ListeningVoice,
+) {
+  const prepared = prepareSpeech(
+    text,
+    voice.provider,
+    voice.provider === "google" ? googleModel(voice.id) : voice.model,
+    voice.id,
+  );
+  return (
+    "w" +
+    createHash("sha256")
+      .update(
+        JSON.stringify([
+          "web-listening-pcm24-v2",
+          process.env.VERCEL_ENV ??
+            (env.NODE_ENV === "production" ? "production" : "development"),
+          env.AUDIO_USAGE_PROVIDER_ACCOUNT ?? "default",
+          userId,
+          voice.model,
+          prepared.payloadHash,
+        ]),
+      )
+      .digest("hex")
+      .slice(1)
+  );
+}
+
 export async function generateListeningArtifact(options: {
   id: string;
   fence: string;
@@ -89,6 +130,7 @@ export async function generateListeningArtifact(options: {
   provider: ListeningProvider;
   store: ArtifactStore;
   emit: (event: ListeningEvent) => void;
+  accounting?: { userId: string; jobFence: string; admittedAt: Date };
 }) {
   const { id, fence, text, voice, requestId, provider, store, emit } = options;
   const abort = new AbortController();
@@ -96,8 +138,13 @@ export async function generateListeningArtifact(options: {
   const renewal = setInterval(() => {
     void store
       .renew(id, fence)
-      .then((owned) => {
+      .then(async (owned) => {
         if (!owned) abort.abort();
+        if (
+          options.accounting &&
+          !(await renewJob(id, options.accounting.jobFence))
+        )
+          abort.abort();
       })
       .catch(() => abort.abort());
   }, 30_000);
@@ -110,7 +157,23 @@ export async function generateListeningArtifact(options: {
     frames += encodeEvent(event);
     emit(event);
   };
+  let attempt: string | undefined;
   try {
+    const prepared = prepareSpeech(
+      text,
+      voice.provider,
+      voice.provider === "google" ? googleModel(voice.id) : voice.model,
+      voice.id,
+    );
+    if (options.accounting)
+      attempt = await beginAttempt(
+        id,
+        options.accounting.userId,
+        options.accounting.jobFence,
+        prepared,
+        db,
+        { units: text.length, raw: text.length },
+      );
     send({
       type: "start",
       requestId,
@@ -118,8 +181,23 @@ export async function generateListeningArtifact(options: {
       sampleRate: SAMPLE_RATE,
       voiceId: voice.id,
     });
-    for await (const event of provider.stream(text, voice, abort.signal)) {
+    for await (const event of provider.stream(
+      text,
+      voice,
+      abort.signal,
+      prepared,
+    )) {
       abort.signal.throwIfAborted();
+      if (event.type === "usage") {
+        if (attempt)
+          await checkpointUsage(attempt, event.units).catch(() =>
+            console.error("audio_accounting", {
+              requestId,
+              event: "checkpoint_failed",
+            }),
+          );
+        continue;
+      }
       if (complete)
         throw new SpeechFault(
           "invalid_stream",
@@ -175,7 +253,41 @@ export async function generateListeningArtifact(options: {
         "incomplete_audio",
         "Speech ended before a complete segment was received.",
       );
-    const stored = await store.save(id, fence, frames);
+    if (attempt)
+      await finishAttempt(
+        attempt,
+        true,
+        bytes,
+        bytes / (SAMPLE_RATE * 2),
+      ).catch(() =>
+        console.error("audio_accounting", {
+          requestId,
+          event: "settlement_failed",
+        }),
+      );
+    // Retry persistence with the same fenced path and the same paid bytes, never synthesis.
+    let stored = false;
+    for (let retry = 0; retry < 3; retry++) {
+      try {
+        stored = await store.save(id, fence, frames);
+        break;
+      } catch (error) {
+        if (retry === 2) throw error;
+      }
+    }
+    if (options.accounting)
+      await finishJob(
+        id,
+        options.accounting.jobFence,
+        "complete",
+        stored ? "stored" : "failed",
+      ).catch(() =>
+        console.error("audio_accounting", {
+          requestId,
+          event: "job_settlement_failed",
+        }),
+      );
+    emit({ type: "archive", state: stored ? "stored" : "failed" });
     console.info("web_listening", {
       requestId,
       provider: voice.provider,
@@ -185,6 +297,21 @@ export async function generateListeningArtifact(options: {
       milliseconds: Math.round(performance.now() - started),
     });
   } catch (error) {
+    if (attempt)
+      await finishAttempt(
+        attempt,
+        complete,
+        bytes,
+        complete ? bytes / (SAMPLE_RATE * 2) : undefined,
+      ).catch(() => undefined);
+    if (options.accounting)
+      await finishJob(
+        id,
+        options.accounting.jobFence,
+        attempt ? (complete ? "complete" : "unknown") : "not_dispatched",
+        "failed",
+      ).catch(() => undefined);
+    if (complete) emit({ type: "archive", state: "failed" });
     await store.fail(id, fence).catch(() => undefined);
     const code =
       error instanceof SpeechFault
@@ -269,12 +396,17 @@ export async function listeningStream(request: Request) {
         "Private speech storage must be configured before streaming can start.",
         503,
       );
-    const { artifacts, cleanupOrphans } =
-      await import("../native-speech/cache");
+    const { artifacts } = await import("../native-speech/cache");
     const id = listeningArtifactId(userId, text, voice);
-    const cached = await artifacts.read(id);
+    const cached =
+      (await artifacts.read(id)) ??
+      (await artifacts.read(legacyListeningArtifactId(userId, text, voice)));
     const requestId = randomUUID();
     if (cached) {
+      await recordReplay(id, requestId, db, {
+        id: userId,
+        articleId: input.articleId,
+      });
       const frames = cached
         .split("\n")
         .filter(Boolean)
@@ -287,7 +419,10 @@ export async function listeningStream(request: Request) {
           );
         })
         .join("");
-      return new Response(frames, { headers });
+      return new Response(
+        frames + encodeEvent({ type: "archive", state: "stored" }),
+        { headers },
+      );
     }
     const fence = randomUUID();
     if (!(await artifacts.acquire(id, fence)))
@@ -298,13 +433,45 @@ export async function listeningStream(request: Request) {
           headers: { "Retry-After": "1", "Cache-Control": "no-store" },
         },
       );
+    let jobFence: string | null;
+    const admittedAt = new Date();
+    const provider = resolveProvider(voice);
     try {
-      await reserveListeningUsage(userId, text.length);
+      jobFence = await claimJob(
+        {
+          id,
+          userId,
+          articleId: input.articleId,
+          path: "stream",
+          allowanceUnits: text.length,
+          admittedAt,
+          regenerate: input.regenerate,
+        },
+        (tx) =>
+          reserveListeningUsageInTransaction(
+            tx,
+            userId,
+            text.length,
+            admittedAt,
+          ),
+      );
+      if (!jobFence) {
+        await artifacts.fail(id, fence);
+        return Response.json(
+          {
+            code: "pending",
+            message: "This passage is already being prepared.",
+          },
+          {
+            status: 202,
+            headers: { "Retry-After": "1", "Cache-Control": "no-store" },
+          },
+        );
+      }
     } catch (error) {
       await artifacts.fail(id, fence).catch(() => undefined);
       throw error;
     }
-    const provider = resolveProvider(voice);
     let detached = false;
     const encoder = new TextEncoder();
     return new Response(
@@ -319,6 +486,7 @@ export async function listeningStream(request: Request) {
             requestId,
             provider,
             store: artifacts,
+            accounting: { userId, jobFence, admittedAt },
             emit(event) {
               if (!detached) {
                 try {
@@ -338,7 +506,6 @@ export async function listeningStream(request: Request) {
             }
           });
           waitUntil(work);
-          waitUntil(cleanupOrphans().catch(() => undefined));
         },
         cancel() {
           detached = true;

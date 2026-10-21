@@ -38,14 +38,19 @@ export const eventSchema = z.discriminatedUnion("type", [
     type: z.literal("complete"),
     duration: z.number().finite().positive(),
   }),
+  z.object({ type: z.literal("archive"), state: z.enum(["stored", "failed"]) }),
   z.object({ type: z.literal("error"), code: z.string(), message: z.string() }),
 ]);
 export type ListeningEvent = z.infer<typeof eventSchema>;
 export type ProviderEvent = Exclude<
   ListeningEvent,
-  { type: "start" | "error" }
+  { type: "start" | "error" | "archive" }
 >;
+export type MeteredProviderEvent =
+  | ProviderEvent
+  | { type: "usage"; units: number };
 export const streamRequestSchema = z.object({
+  regenerate: z.boolean().optional(),
   articleId: z.string().uuid(),
   revision: z.string().min(1).max(64),
   segment: z.number().int().min(0).max(100_000),
