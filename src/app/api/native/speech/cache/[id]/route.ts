@@ -1,9 +1,5 @@
 import { speechAccess } from "~/server/services/native-speech/access";
-import {
-  artifacts,
-  cachedFrames,
-  removeArtifact,
-} from "~/server/services/native-speech/cache";
+import { nativeSpeechUnavailable } from "~/server/services/native-speech/availability";
 import { headers, problem } from "~/server/services/native-speech/http";
 import { SpeechFault, frame } from "~/server/services/native-speech/protocol";
 export const runtime = "nodejs";
@@ -19,10 +15,14 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const unavailable = nativeSpeechUnavailable();
+  if (unavailable) return unavailable;
   try {
     const { id } = await context.params;
     valid(id);
     await speechAccess.authorize(request, "read", id);
+    const { artifacts, cachedFrames } =
+      await import("~/server/services/native-speech/cache");
     if (new URL(request.url).searchParams.has("status")) {
       const row = await artifacts.status(id);
       return Response.json(
@@ -44,10 +44,14 @@ export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const unavailable = nativeSpeechUnavailable();
+  if (unavailable) return unavailable;
   try {
     const { id } = await context.params;
     valid(id);
     await speechAccess.authorize(request, "delete", id);
+    const { removeArtifact } =
+      await import("~/server/services/native-speech/cache");
     await removeArtifact(id);
     return new Response(null, { status: 204 });
   } catch (error) {

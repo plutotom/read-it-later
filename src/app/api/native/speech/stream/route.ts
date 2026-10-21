@@ -1,12 +1,7 @@
 import { speechAccess } from "~/server/services/native-speech/access";
 import { randomUUID } from "node:crypto";
 import { waitUntil } from "@vercel/functions";
-import {
-  artifacts,
-  cachedFrames,
-  cleanupOrphans,
-} from "~/server/services/native-speech/cache";
-import { generateArtifact } from "~/server/services/native-speech/generation";
+import { nativeSpeechUnavailable } from "~/server/services/native-speech/availability";
 import {
   configured,
   headers,
@@ -22,9 +17,15 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 // Deliberately unrestricted during private prototyping. Replace policy/namespace before public launch.
 export async function POST(request: Request) {
+  const unavailable = nativeSpeechUnavailable();
+  if (unavailable) return unavailable;
   try {
     const { namespace } = await speechAccess.authorize(request, "generate");
     const input = requestSchema.parse(await readBody(request));
+    const { artifacts, cachedFrames, cleanupOrphans } =
+      await import("~/server/services/native-speech/cache");
+    const { generateArtifact } =
+      await import("~/server/services/native-speech/generation");
     const id = identity(input, namespace);
     const fence = randomUUID();
     const cached = await artifacts.read(id);

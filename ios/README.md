@@ -2,6 +2,11 @@
 
 This is a **native reader with streaming speech support**. The library remains local to the iPhone; listening uses the separate native speech API. Account sync and public release remain later milestones.
 
+Backend provisioning is paused. See [iOS status and next steps](../docs/plans/native-ios-next-steps.md)
+for the resume checklist and [the sign-in/sync plan](../docs/plans/native-ios-auth-sync.md)
+for the agreed required-account design. Native speech HTTP routes are disabled by default
+on shared web deployments; private testing must explicitly set `NATIVE_SPEECH_ENABLED=true`.
+
 ## Included
 
 - Native iPhone SwiftUI app (iOS 17+, Swift 6 / Xcode 16+).
@@ -205,6 +210,9 @@ Do not disable protection as a substitute for the planned public-release account
 
 Use Node 22 and pnpm 9.15.1. Provider credentials stay server-side. Configure:
 
+- `NATIVE_SPEECH_ENABLED=true` explicitly enables native catalog, streaming, and cache
+  endpoints on the intended private test server. Leave it unset or `false` on the web
+  production deployment; disabled endpoints return 404 before speech storage/generation.
 - `SPEECHIFY_API_KEY` and/or `INWORLD_API_KEY` (Inworld’s supplied Basic credential, unchanged).
 - `NATIVE_SPEECH_PROVIDER=speechify` or `inworld` determines the first catalog voice for new connections.
 - `NATIVE_SPEECH_DATABASE_URL`: isolated speech Postgres connection. Without it the service uses

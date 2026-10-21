@@ -26,7 +26,9 @@ export const env = createEnv({
     GOOGLE_CLOUD_TTS_CREDENTIALS: z.string().optional(),
     TTS_VOICE_NAME: z.string().default("en-US-Chirp3-HD-Charon"),
     TTS_VOICE_LANGUAGE: z.string().default("en-US"),
-    // Native iOS speech prototype: intentionally unauthenticated until accounts land.
+    // Native speech is disabled unless a private test deployment explicitly opts in.
+    NATIVE_SPEECH_ENABLED: z.enum(["true", "false"]).default("false"),
+    // The enabled prototype remains unauthenticated until accounts land.
     SPEECHIFY_API_KEY: z.string().optional(),
     INWORLD_API_KEY: z.string().optional(),
     NATIVE_SPEECH_PROVIDER: z
@@ -65,6 +67,7 @@ export const env = createEnv({
     GOOGLE_CLOUD_TTS_CREDENTIALS: process.env.GOOGLE_CLOUD_TTS_CREDENTIALS,
     TTS_VOICE_NAME: process.env.TTS_VOICE_NAME,
     TTS_VOICE_LANGUAGE: process.env.TTS_VOICE_LANGUAGE,
+    NATIVE_SPEECH_ENABLED: process.env.NATIVE_SPEECH_ENABLED,
     SPEECHIFY_API_KEY: process.env.SPEECHIFY_API_KEY,
     INWORLD_API_KEY: process.env.INWORLD_API_KEY,
     NATIVE_SPEECH_PROVIDER: process.env.NATIVE_SPEECH_PROVIDER,

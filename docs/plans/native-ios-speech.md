@@ -1,5 +1,12 @@
 # Native iOS speech implementation plan
 
+Historical implementation plan. The streaming prototype is now implemented; see
+[the iOS developer guide](../../ios/README.md) for current behavior and
+[iOS status and next steps](native-ios-next-steps.md) for the paused deployment work.
+Native speech HTTP endpoints are disabled unless the test server explicitly sets
+`NATIVE_SPEECH_ENABLED=true`. The future required-account design is recorded
+separately in [the sign-in and sync plan](native-ios-auth-sync.md).
+
 Status: Approved for implementation. Implementation requires the user's approval.
 
 Updated: October 16, 2026.
