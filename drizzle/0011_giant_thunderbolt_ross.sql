@@ -26,7 +26,7 @@ CREATE TABLE "read-it-later_para_export" (
 	"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "read-it-later_tts_usage" ADD COLUMN "rawCharactersUsed" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "read-it-later_tts_usage" ADD COLUMN IF NOT EXISTS "rawCharactersUsed" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE "read-it-later_api_key" ADD CONSTRAINT "read-it-later_api_key_userId_read-it-later_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."read-it-later_user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "read-it-later_para_export" ADD CONSTRAINT "read-it-later_para_export_userId_read-it-later_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."read-it-later_user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "read-it-later_para_export" ADD CONSTRAINT "read-it-later_para_export_articleId_read-it-later_article_id_fk" FOREIGN KEY ("articleId") REFERENCES "public"."read-it-later_article"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -35,5 +35,5 @@ CREATE INDEX "api_key_hash_idx" ON "read-it-later_api_key" USING btree ("keyHash
 CREATE INDEX "para_export_user_idx" ON "read-it-later_para_export" USING btree ("userId");--> statement-breakpoint
 CREATE INDEX "para_export_article_idx" ON "read-it-later_para_export" USING btree ("articleId");--> statement-breakpoint
 CREATE INDEX "para_export_created_at_idx" ON "read-it-later_para_export" USING btree ("createdAt");--> statement-breakpoint
-CREATE UNIQUE INDEX "tts_usage_user_period_idx" ON "read-it-later_tts_usage" USING btree ("userId","billingPeriod");--> statement-breakpoint
-ALTER TABLE "read-it-later_tts_usage" DROP COLUMN "voiceType";
+CREATE UNIQUE INDEX IF NOT EXISTS "tts_usage_user_period_idx" ON "read-it-later_tts_usage" USING btree ("userId","billingPeriod");--> statement-breakpoint
+ALTER TABLE "read-it-later_tts_usage" DROP COLUMN IF EXISTS "voiceType";

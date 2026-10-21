@@ -151,7 +151,7 @@ export function ArticleList({
   return (
     <div className="flex h-full w-full flex-col gap-4">
       {showSearch && (
-        <div className="border-rule bg-background/90 sticky top-14 z-20 -mx-4 border-b px-4 py-3 backdrop-blur-xl sm:top-14 sm:mx-0 sm:rounded-t-2xl">
+        <div className="border-rule bg-background/90 sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 -mx-4 border-b px-4 py-3 backdrop-blur-xl sm:mx-0 sm:rounded-t-2xl">
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
@@ -174,7 +174,7 @@ export function ArticleList({
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto pb-8">
+      <div className="flex-1 overflow-y-auto pb-28 sm:pb-8">
         {filteredArticles.length === 0 ? (
           <div className="border-rule bg-surface flex h-full flex-col items-center justify-center rounded-2xl border p-8 text-center">
             <div className="bg-background-deep mb-4 flex h-16 w-16 items-center justify-center rounded-full">

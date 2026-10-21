@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "~/components/ui/button";
 import { Search, X, Loader2 } from "lucide-react";
+import { cn } from "~/lib/utils";
 
 interface SearchBarProps {
   value: string;
@@ -85,13 +86,15 @@ export function SearchBar({
           onMouseLeave={() => setIsHovered(false)}
         >
           <div
-            className="flex h-9 cursor-text items-center gap-2 overflow-hidden rounded-lg px-2.5 text-sm transition-[width,background-color,border-color] duration-[320ms]"
+            className={cn(
+              "flex h-11 w-full cursor-text items-center gap-2 overflow-hidden rounded-lg border px-3 text-sm",
+              "border-[var(--rule)] bg-[var(--background-deep)]",
+              "md:h-9 md:px-2.5 md:transition-[width,background-color,border-color] md:duration-[320ms]",
+              expanded
+                ? "md:w-[min(100%,280px)] md:border-[var(--rule)] md:bg-[var(--background-deep)]"
+                : "md:w-9 md:border-transparent md:bg-transparent",
+            )}
             style={{
-              width: expanded ? "min(100%, 280px)" : "36px",
-              backgroundColor: expanded
-                ? "var(--background-deep)"
-                : "transparent",
-              border: `1px solid ${expanded ? "var(--rule)" : "transparent"}`,
               transitionTimingFunction: "cubic-bezier(0.2, 0.8, 0.2, 1)",
             }}
             onClick={() => inputRef.current?.focus()}
@@ -112,22 +115,15 @@ export function SearchBar({
                 setTimeout(() => setIsFocused(false), 150);
               }}
               placeholder={placeholder}
-              className="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-sm outline-none"
-              style={{
-                opacity: expanded ? 1 : 0,
-                pointerEvents: expanded ? "auto" : "none",
-                transition: "opacity 220ms ease 80ms",
-              }}
+              className={cn(
+                "text-foreground placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-sm outline-none",
+                "opacity-100",
+                !expanded && "md:pointer-events-none md:opacity-0",
+              )}
             />
 
             {value.length === 0 && (
-              <span
-                className="border-rule text-muted-foreground shrink-0 rounded border px-1 py-0.5 text-[10px] tracking-widest"
-                style={{
-                  opacity: expanded ? 1 : 0,
-                  transition: "opacity 180ms ease",
-                }}
-              >
+              <span className="border-rule text-muted-foreground hidden shrink-0 rounded border px-1 py-0.5 text-[10px] tracking-widest md:inline">
                 ⌘K
               </span>
             )}

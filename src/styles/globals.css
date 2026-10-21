@@ -854,6 +854,16 @@ html[data-theme="matter-dark"] .article-content td {
     0px 20px 50px -20px hsl(0 0% 0% / 0.9);
 }
 
+/* Shared surfaces and controls must follow each palette's semantic colors. */
+html[data-theme="parchment"],
+html[data-theme="forest"],
+html[data-theme="cobalt"] {
+  --surface: var(--card);
+  --background-deep: var(--muted);
+  --foreground-soft: var(--muted-foreground);
+  --rule: var(--border);
+}
+
 /* =========================================================================
    THEME: Parchment — warm cream paper, deep ink brown, tea-stain ochre
    Light, editorial, reading-first. Inspired by old paperbacks and field

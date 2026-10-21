@@ -19,6 +19,7 @@ import {
 import { cn } from "~/lib/utils";
 import { AudioPlayerExpanded } from "./audio-player-expanded";
 import { AudioPlayerSheet } from "./audio-player-sheet";
+import { useCachedAudio } from "~/hooks/use-cached-audio";
 import { PlaybackSpeedPicker } from "./playback-speed-picker";
 
 interface AudioPlayerProps {
@@ -147,6 +148,7 @@ export function AudioPlayer({
   })();
 
   const audioUrl = playback?.audioUrl;
+  const cachedAudio = useCachedAudio(audioUrl, articleTitle, audioRef);
 
   useEffect(() => {
     const savedSpeed = localStorage.getItem("tts-playback-speed");
@@ -204,7 +206,13 @@ export function AudioPlayer({
     ) {
       setPlayerState("generating");
     }
-  }, [articleId, audioStatus?.hasAudio, isCheckingStatus, playerState]);
+  }, [
+    articleId,
+    audioStatus?.hasAudio,
+    isCheckingStatus,
+    isPublicShare,
+    playerState,
+  ]);
 
   // Poll until background generation writes article_audio
   useEffect(() => {
@@ -267,6 +275,7 @@ export function AudioPlayer({
     isPublicShare,
     playerState,
     playback?.audioUrl,
+    privateAudioStatus?.audio?.currentTimeSeconds,
   ]);
 
   // Attach media listeners and transition loading → ready
@@ -280,8 +289,8 @@ export function AudioPlayer({
       }
       audio.playbackRate = playbackSpeed;
 
-      if (resumeAppliedForUrlRef.current !== audioUrl) {
-        resumeAppliedForUrlRef.current = audioUrl;
+      if (resumeAppliedForUrlRef.current !== cachedAudio.src) {
+        resumeAppliedForUrlRef.current = cachedAudio.src ?? null;
         const resumeAt = playback?.currentTimeSeconds ?? 0;
         if (resumeAt > 0) {
           audio.currentTime = Math.min(resumeAt, audio.duration || resumeAt);
@@ -301,6 +310,8 @@ export function AudioPlayer({
       savePlaybackProgress(audio.duration);
     };
 
+    const handlePause = () => setIsPlaying(false);
+
     const handleError = () => {
       setPlayerState("error");
       setErrorMessage("Failed to load audio. Try generating again.");
@@ -309,6 +320,7 @@ export function AudioPlayer({
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
     audio.addEventListener("timeupdate", handleTimeUpdate);
     audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("pause", handlePause);
     audio.addEventListener("error", handleError);
 
     if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) {
@@ -319,9 +331,17 @@ export function AudioPlayer({
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("pause", handlePause);
       audio.removeEventListener("error", handleError);
     };
-  }, [articleId, audioUrl, playbackSpeed, savePlaybackProgress]);
+  }, [
+    articleId,
+    audioUrl,
+    cachedAudio.src,
+    playback?.currentTimeSeconds,
+    playbackSpeed,
+    savePlaybackProgress,
+  ]);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -686,10 +706,10 @@ export function AudioPlayer({
       {audioUrl ? (
         <audio
           ref={audioRef}
-          src={audioUrl}
+          src={cachedAudio.src}
           preload="metadata"
           className="hidden"
-          key={audioUrl}
+          key={cachedAudio.src}
         />
       ) : null}
 
@@ -715,6 +735,10 @@ export function AudioPlayer({
           onTogglePlay={togglePlayPause}
           onSelectSpeed={handleSpeedSelect}
           onSkip={skip}
+          onDownload={cachedAudio.download}
+          downloaded={cachedAudio.downloaded}
+          isDownloading={cachedAudio.saving}
+          downloadError={cachedAudio.error}
           onJumpToReadingPosition={
             onJumpToReadingPosition ? handleJumpToReadingPosition : undefined
           }
