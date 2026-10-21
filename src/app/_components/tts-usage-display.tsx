@@ -226,7 +226,9 @@ export function TTSUsageDisplay({ compact = false }: { compact?: boolean }) {
                     <td className="px-3 tabular-nums">
                       {count(row.requestedUnits)}
                       <span className="text-muted-foreground block">
-                        {count(row.reportedUnits)} provider-reported
+                        {row.reportedAttempts
+                          ? `${count(row.reportedUnits)} across ${count(row.reportedAttempts)} provider reports`
+                          : "Provider usage report unavailable"}
                       </span>
                     </td>
                     <td className="pl-3 text-right tabular-nums">

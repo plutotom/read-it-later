@@ -298,6 +298,15 @@ describe.skipIf(!url)(
       expect(own.allowances.stream.used).toBe(100);
       expect(own.allowances.legacy.used).toBe(800);
       expect(own.allowanceDifferences).toEqual({ stream: "0", legacy: "0" });
+      const current = await audioReport(
+        user,
+        new Date().toISOString().slice(0, 7),
+        false,
+        undefined,
+        database,
+      );
+      expect(current.summary.reportedAttempts).toBe(1);
+      expect(current.summary.reportedUnits).toBe("0");
     });
   },
 );

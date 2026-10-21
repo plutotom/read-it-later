@@ -43,6 +43,7 @@ export async function audioReport(
   const totals = {
     attempts: sql<number>`count(*)::int`,
     requestedUnits: sql<string>`coalesce(sum(${attempts.requestedUnits}),0)::text`,
+    reportedAttempts: sql<number>`count(*) filter (where ${attempts.reportedUnits} is not null)::int`,
     reportedUnits: sql<string>`coalesce(sum(${attempts.reportedUnits}),0)::text`,
     estimatedUsd: sql<string>`coalesce(sum(${attempts.estimatedUsd}),0)::text`,
     unknownPrice: sql<number>`count(*) filter (where ${attempts.estimatedUsd} is null)::int`,
