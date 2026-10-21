@@ -176,6 +176,9 @@ export function providerAdapter(
           if (line !== "" || !sseData.length) continue;
           const chunk = decodeSpeechify(event, sseData.join("\n"));
           sseData = [];
+          // Checkpoint the report before another network read can fail.
+          if (event === "speech.done" && billed !== undefined)
+            yield { type: "usage", units: billed };
           audio = chunk?.audio;
           marks =
             chunk?.speech_marks
@@ -221,10 +224,11 @@ export function providerAdapter(
         }
       }
       // SSE can omit its final blank line.
-      if (provider === "speechify" && sseData.length)
+      if (provider === "speechify" && sseData.length) {
         decodeSpeechify(event, sseData.join("\n"));
-      if (provider === "speechify" && billed !== undefined)
-        yield { type: "usage", units: billed };
+        if (event === "speech.done" && billed !== undefined)
+          yield { type: "usage", units: billed };
+      }
       if (
         (provider === "speechify" && !done) ||
         bytes === 0 ||

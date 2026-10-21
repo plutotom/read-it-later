@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   try {
     const { namespace } = await speechAccess.authorize(request, "generate");
     const input = requestSchema.parse(await readBody(request));
-    const { artifacts, cachedFrames, cleanupOrphans } =
+    const { artifacts, cachedFrames } =
       await import("~/server/services/native-speech/cache");
     const { generateArtifact } =
       await import("~/server/services/native-speech/generation");
@@ -72,7 +72,6 @@ export async function POST(request: Request) {
           }
         });
         waitUntil(work);
-        waitUntil(cleanupOrphans().catch(() => undefined));
       },
       cancel() {
         detached = true;

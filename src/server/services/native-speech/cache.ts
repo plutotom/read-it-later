@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
-import { del, get, put } from "@vercel/blob";
+import { get, put } from "@vercel/blob";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "./database";
 import { nativeSpeechCache as table } from "~/server/db/schema";
@@ -124,9 +124,8 @@ export const artifacts: ArtifactStore = {
         current.blobUrl === blob.url
       )
         return true;
-      // Keep an orphan record before attempting cleanup, so failed deletion is retryable.
+      // Retain the unreferenced upload for eventual store-wide reconciliation.
       await recordOrphan(blob.url);
-      await cleanupOrphans();
     }
     return result.length === 1;
   },
@@ -145,35 +144,14 @@ export async function removeArtifact(id: string) {
     .where(eq(table.id, id))
     .returning({ blobUrl: table.blobUrl });
   for (const row of rows) if (row.blobUrl) await recordOrphan(row.blobUrl);
-  await cleanupOrphans();
 }
 async function recordOrphan(url: string) {
   const { nativeSpeechOrphans } = await import("~/server/db/schema");
   await db.insert(nativeSpeechOrphans).values({ url }).onConflictDoNothing();
 }
-export async function cleanupOrphans() {
-  const { nativeSpeechOrphans } = await import("~/server/db/schema");
-  const rows = await db.select().from(nativeSpeechOrphans).limit(20);
-  for (const row of rows) {
-    const [referenced] = await db
-      .select({ id: table.id })
-      .from(table)
-      .where(and(eq(table.blobUrl, row.url), eq(table.state, "stored")))
-      .limit(1);
-    if (referenced) continue;
-    try {
-      await del(row.url, {
-        token: env.NATIVE_SPEECH_BLOB_TOKEN,
-        storeId: env.NATIVE_SPEECH_BLOB_STORE_ID,
-      });
-      await db
-        .delete(nativeSpeechOrphans)
-        .where(eq(nativeSpeechOrphans.url, row.url));
-    } catch {
-      /* Retained for the next generation/deletion or maintenance run. */
-    }
-  }
-}
+// Orphan rows are retained for store-wide reconciliation. A row in this database
+// cannot prove exclusivity: a cloned/independent database can still reference the
+// same paid artifact. Neither request handlers nor maintenance delete these blobs.
 export function cachedFrames(raw: string): string {
   // A replay is the same audio, with explicit cache provenance and a fresh archive ack.
   return raw

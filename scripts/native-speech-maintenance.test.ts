@@ -47,20 +47,22 @@ async function run(apply: boolean) {
   }
 }
 describe("shared-store maintenance", () => {
-  it("leaves unregistered blobs and explicit stored references untouched", async () => {
+  it("only inspects the queue and never deletes blobs", async () => {
     mocks.queued = [{ url }];
-    mocks.referenced.add(url);
-    await run(true);
+    await run(false);
     expect(mocks.deleted).not.toHaveBeenCalled();
     expect(mocks.end).toHaveBeenCalled();
   });
-  it("defaults to dry-run and only deletes explicitly queued safe private artifacts", async () => {
-    mocks.queued = [{ url }, { url: "https://example.com/not-a-speech-blob" }];
-    await run(false);
+  it("rejects --apply even when a cloned database has no local reference", async () => {
+    // Database A still owns this paid URL; its clone B queued it after removal.
+    // The CLI cannot see A, so absence from B is never sufficient evidence.
+    const databaseA = { stored: new Set([url]) };
+    mocks.queued = [{ url }];
+    expect(mocks.referenced.has(url)).toBe(false);
+    await expect(run(true)).rejects.toThrow(
+      "exclusive ownership cannot be proven",
+    );
+    expect(databaseA.stored.has(url)).toBe(true);
     expect(mocks.deleted).not.toHaveBeenCalled();
-    vi.resetModules();
-    await run(true);
-    expect(mocks.deleted).toHaveBeenCalledTimes(1);
-    expect(mocks.deleted.mock.calls[0]?.[0]).toBe(url);
   });
 });

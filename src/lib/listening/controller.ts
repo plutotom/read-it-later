@@ -337,6 +337,10 @@ export class ListeningController {
     const voice = this.snapshot.voice;
     const regenerate = this.regenerationSegment === index;
     if (regenerate) this.regenerationSegment = null;
+    const archive = (state: "stored" | "failed") => {
+      record.cacheStatus = state;
+      if (index === this.snapshot.segment) this.publish({ cacheStatus: state });
+    };
     try {
       for await (const event of this.source.stream(
         {
@@ -351,9 +355,7 @@ export class ListeningController {
         if (epoch !== this.epoch || abort.signal.aborted || this.disposed)
           return;
         if (event.type === "archive") {
-          record.cacheStatus = event.state;
-          if (index === this.snapshot.segment)
-            this.publish({ cacheStatus: event.state });
+          archive(event.state);
         } else if (event.type === "audio") {
           record.parts.push(event.data);
           record.bytes += event.data.length;
@@ -382,8 +384,13 @@ export class ListeningController {
         throw new Error(
           "The speech connection ended early. Retry this paragraph.",
         );
+      if (record.cacheStatus === undefined) archive("failed");
     } catch (error) {
       if (epoch !== this.epoch || abort.signal.aborted || this.disposed) return;
+      if (record.duration !== undefined) {
+        archive("failed");
+        return;
+      }
       this.records.delete(index);
       this.failedLookahead.add(index);
       if (index === this.snapshot.segment)

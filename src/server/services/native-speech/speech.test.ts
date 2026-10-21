@@ -44,6 +44,34 @@ const collect = async (
   return result;
 };
 describe("native provider boundary", () => {
+  it.each([0, 11])(
+    "emits received Speechify usage %i before a later transport failure",
+    async (units) => {
+      let reads = 0;
+      const fetcher = (async () =>
+        new Response(
+          new ReadableStream({
+            pull(controller) {
+              if (reads++ === 0)
+                controller.enqueue(
+                  new TextEncoder().encode(
+                    `event: speech.done\ndata: {"billable_characters_count":${units}}\n\n`,
+                  ),
+                );
+              else controller.error(new Error("synthetic reset"));
+            },
+          }),
+        )) as typeof fetch;
+      const stream = providerAdapter("speechify", "synthetic", fetcher).stream(
+        input,
+        new AbortController().signal,
+      );
+      expect(await stream.next()).toMatchObject({
+        value: { type: "usage", units },
+      });
+      await expect(stream.next()).rejects.toThrow("synthetic reset");
+    },
+  );
   it("parses fragmented Speechify SSE and normalizes milliseconds", async () => {
     const audio = Buffer.alloc(48000).toString("base64");
     const events = await collect(

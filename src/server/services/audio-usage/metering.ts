@@ -86,16 +86,21 @@ export function rateFor(
   const configured = overrides
     ? z.array(rateSchema).parse(JSON.parse(overrides))
     : [];
-  return [...configured, ...defaults]
-    .filter(
-      (r) =>
-        r.provider === provider &&
-        r.model === model &&
-        r.unit === unit &&
-        r.account === account &&
-        new Date(r.effectiveFrom) <= now,
-    )
-    .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
+  const applicable = (cards: RateCard[]) =>
+    cards
+      .filter(
+        (r) =>
+          r.provider === provider &&
+          r.model === model &&
+          r.unit === unit &&
+          r.account === account &&
+          new Date(r.effectiveFrom) <= now,
+      )
+      .sort(
+        (a, b) => Date.parse(b.effectiveFrom) - Date.parse(a.effectiveFrom),
+      )[0];
+  // Account contracts are authoritative; public cards are only a fallback.
+  return applicable(configured) ?? applicable(defaults);
 }
 /** Exact USD to 15 places: nine rate decimals + six (million). No floating point. */
 export function estimatedUsd(

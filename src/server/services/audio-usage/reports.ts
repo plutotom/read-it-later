@@ -77,8 +77,7 @@ export async function audioReport(
       attempts.unit,
       attempts.environment,
       attempts.providerAccount,
-    )
-    .limit(200);
+    );
   const recent = await database
     .select({
       id: attempts.id,
@@ -144,10 +143,26 @@ export async function audioReport(
     );
   const billing = all
     ? await database
-        .select()
+        // Reconcile complete financial aggregates, never a presentation row limit.
+        .select({
+          provider: audioBilling.provider,
+          providerAccount: audioBilling.providerAccount,
+          environment: audioBilling.environment,
+          model: audioBilling.model,
+          currency: audioBilling.currency,
+          gross: sql<string>`sum(${audioBilling.gross})::text`,
+          credits: sql<string>`sum(${audioBilling.credits})::text`,
+          net: sql<string>`sum(${audioBilling.net})::text`,
+        })
         .from(audioBilling)
         .where(eq(audioBilling.period, period))
-        .limit(200)
+        .groupBy(
+          audioBilling.provider,
+          audioBilling.providerAccount,
+          audioBilling.environment,
+          audioBilling.model,
+          audioBilling.currency,
+        )
     : [];
   const pending = await database
     .select({

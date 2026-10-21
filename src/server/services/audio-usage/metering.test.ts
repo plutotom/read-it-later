@@ -76,4 +76,42 @@ describe("provider metering and precise prices", () => {
     expect(googleModel("en-US-Chirp3-HD-Charon")).toBe("chirp3-hd");
     expect(month(new Date("2026-10-31T23:30:00-05:00"))).toBe("2026-11");
   });
+  it("prefers applicable configured contracts over newer public fallbacks and sorts instants", () => {
+    const card = {
+      provider: "google",
+      model: "chirp3-hd",
+      unit: "characters",
+      account: "default",
+      effectiveFrom: "2026-10-01T00:00:00Z",
+      version: "contract",
+      usdPerMillion: "25",
+    };
+    const now = new Date("2026-10-21T12:00:00Z");
+    const select = (cards: unknown[]) =>
+      rateFor(
+        "google",
+        "chirp3-hd",
+        "characters",
+        "default",
+        JSON.stringify(cards),
+        now,
+      );
+    expect(select([card])?.usdPerMillion).toBe("25");
+    expect(
+      select([
+        { ...card, effectiveFrom: "2026-11-01T00:00:00Z" },
+        { ...card, account: "other" },
+      ])?.version,
+    ).toBe("google-public-2026-10-21");
+    expect(
+      select([
+        card,
+        {
+          ...card,
+          effectiveFrom: "2026-10-01T00:00:00.100Z",
+          version: "later",
+        },
+      ])?.version,
+    ).toBe("later");
+  });
 });

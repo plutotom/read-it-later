@@ -199,8 +199,9 @@ export function StreamingAudioPlayer({
         )}
         {snapshot.cacheStatus === "failed" && (
           <p role="status" className="text-muted-foreground mt-2 text-xs">
-            Audio played, but could not be saved for replay. Another copy will
-            require explicit regeneration.
+            Saving this audio was not confirmed. It remains available during
+            this session. Later playback will check for a saved copy before
+            offering regeneration.
           </p>
         )}
         {snapshot.error && (

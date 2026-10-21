@@ -86,7 +86,95 @@ describe("browser speech source", () => {
       new AbortController().signal,
     ))
       values.push(event);
-    expect(values.map((v) => v.type)).toEqual(["audio", "marks", "complete"]);
+    expect(values.map((v) => v.type)).toEqual([
+      "audio",
+      "marks",
+      "complete",
+      "archive",
+    ]);
+    expect(values.at(-1)).toEqual({ type: "archive", state: "failed" });
+  });
+  it.each([false, true])(
+    "keeps validated audio when archive acknowledgement is missing (reset=%s)",
+    async (reset) => {
+      let sent = false;
+      const source = new HttpSpeechSource(
+        vi.fn(
+          async () =>
+            new Response(
+              new ReadableStream({
+                pull(controller) {
+                  if (!sent) {
+                    sent = true;
+                    controller.enqueue(
+                      new TextEncoder().encode(
+                        [
+                          start,
+                          audio,
+                          { type: "complete", duration: 1 } as const,
+                        ]
+                          .map(encodeEvent)
+                          .join(""),
+                      ),
+                    );
+                  } else if (reset)
+                    controller.error(new Error("archive connection reset"));
+                  else controller.close();
+                },
+              }),
+              { headers: { "Content-Type": "application/x-ndjson" } },
+            ),
+        ),
+      );
+      const values = [];
+      for await (const event of source.stream(
+        request,
+        new AbortController().signal,
+      ))
+        values.push(event);
+      expect(values.map((event) => event.type)).toEqual([
+        "audio",
+        "complete",
+        "archive",
+      ]);
+      expect(values.at(-1)).toEqual({ type: "archive", state: "failed" });
+    },
+  );
+  it("finishes after a stored acknowledgement without waiting for transport EOF", async () => {
+    const cancel = vi.fn();
+    const source = new HttpSpeechSource(
+      vi.fn(
+        async () =>
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(
+                  new TextEncoder().encode(
+                    [
+                      start,
+                      audio,
+                      { type: "complete", duration: 1 } as const,
+                      { type: "archive", state: "stored" } as const,
+                    ]
+                      .map(encodeEvent)
+                      .join(""),
+                  ),
+                );
+              },
+              cancel,
+            }),
+            { headers: { "Content-Type": "application/x-ndjson" } },
+          ),
+      ),
+    );
+    const values = [];
+    for await (const event of source.stream(
+      request,
+      new AbortController().signal,
+    ))
+      values.push(event);
+    expect(values.at(-1)).toEqual({ type: "archive", state: "stored" });
+    expect(cancel).toHaveBeenCalled();
   });
   it("rejects truncation, wrong voices, malformed base64, invalid duration and late errors", async () => {
     await expect(collect([start, audio])).rejects.toThrow("ended early");

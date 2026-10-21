@@ -1,10 +1,11 @@
 import { audioReport } from "./reports";
+import type { env } from "~/env";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import * as schema from "~/server/db/schema";
 import {
   beginAttempt,
@@ -16,6 +17,18 @@ import {
 } from "./ledger";
 import { prepareSpeech } from "./metering";
 import { reserveListeningUsageInTransaction } from "../listening/quota";
+
+vi.mock("~/env", async (importOriginal) => {
+  const actual = await importOriginal<{ env: typeof env }>();
+  return {
+    env: {
+      ...actual.env,
+      get AUDIO_USAGE_ADMIN_IDS() {
+        return process.env.AUDIO_USAGE_ADMIN_IDS;
+      },
+    },
+  };
+});
 
 const url = process.env.LISTENING_TEST_DATABASE_URL;
 describe.skipIf(!url)(
@@ -307,6 +320,77 @@ describe.skipIf(!url)(
       );
       expect(current.summary.reportedAttempts).toBe(1);
       expect(current.summary.reportedUnits).toBe("0");
+    });
+    it("reconciles all 201 tracked groups and imported slices without truncation", async () => {
+      const period = "2028-02",
+        jobId = "large-report";
+      await database.insert(schema.audioJobs).values({
+        id: jobId,
+        userId: user,
+        environment: "test",
+        path: "stream",
+        allowancePeriod: period,
+        state: "complete",
+        fence: randomUUID(),
+        leaseUntil: new Date(0),
+      });
+      await database.insert(schema.audioAttempts).values(
+        Array.from({ length: 201 }, (_, i) => ({
+          id: randomUUID(),
+          jobId,
+          userId: user,
+          provider: "google",
+          model: "chirp3-hd",
+          voice: "voice-" + i,
+          environment: "test",
+          providerAccount: "default",
+          payloadHash: "synthetic",
+          unit: "characters",
+          requestedUnits: 1,
+          measurement: "input_estimate",
+          state: "complete",
+          estimatedUsd: "1",
+          startedAt: new Date(period + "-01T12:00:00Z"),
+        })),
+      );
+      await database.insert(schema.audioBilling).values(
+        Array.from({ length: 201 }, (_, i) => ({
+          id: "large-bill-" + i,
+          provider: "google",
+          providerAccount: "default",
+          environment: "test",
+          period,
+          invoiceMonth: period,
+          sku: "sku-" + i,
+          model: "chirp3-hd",
+          currency: "USD",
+          gross: "1",
+          credits: "0",
+          net: "1",
+        })),
+      );
+      vi.stubEnv("AUDIO_USAGE_ADMIN_IDS", user);
+      try {
+        const report = await audioReport(
+          user,
+          period,
+          true,
+          undefined,
+          database,
+        );
+        expect(report.summary.attempts).toBe(201);
+        expect(report.breakdown).toHaveLength(201);
+        expect(report.billing).toHaveLength(1);
+        expect(report.billing[0]?.gross).toBe("201.000000000000000");
+        expect(report.reconciliation).toHaveLength(1);
+        expect(report.reconciliation[0]).toMatchObject({
+          gross: "201.000000000000000",
+          trackedEstimate: "201.000000000000000",
+          grossDifference: "0.000000000000000",
+        });
+      } finally {
+        vi.unstubAllEnvs();
+      }
     });
   },
 );

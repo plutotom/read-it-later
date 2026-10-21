@@ -265,10 +265,10 @@ removes audio unused for 28 days. iOS may purge Caches sooner. **Clear audio fro
 stops playback and clears local copies; it does not delete server copies. Bookmarks/settings
 are outside the audio cache. Article/notes/highlights remain in the existing SQLite library.
 
-`pnpm speech:maintenance` reports old unreferenced uploads; `--apply` deletes only orphan
-objects older than a day, retaining database retry records. It never ages out published audio.
-Run it periodically in a trusted environment with the native database/store credentials.
-Each pass scans at most 1,000 objects; large stores need a reviewed scheduled cleanup job.
+`pnpm speech:maintenance` reports the retained orphan queue. Deletion, including
+`--apply`, is disabled until store-wide reference authority can prove ownership:
+an independent or cloned database may still reference the same paid blob.
+Published audio and queued uploads remain stored. See `docs/audio-usage.md`.
 
 ### Implementation and verification
 

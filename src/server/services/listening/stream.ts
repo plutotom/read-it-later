@@ -396,8 +396,7 @@ export async function listeningStream(request: Request) {
         "Private speech storage must be configured before streaming can start.",
         503,
       );
-    const { artifacts, cleanupOrphans } =
-      await import("../native-speech/cache");
+    const { artifacts } = await import("../native-speech/cache");
     const id = listeningArtifactId(userId, text, voice);
     const cached =
       (await artifacts.read(id)) ??
@@ -507,7 +506,6 @@ export async function listeningStream(request: Request) {
             }
           });
           waitUntil(work);
-          waitUntil(cleanupOrphans().catch(() => undefined));
         },
         cancel() {
           detached = true;
