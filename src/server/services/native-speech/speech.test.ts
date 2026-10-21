@@ -14,7 +14,7 @@ const input: SpeechInput = {
   text: "Hello world",
   descriptor: voices("speechify")[0]!.descriptor,
 };
-function fetchStream(text: string, pieces = 3): typeof fetch {
+function fetchStream(text: string, pieces = 127): typeof fetch {
   return (() =>
     Promise.resolve(
       new Response(
