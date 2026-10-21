@@ -5,6 +5,7 @@ import { createListeningDocument } from "~/lib/listening/document";
 import type { ListeningEvent, ListeningVoice } from "~/lib/listening/protocol";
 
 const mocks = vi.hoisted(() => ({
+  enabled: "true",
   session: vi.fn(),
   article: vi.fn(),
   preference: vi.fn(),
@@ -22,7 +23,12 @@ vi.mock("~/server/db", () => ({
   },
 }));
 vi.mock("~/env", () => ({
-  env: { WEB_SPEECH_ENABLED: "true", TTS_VOICE_NAME: "en-US-Chirp3-HD-Charon" },
+  env: {
+    get WEB_SPEECH_ENABLED() {
+      return mocks.enabled;
+    },
+    TTS_VOICE_NAME: "en-US-Chirp3-HD-Charon",
+  },
 }));
 vi.mock("./quota", () => ({ reserveListeningUsage: mocks.reserve }));
 import {
@@ -57,11 +63,23 @@ const request = (value: unknown = input, origin = "https://app.example") =>
   });
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.enabled = "true";
   mocks.session.mockResolvedValue({ user: { id: "owner" } });
   mocks.article.mockResolvedValue({ content });
   mocks.preference.mockResolvedValue(undefined);
 });
 describe("authenticated listening boundary", () => {
+  it("disables streaming without touching article data or admitting generation", async () => {
+    mocks.enabled = "false";
+    const catalog = await listeningCatalog(request());
+    expect(catalog.status).toBe(200);
+    expect(await catalog.json()).toMatchObject({ enabled: false, voices: [] });
+    expect((await listeningStream(request())).status).toBe(404);
+    expect(mocks.preference).not.toHaveBeenCalled();
+    expect(mocks.article).not.toHaveBeenCalled();
+    expect(mocks.reserve).not.toHaveBeenCalled();
+  });
+
   it("requires a session before reading articles or admitting generation", async () => {
     mocks.session.mockResolvedValue(null);
     expect((await listeningStream(request())).status).toBe(401);
