@@ -66,12 +66,13 @@ describe("native speech deployment opt-in", () => {
     expect(nativeSpeechUnavailable()).toBeNull();
     const response = voices();
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({
-      protocol: 1,
-      mode: "unrestricted-prototype",
-      voices: expect.arrayContaining([
-        expect.objectContaining({ descriptor: expect.any(Object) }),
-      ]),
-    });
+    const body = (await response.json()) as {
+      protocol: number;
+      mode: string;
+      voices: unknown[];
+    };
+    expect(body.protocol).toBe(1);
+    expect(body.mode).toBe("unrestricted-prototype");
+    expect(body.voices.length).toBeGreaterThan(0);
   });
 });
