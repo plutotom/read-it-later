@@ -5,7 +5,7 @@
 
 import { sql } from "drizzle-orm";
 import { relations } from "drizzle-orm";
-import { index, pgTableCreator, pgEnum } from "drizzle-orm/pg-core";
+import { index, pgTableCreator, pgEnum, primaryKey } from "drizzle-orm/pg-core";
 import {
   account,
   accountRelations,
@@ -431,3 +431,18 @@ export const nativeSpeechOrphans = createTable("native_speech_orphan", (d) => ({
   url: d.text().primaryKey(),
   createdAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
 }));
+
+// Admission counts for web streaming. Provider failures can still incur charges.
+export const listeningUsage = createTable(
+  "listening_usage",
+  (d) => ({
+    userId: d
+      .text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    window: d.varchar({ length: 32 }).notNull(),
+    characters: d.integer().notNull().default(0),
+    requests: d.integer().notNull().default(0),
+  }),
+  (t) => [primaryKey({ columns: [t.userId, t.window] })],
+);

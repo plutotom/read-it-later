@@ -26,6 +26,14 @@ export const env = createEnv({
     GOOGLE_CLOUD_TTS_CREDENTIALS: z.string().optional(),
     TTS_VOICE_NAME: z.string().default("en-US-Chirp3-HD-Charon"),
     TTS_VOICE_LANGUAGE: z.string().default("en-US"),
+    // Authenticated web listening is rolled out independently of the iOS prototype.
+    WEB_SPEECH_ENABLED: z.enum(["true", "false"]).default("false"),
+    WEB_SPEECH_MONTHLY_CHARACTER_LIMIT: z.coerce
+      .number()
+      .int()
+      .min(1000)
+      .max(10_000_000)
+      .default(500_000),
     // Native speech is disabled unless a private test deployment explicitly opts in.
     NATIVE_SPEECH_ENABLED: z.enum(["true", "false"]).default("false"),
     // The enabled prototype remains unauthenticated until accounts land.
@@ -67,6 +75,9 @@ export const env = createEnv({
     GOOGLE_CLOUD_TTS_CREDENTIALS: process.env.GOOGLE_CLOUD_TTS_CREDENTIALS,
     TTS_VOICE_NAME: process.env.TTS_VOICE_NAME,
     TTS_VOICE_LANGUAGE: process.env.TTS_VOICE_LANGUAGE,
+    WEB_SPEECH_ENABLED: process.env.WEB_SPEECH_ENABLED,
+    WEB_SPEECH_MONTHLY_CHARACTER_LIMIT:
+      process.env.WEB_SPEECH_MONTHLY_CHARACTER_LIMIT,
     NATIVE_SPEECH_ENABLED: process.env.NATIVE_SPEECH_ENABLED,
     SPEECHIFY_API_KEY: process.env.SPEECHIFY_API_KEY,
     INWORLD_API_KEY: process.env.INWORLD_API_KEY,
