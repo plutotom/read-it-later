@@ -14,6 +14,7 @@ private actor ControlledSpeechService: SpeechService {
     }
     func count() -> Int { calls.count }
     func request(_ index: Int) -> SpeechRequest { calls[index] }
+    func index(for text: String) -> Int? { calls.lastIndex { $0.text == text } }
     func complete(_ index: Int, duration: Double = 10) {
         let request = calls[index]
         let first = try! NSRegularExpression(pattern: #"\S+"#).firstMatch(in: request.text, range: NSRange(location: 0, length: request.text.utf16.count))!.range
@@ -72,14 +73,16 @@ final class ListeningTests: XCTestCase {
         XCTAssertTrue(ListeningDocument(articleID: "empty", title: "", text: " \n\n ").chunks.isEmpty)
     }
 
-    @MainActor func testSelectedParagraphStartsWithoutWaitingForLookaheadAndReusesCache() async {
+    @MainActor func testSelectedParagraphStartsWithoutWaitingForLookaheadAndReusesCache() async throws {
         let service = ControlledSpeechService(); let transport = ManualTransport()
         let player = ListeningPlayer(service: service, transport: transport, automaticallyTick: false)
         player.start(document, paragraph: 1)
         await wait { await service.count() == 3 }
-        let first = await service.request(0)
-        XCTAssertEqual(first.text, "Second paragraph here.")
-        await service.complete(0)
+        // Concurrent requests can reach the service in any order. Complete only
+        // the selected paragraph; leave both lookahead requests pending.
+        let selectedIndex = await service.index(for: "Second paragraph here.")
+        let selected = try XCTUnwrap(selectedIndex)
+        await service.complete(selected)
         await wait { player.state == .playing }
         XCTAssertEqual(player.chunkIndex, 1)
         XCTAssertEqual(transport.loads, 1)
@@ -144,7 +147,7 @@ final class ListeningTests: XCTestCase {
         XCTAssertFalse(player.isPlaying)
         XCTAssertNil(player.sleepDeadline)
         player.start(document, paragraph: 4)
-        await wait { await service.count() >= 5 }
+        await wait { await service.index(for: "Fifth paragraph here.") != nil }
         // Locate the latest request; lookahead ordering is deliberately not asserted.
         let calls = await service.calls
         let last = calls.lastIndex(where: { $0.text == "Fifth paragraph here." })!
@@ -224,7 +227,7 @@ final class ListeningTests: XCTestCase {
 }
 
 extension ListeningTests {
-    @MainActor func testBookmarkRestoresActualTimeAndSpeedAcrossPlayerInstances() async {
+    @MainActor func testBookmarkRestoresActualTimeAndSpeedAcrossPlayerInstances() async throws {
         let id = UUID().uuidString
         let doc = ListeningDocument(articleID: id, title: "Bookmark", text: "A first paragraph.\n\nA second paragraph.\n\nA third paragraph.")
         defer { UserDefaults.standard.removeObject(forKey: "speech-bookmark-" + id) }
@@ -232,7 +235,9 @@ extension ListeningTests {
         let player = ListeningPlayer(service: service, transport: transport)
         player.start(doc)
         await wait { await service.count() == 3 }
-        await service.complete(0, duration: 10)
+        let firstIndex = await service.index(for: "A first paragraph.")
+        let first = try XCTUnwrap(firstIndex)
+        await service.complete(first, duration: 10)
         await wait { player.state == .playing }
         transport.position = 4; player.setRate(1.5); player.pause(); player.close()
         await service.finishAll()
@@ -240,7 +245,9 @@ extension ListeningTests {
         let reopened = ListeningPlayer(service: reopenedService, transport: reopenedTransport)
         reopened.start(doc)
         await wait { await reopenedService.count() == 3 }
-        await reopenedService.complete(0, duration: 10)
+        let reopenedIndex = await reopenedService.index(for: "A first paragraph.")
+        let reopenedFirst = try XCTUnwrap(reopenedIndex)
+        await reopenedService.complete(reopenedFirst, duration: 10)
         await wait { reopened.state == .playing }
         XCTAssertEqual(reopened.chunkIndex, 0)
         XCTAssertEqual(reopenedTransport.position, 4, accuracy: 0.01)
