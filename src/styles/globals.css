@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+.listening-paragraph {
+  background-color: color-mix(in oklch, var(--accent) 14%, transparent);
+  border-radius: 4px;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme {

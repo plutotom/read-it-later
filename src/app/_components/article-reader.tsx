@@ -32,6 +32,10 @@ import {
   isPdfArticle,
 } from "~/lib/article-content-kind";
 import { DocumentExtractionBanner } from "./document-extraction-banner";
+import { useReaderListening } from "~/hooks/use-reader-listening";
+import { segmentAtSourceOffset } from "~/lib/listening/document";
+import { StreamingAudioPlayer } from "./streaming-audio-player";
+import { ListeningHighlights } from "./listening-highlights";
 
 interface ArticleReaderProps {
   article: Article;
@@ -72,6 +76,12 @@ export function ArticleReader({
     return meta?.imageUrl ?? null;
   })();
   const isPdf = isPdfArticle(article);
+  const listening = useReaderListening(
+    article.id,
+    article.content,
+    contentRef,
+    !isPdf,
+  );
   const showDocumentAudio = !isPdf || hasExtractedText(article);
   const showExtractionWarning =
     isPdf && documentNeedsExtractionWarning(article);
@@ -276,9 +286,28 @@ export function ArticleReader({
       {!isPdf && (
         <HighlightToolbar
           contentRef={contentRef}
+          onListenFrom={
+            listening.controller
+              ? (offset) => {
+                  const controller = listening.controller!;
+                  const segment = segmentAtSourceOffset(
+                    controller.document,
+                    offset,
+                  );
+                  if (segment !== undefined) void controller.playFrom(segment);
+                }
+              : undefined
+          }
           onCreate={({ color, ...anchor }) =>
             createHighlight({ articleId: article.id, color, ...anchor })
           }
+        />
+      )}
+
+      {listening.controller && (
+        <ListeningHighlights
+          controller={listening.controller}
+          contentRef={contentRef}
         />
       )}
 
@@ -308,15 +337,28 @@ export function ArticleReader({
               isPlayerVisible ? "pointer-events-auto" : "pointer-events-none",
             )}
           >
-            <AudioPlayer
-              articleId={article.id}
-              articleTitle={article.title}
-              articleUrl={article.url}
-              articleAuthor={article.author}
-              articleImageUrl={articleImageUrl}
-              onJumpToReadingPosition={handleJumpToReadingPosition}
-              onPlayingChange={handlePlayingChange}
-            />
+            {listening.controller ? (
+              <StreamingAudioPlayer
+                controller={listening.controller}
+                voices={listening.voices}
+                title={article.title}
+                url={article.url}
+                author={article.author}
+                imageUrl={articleImageUrl}
+                contentRef={contentRef}
+                onPlayingChange={handlePlayingChange}
+              />
+            ) : (
+              <AudioPlayer
+                articleId={article.id}
+                articleTitle={article.title}
+                articleUrl={article.url}
+                articleAuthor={article.author}
+                articleImageUrl={articleImageUrl}
+                onJumpToReadingPosition={handleJumpToReadingPosition}
+                onPlayingChange={handlePlayingChange}
+              />
+            )}
           </div>
         </div>
       )}

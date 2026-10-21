@@ -1,5 +1,6 @@
 .build/
 .swiftpm/
+ReadingCore/Package.resolved
 *.xcodeproj/
 App/ReadItLater.entitlements
 App/Info.plist

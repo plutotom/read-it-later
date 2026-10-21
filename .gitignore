@@ -57,5 +57,6 @@ public/swe-worker*
 # PDF.js assets (copied on postinstall via scripts/copy-pdfjs-assets.mjs)
 public/pdfjs/
 /public/pdfjs/*
+/public/listening/soundtouch-processor.js
 
 .env*

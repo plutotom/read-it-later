@@ -4,48 +4,23 @@
  * Supports chunking for long articles and caching via Vercel Blob
  */
 
-import { TextToSpeechClient } from "@google-cloud/text-to-speech";
+import type { TextToSpeechClient } from "@google-cloud/text-to-speech";
 import { put, del } from "@vercel/blob";
 import { env } from "~/env";
 import { DEFAULT_VOICE, isChirp3Voice } from "~/lib/tts-voices";
 import { htmlToChirpMarkup } from "~/server/services/tts-markup";
 import { JSDOM } from "jsdom";
 import type { google } from "@google-cloud/text-to-speech/build/protos/protos";
+import { getGoogleTTSClient } from "./google-tts-client";
+import { enforceMaxSentenceLength } from "./tts-text";
+export { enforceMaxSentenceLength } from "./tts-text";
 
 // Max characters per chunk (Google Cloud TTS limit is 5000 bytes, ~4000 chars to be safe)
 const MAX_CHUNK_CHARS = 4000;
 
-// Chirp 3 HD rejects requests when a single sentence (a run of text between
-// terminal punctuation) is too long. Keep each sentence well under that limit.
-const MAX_SENTENCE_CHARS = 500;
-
-const SENTENCE_TERMINALS = new Set([".", "!", "?", "…"]);
-
 // Audio format settings
 const AUDIO_ENCODING = "MP3" as const;
 const AUDIO_CONTENT_TYPE = "audio/mpeg";
-
-/**
- * Get Google Cloud TTS client
- * Supports credentials via JSON string in env var
- */
-function getTTSClient(): TextToSpeechClient {
-  const credentials = process.env.GOOGLE_CLOUD_TTS_CREDENTIALS;
-
-  if (credentials) {
-    try {
-      const parsedCredentials = JSON.parse(credentials) as object;
-      return new TextToSpeechClient({
-        credentials: parsedCredentials,
-      });
-    } catch {
-      throw new Error("Invalid GOOGLE_CLOUD_TTS_CREDENTIALS JSON format");
-    }
-  }
-
-  // Fall back to Application Default Credentials
-  return new TextToSpeechClient();
-}
 
 /**
  * Strip HTML tags and convert to speakable plain text
@@ -152,65 +127,6 @@ function findLastWordBoundary(slice: string): number {
 }
 
 /**
- * Guarantee no single sentence exceeds the engine's per-sentence limit.
- * Sentences are bounded by terminal punctuation and pause markup tokens; any
- * longer run is split at word boundaries by inserting periods. This is a safety
- * net for content (long unpunctuated paragraphs, headings) that would otherwise
- * make Google TTS reject the request.
- */
-export function enforceMaxSentenceLength(
-  text: string,
-  maxChars: number = MAX_SENTENCE_CHARS,
-): string {
-  // Protect multi-word pause tokens from space tokenization. They also act as
-  // natural sentence boundaries, so reset the running length when we hit one.
-  const LONG = "PL";
-  const SHORT = "PS";
-  const protectedText = text
-    .replace(/\[pause long\]/gi, LONG)
-    .replace(/\[pause\]/gi, SHORT);
-
-  const tokens = protectedText.split(/\s+/);
-  const out: string[] = [];
-  let runLength = 0;
-
-  for (const token of tokens) {
-    if (!token) continue;
-
-    if (token === LONG || token === SHORT) {
-      out.push(token);
-      runLength = 0;
-      continue;
-    }
-
-    const spacer = runLength > 0 ? 1 : 0;
-    if (runLength > 0 && runLength + spacer + token.length > maxChars) {
-      const prev = out[out.length - 1];
-      if (prev && prev !== LONG && prev !== SHORT) {
-        const lastChar = prev[prev.length - 1]!;
-        if (!SENTENCE_TERMINALS.has(lastChar)) {
-          out[out.length - 1] = prev + ".";
-        }
-      }
-      runLength = 0;
-    }
-
-    out.push(token);
-    runLength += (runLength > 0 ? 1 : 0) + token.length;
-
-    const lastChar = token[token.length - 1]!;
-    if (SENTENCE_TERMINALS.has(lastChar)) {
-      runLength = 0;
-    }
-  }
-
-  return out
-    .join(" ")
-    .replaceAll(LONG, "[pause long]")
-    .replaceAll(SHORT, "[pause]");
-}
-
-/**
  * Synthesize a single text chunk to audio
  * Returns the audio buffer and character count billed for this chunk
  */
@@ -293,7 +209,7 @@ export async function generateAudioForArticle(
     throw new Error("BLOB_READ_WRITE_TOKEN is required for audio storage");
   }
 
-  const client = getTTSClient();
+  const client = getGoogleTTSClient();
   const voiceName =
     voiceNameOverride ?? process.env.TTS_VOICE_NAME ?? DEFAULT_VOICE;
   // Derive language code from voice name (e.g., "en-US-Neural2-A" -> "en-US")

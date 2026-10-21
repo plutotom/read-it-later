@@ -79,7 +79,8 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Verify speech generation leases and deletion fencing
-        run: pnpm exec vitest run src/server/services/native-speech/cache.integration.test.ts
+      - name: Verify speech leases, web admission limits, and upgrade preservation
+        run: pnpm exec vitest run src/server/services/native-speech/cache.integration.test.ts src/server/services/listening/quota.integration.test.ts src/server/services/listening/migration.integration.test.ts
         env:
           NATIVE_SPEECH_TEST_DATABASE_URL: postgresql://postgres:password@localhost:5432/speech_test
+          LISTENING_TEST_DATABASE_URL: postgresql://postgres:password@localhost:5432/speech_test
