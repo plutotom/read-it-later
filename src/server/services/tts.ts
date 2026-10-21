@@ -5,7 +5,7 @@
  */
 
 import type { TextToSpeechClient } from "@google-cloud/text-to-speech";
-import { put, del } from "@vercel/blob";
+import { put } from "@vercel/blob";
 import { env } from "~/env";
 import {
   DEFAULT_VOICE,
@@ -326,11 +326,4 @@ export async function generateAudioForArticle(
     voiceName,
     rawCharactersUsed,
   };
-}
-
-/**
- * Delete audio from Vercel Blob
- */
-export async function deleteAudioFromBlob(audioUrl: string): Promise<void> {
-  await del(audioUrl);
 }

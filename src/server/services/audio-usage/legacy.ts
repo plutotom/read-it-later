@@ -9,11 +9,7 @@ import {
   audioJobs,
 } from "~/server/db/schema";
 import { TTS_FREE_TIER_LIMIT, toWeightedCharacters } from "~/lib/tts-voices";
-import {
-  generateAudioForArticle,
-  prepareArticleAudio,
-  deleteAudioFromBlob,
-} from "../tts";
+import { generateAudioForArticle, prepareArticleAudio } from "../tts";
 import { SpeechFault } from "../native-speech/protocol";
 import {
   claimJob,
@@ -198,8 +194,8 @@ export async function legacyAudio(input: {
       await settleJob(tx, key, fence, "complete", "stored");
       return audio!;
     });
-    if (existing && existing.audioUrl !== result.audioUrl)
-      await deleteAudioFromBlob(existing.audioUrl).catch(() => undefined);
+    // The previous URL may still be referenced by a cloned database. Retain the
+    // paid bytes until store-wide reference authority can prove exclusivity.
     return { audio, cached: false };
   } catch (error) {
     await finishJob(
@@ -233,7 +229,7 @@ export async function deleteLegacyAudio(userId: string, articleId: string) {
       )
       .returning({ url: articleAudio.audioUrl });
   });
-  for (const row of removed)
-    await deleteAudioFromBlob(row.url).catch(() => undefined);
+  // Removing the account's reference does not prove the shared blob is unused.
+  // Keep its bytes for other databases, just as for private speech artifacts.
   return { success: true, deleted: removed.length > 0 };
 }
