@@ -255,7 +255,23 @@ export class ListeningController {
       remaining -= this.duration(index);
       index++;
     }
-    void this.playFrom(index, remaining);
+    if (this.snapshot.wantsPlayback) {
+      void this.playFrom(index, remaining);
+    } else {
+      // Moving the playhead is not a request to start billable synthesis.
+      this.invalidate();
+      this.offset = remaining;
+      this.publish({
+        segment: index,
+        time: remaining,
+        state: "paused",
+        wantsPlayback: false,
+        paragraph: null,
+        word: null,
+        error: null,
+      });
+      this.bookmark();
+    }
   }
   private appendRemaining(index: number, record: AudioRecord) {
     while (record.sent < record.parts.length)

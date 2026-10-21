@@ -30,6 +30,7 @@ export interface AudioPlayerExpandedProps {
   playbackSpeed: number;
   disabled?: boolean;
   onSeek: (time: number) => void;
+  commitSeekOnRelease?: boolean;
   onTogglePlay: () => void;
   onSelectSpeed: (speed: number) => void;
   onSkip: (deltaSeconds: number) => void;
@@ -96,6 +97,7 @@ export function AudioPlayerExpanded({
   playbackSpeed,
   disabled,
   onSeek,
+  commitSeekOnRelease,
   onTogglePlay,
   onSelectSpeed,
   onSkip,
@@ -135,6 +137,7 @@ export function AudioPlayerExpanded({
           value={currentTime}
           max={duration}
           onChange={onSeek}
+          commitOnRelease={commitSeekOnRelease}
           disabled={disabled}
         />
         <AudioPlayerSeekTimes

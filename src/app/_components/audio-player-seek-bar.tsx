@@ -1,6 +1,18 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { cn } from "~/lib/utils";
+
+const SEEK_KEYS = new Set([
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "ArrowDown",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+]);
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -12,6 +24,8 @@ interface AudioPlayerSeekBarProps {
   value: number;
   max: number;
   onChange: (value: number) => void;
+  /** Streaming commits once per gesture so scrubbing cannot synthesize intermediate passages. */
+  commitOnRelease?: boolean;
   disabled?: boolean;
   className?: string;
 }
@@ -20,10 +34,22 @@ export function AudioPlayerSeekBar({
   value,
   max,
   onChange,
+  commitOnRelease = false,
   disabled,
   className,
 }: AudioPlayerSeekBarProps) {
-  const pct = max > 0 ? (value / max) * 100 : 0;
+  const [preview, setPreview] = useState<number | null>(null);
+  const pending = useRef<number | null>(null);
+  const interaction = useRef<"pointer" | "keyboard" | null>(null);
+  const finish = (commit: boolean) => {
+    const next = pending.current;
+    pending.current = null;
+    interaction.current = null;
+    setPreview(null);
+    if (commit && next !== null) onChange(next);
+  };
+  const displayed = preview ?? value;
+  const pct = max > 0 ? (displayed / max) * 100 : 0;
 
   return (
     <div className={cn("relative w-full", className)}>
@@ -45,9 +71,54 @@ export function AudioPlayerSeekBar({
         min={0}
         max={max || 0}
         step={0.1}
-        value={value}
+        value={displayed}
         disabled={!!disabled || max <= 0}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        onChange={(e) => {
+          const next = parseFloat(e.target.value);
+          if (commitOnRelease && interaction.current) {
+            pending.current = next;
+            setPreview(next);
+          } else {
+            // Assistive technology can change a range without a pointer/key gesture.
+            onChange(next);
+          }
+        }}
+        onPointerDown={
+          commitOnRelease
+            ? (event) => {
+                interaction.current = "pointer";
+                event.currentTarget.setPointerCapture?.(event.pointerId);
+              }
+            : undefined
+        }
+        onPointerUp={commitOnRelease ? () => finish(true) : undefined}
+        onPointerCancel={commitOnRelease ? () => finish(false) : undefined}
+        onLostPointerCapture={
+          commitOnRelease
+            ? () => {
+                if (interaction.current === "pointer") finish(true);
+              }
+            : undefined
+        }
+        onKeyDown={
+          commitOnRelease
+            ? (event) => {
+                if (SEEK_KEYS.has(event.key)) interaction.current = "keyboard";
+              }
+            : undefined
+        }
+        onKeyUp={
+          commitOnRelease
+            ? (event) => {
+                if (
+                  SEEK_KEYS.has(event.key) &&
+                  interaction.current === "keyboard"
+                )
+                  finish(true);
+              }
+            : undefined
+        }
+        onBlur={commitOnRelease ? () => finish(true) : undefined}
         className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
         aria-label="Seek playback position"
       />

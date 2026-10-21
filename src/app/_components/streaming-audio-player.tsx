@@ -219,6 +219,7 @@ export function StreamingAudioPlayer({
           isPlaying={snapshot.wantsPlayback}
           playbackSpeed={snapshot.rate}
           onSeek={(time) => controller.seek(time)}
+          commitSeekOnRelease
           onTogglePlay={() => controller.toggle()}
           onSelectSpeed={(rate) => controller.setRate(rate)}
           onSkip={(delta) => controller.seek(snapshot.elapsed + delta)}

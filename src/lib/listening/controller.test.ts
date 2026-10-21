@@ -148,6 +148,38 @@ describe("listening playback controller", () => {
     expect(transport.append).not.toHaveBeenCalled();
     player.dispose();
   });
+  it("moves a paused playhead without unlocking audio or generating speech until play", async () => {
+    const { player, source, transport } = setup(1);
+    const target = player.getSnapshot().duration / 2;
+    player.seek(target);
+    expect(player.getSnapshot()).toMatchObject({
+      state: "paused",
+      wantsPlayback: false,
+      time: target,
+    });
+    expect(source.calls).toHaveLength(0);
+    expect(transport.unlock).not.toHaveBeenCalled();
+    await player.resume();
+    expect(source.calls).toHaveLength(1);
+    expect(transport.reset).toHaveBeenLastCalledWith(0, target);
+    source.complete(0);
+    await turn();
+    transport.render(0, 0.5);
+    player.pause();
+    const starts = transport.play.mock.calls.length;
+    player.seek(0.75);
+    expect(player.getSnapshot()).toMatchObject({
+      state: "paused",
+      wantsPlayback: false,
+      time: 0.75,
+    });
+    expect(source.calls).toHaveLength(1);
+    expect(transport.play).toHaveBeenCalledTimes(starts);
+    await player.resume();
+    expect(transport.reset).toHaveBeenLastCalledWith(0, 0.75);
+    expect(source.calls).toHaveLength(1);
+    player.dispose();
+  });
   it("holds lookahead audio until validated and maps marks using the rendered clock", async () => {
     const { player, source, transport, document } = setup();
     await player.playFrom(0);
