@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { SidebarTrigger } from "~/components/ui/sidebar";
 import { Separator } from "~/components/ui/separator";
 import { useSession } from "~/lib/auth-client";
@@ -27,7 +28,11 @@ export function DesktopNav({ pageTitle }: DesktopNavProps) {
           </div>
 
           <div className="flex min-w-0 items-center gap-2">
-            <div className="bg-accent hidden h-7 w-7 items-center justify-center rounded-[8px] text-white shadow-[var(--shadow-soft)] md:flex">
+            <Link
+              href="/"
+              aria-label="Go to Inbox"
+              className="bg-accent focus-visible:ring-ring hidden h-7 w-7 items-center justify-center rounded-[8px] text-white shadow-[var(--shadow-soft)] outline-none focus-visible:ring-2 focus-visible:ring-offset-2 md:flex"
+            >
               <span
                 className="text-[15px] leading-none font-bold"
                 style={{
@@ -37,7 +42,7 @@ export function DesktopNav({ pageTitle }: DesktopNavProps) {
               >
                 M
               </span>
-            </div>
+            </Link>
             <h1
               className="text-foreground truncate text-lg font-medium tracking-tight"
               style={{ fontFamily: "var(--font-app-display)" }}
