@@ -1,5 +1,10 @@
 import type { SoundTouchNode } from "@soundtouchjs/audio-worklet";
 
+// Audio Session is supported by Safari but is not yet in TypeScript's DOM types.
+interface BrowserAudioSession {
+  type: string;
+}
+
 export interface RenderPosition {
   segment: number;
   time: number;
@@ -36,10 +41,25 @@ export class BrowserSpeechTransport implements ListeningTransport {
   private rate = 1;
   private createPitch: (() => SoundTouchNode) | null = null;
   private endedAt: number | null = null;
+  private audioSession: BrowserAudioSession | null = null;
+  private previousSessionType: string | null = null;
 
   unlock(): Promise<void> {
     if (this.disposed)
       return Promise.reject(new Error("The audio player has closed."));
+    const session = (
+      navigator as Navigator & { audioSession?: BrowserAudioSession }
+    ).audioSession;
+    if (session) {
+      if (!this.audioSession) {
+        this.audioSession = session;
+        this.previousSessionType = session.type;
+      }
+      // Web Audio defaults to ambient on iOS: the silent switch mutes it and
+      // it is ineligible for background playback and Now Playing controls.
+      // Claim playback in the user's gesture, before creating/resuming audio.
+      session.type = "playback";
+    }
     // Create and resume synchronously in the user's click, before awaiting modules.
     this.context ??= new AudioContext({ latencyHint: "playback" });
     const context = this.context;
@@ -140,6 +160,9 @@ export class BrowserSpeechTransport implements ListeningTransport {
     this.node?.port.close();
     this.pitch?.port.close();
     void this.context?.close().catch(() => undefined);
+    if (this.audioSession?.type === "playback")
+      this.audioSession.type = this.previousSessionType!;
+    this.audioSession = null;
     this.node = null;
     this.pitch = null;
   }
