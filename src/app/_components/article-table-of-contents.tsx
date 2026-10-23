@@ -15,6 +15,7 @@ interface ArticleTableOfContentsProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate: (id: string) => void;
+  className?: string;
 }
 
 export function ArticleTableOfContents({
@@ -23,6 +24,7 @@ export function ArticleTableOfContents({
   isOpen,
   onClose,
   onNavigate,
+  className,
 }: ArticleTableOfContentsProps) {
   useEffect(() => {
     if (!isOpen) return;
@@ -45,6 +47,7 @@ export function ArticleTableOfContents({
         "left-5 sm:left-8",
         "transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none",
         isOpen ? "translate-x-0 opacity-100" : "-translate-x-3 opacity-0",
+        className,
       )}
       aria-label="Table of contents"
       aria-hidden={!isOpen}
