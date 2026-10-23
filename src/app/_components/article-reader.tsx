@@ -61,6 +61,8 @@ export function ArticleReader({
   const [fontSize, setFontSize] = useState(19);
   const [showSettings, setShowSettings] = useState(false);
   const [viewMode, setViewMode] = useState<ArticleViewMode>("reader");
+  const [showWebViewHint, setShowWebViewHint] = useState(false);
+  const hasShownWebViewHintRef = useRef(false);
   const readerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -106,6 +108,20 @@ export function ArticleReader({
       });
       window.getSelection()?.removeAllRanges();
       setShowSettings(false);
+      if (viewMode !== "web") {
+        let hasSeenHint = hasShownWebViewHintRef.current;
+        try {
+          const key = `ril:web-view-hint:v1:${article.id}`;
+          hasSeenHint ||= sessionStorage.getItem(key) === "1";
+          sessionStorage.setItem(key, "1");
+        } catch {
+          // The reader's ref still suppresses repeat notices if storage is blocked.
+        }
+        hasShownWebViewHintRef.current = true;
+        setShowWebViewHint(!hasSeenHint);
+      }
+    } else {
+      setShowWebViewHint(false);
     }
     setViewMode(mode);
   };
@@ -255,6 +271,8 @@ export function ArticleReader({
             key={article.url}
             url={webUrl}
             title={article.title}
+            showEmbeddingHint={showWebViewHint}
+            onDismissEmbeddingHint={() => setShowWebViewHint(false)}
           />
         )}
 

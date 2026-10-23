@@ -84,6 +84,7 @@ let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
   vi.clearAllMocks();
+  sessionStorage.clear();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(
     mocks.mediaPause,
@@ -91,6 +92,58 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
+});
+
+it("shows the tip once per article per tab session, including after reopening the reader", async () => {
+  await act(async () =>
+    root.render(createElement(ArticleReader, { key: "first-visit", article })),
+  );
+  await click("web");
+  expect(
+    container.querySelector('[aria-label="Dismiss Web view tip"]'),
+  ).not.toBeNull();
+  await click("reader");
+  await click("web");
+  expect(
+    container.querySelector('[aria-label="Dismiss Web view tip"]'),
+  ).toBeNull();
+
+  await act(async () =>
+    root.render(createElement(ArticleReader, { key: "reopened", article })),
+  );
+  await click("web");
+  expect(
+    container.querySelector('[aria-label="Dismiss Web view tip"]'),
+  ).toBeNull();
+
+  await act(async () =>
+    root.render(
+      createElement(ArticleReader, {
+        key: "another-article",
+        article: { ...article, id: "another-article" },
+      }),
+    ),
+  );
+  await click("web");
+  expect(
+    container.querySelector('[aria-label="Dismiss Web view tip"]'),
+  ).not.toBeNull();
+});
+
+it("suppresses repeat toggles even when browser storage is unavailable", async () => {
+  vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+    throw new DOMException("Storage is blocked", "SecurityError");
+  });
+  await act(async () => root.render(createElement(ArticleReader, { article })));
+  await click("web");
+  expect(
+    container.querySelector('[aria-label="Dismiss Web view tip"]'),
+  ).not.toBeNull();
+  await click("reader");
+  await click("web");
+  expect(
+    container.querySelector('[aria-label="Dismiss Web view tip"]'),
+  ).toBeNull();
 });
 afterEach(async () => {
   await act(async () => root.unmount());

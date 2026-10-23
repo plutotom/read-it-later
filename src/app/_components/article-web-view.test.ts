@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // @vitest-environment-options {"url":"https://reader.example.com"}
 
-import { act, createElement } from "react";
+import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ArticleWebView } from "./article-web-view";
@@ -24,12 +24,25 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function mount(url = "https://example.com/interactive") {
+function WebViewFixture({ url, showHint }: { url: string; showHint: boolean }) {
+  const [isHintOpen, setIsHintOpen] = useState(showHint);
+  return createElement(ArticleWebView, {
+    url,
+    title: "Interactive article",
+    showEmbeddingHint: isHintOpen,
+    onDismissEmbeddingHint: () => setIsHintOpen(false),
+  });
+}
+
+async function mount(
+  url = "https://example.com/interactive",
+  showHint = false,
+) {
   await act(async () =>
     root.render(
-      createElement(ArticleWebView, {
+      createElement(WebViewFixture, {
         url,
-        title: "Interactive article",
+        showHint,
       }),
     ),
   );
@@ -63,13 +76,36 @@ it("keeps the escape link available even when a blocked frame emits load", async
     container.querySelector("iframe")!.dispatchEvent(new Event("load")),
   );
   expect(container.querySelector('[role="status"]')).toBeNull();
-  expect(container.textContent).toContain(
-    "Some sites don't allow embedded viewing",
+  expect(container.textContent).not.toContain(
+    "Page blank or missing something?",
   );
   const link = container.querySelector("a")!;
   expect(link.href).toBe("https://example.com/interactive");
   expect(link.target).toBe("_blank");
   expect(link.rel).toBe("noopener noreferrer");
+});
+
+it("automatically dismisses the first-use tip while keeping the original link", async () => {
+  await mount("https://example.com/interactive", true);
+  expect(container.querySelector('li[data-state="open"]')).not.toBeNull();
+  expect(container.textContent).toContain("Page blank or missing something?");
+  await act(async () => vi.advanceTimersByTime(50));
+  await act(async () => vi.advanceTimersByTime(7_000));
+  expect(container.querySelector('li[data-state="open"]')).toBeNull();
+  expect(container.querySelector('a[target="_blank"]')?.textContent).toContain(
+    "Open original",
+  );
+});
+
+it("lets the reader dismiss the tip early", async () => {
+  await mount("https://example.com/interactive", true);
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>('[aria-label="Dismiss Web view tip"]')!
+      .click(),
+  );
+  expect(container.querySelector('li[data-state="open"]')).toBeNull();
+  expect(container.querySelector("iframe")).not.toBeNull();
 });
 
 it("offers a way out of a slow load and reloads the original frame", async () => {
