@@ -375,11 +375,6 @@ export function ArticleReader({
 
       {hasToc && !isPdf && !isWebView && (
         <ArticleTableOfContents
-          className={
-            webUrl
-              ? "top-[calc(env(safe-area-inset-top,0px)+7.75rem)]"
-              : undefined
-          }
           headings={headings}
           activeId={activeId}
           isOpen={isTocOpen}

@@ -10,7 +10,7 @@ import Link from "next/link";
 import { type Article } from "~/types/article";
 import { ReadingSettings } from "./reading-settings";
 import { Button } from "~/components/ui/button";
-import { Settings, ArrowLeft, List, BookOpen, Globe } from "lucide-react";
+import { Settings, ArrowLeft, List } from "lucide-react";
 import { type ArticleViewMode } from "~/lib/article-web-view";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
@@ -171,6 +171,8 @@ export function ArticleReaderHeader({
             article={article}
             alwaysVisible
             showShare
+            viewMode={viewMode}
+            onViewModeChange={onViewModeChange}
             onArchive={() => archive({ id: article.id })}
             onUnarchive={() => unarchive({ id: article.id })}
             onDelete={() => deleteArticle({ id: article.id })}
@@ -178,39 +180,6 @@ export function ArticleReaderHeader({
           />
         </div>
       </div>
-
-      {onViewModeChange && (
-        <div className="flex justify-center px-4 pb-2 sm:pb-3">
-          <div
-            role="group"
-            aria-label="Article view"
-            className="bg-background-deep border-rule inline-flex gap-1 rounded-full border p-1"
-          >
-            {(
-              [
-                ["reader", "Reader", BookOpen],
-                ["web", "Web", Globe],
-              ] as const
-            ).map(([mode, label, Icon]) => (
-              <button
-                key={mode}
-                type="button"
-                aria-pressed={viewMode === mode}
-                onClick={() => onViewModeChange(mode)}
-                className={cn(
-                  "focus-visible:ring-accent inline-flex min-h-9 items-center gap-1.5 rounded-full px-5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none",
-                  viewMode === mode
-                    ? "bg-surface text-foreground shadow-[var(--shadow-soft)]"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" aria-hidden />
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {viewMode === "reader" && showSettings && (
         <div className="border-rule border-t px-4 py-3 sm:px-8">
