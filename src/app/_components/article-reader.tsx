@@ -10,7 +10,13 @@ import {
   type ArticleMetadata as ArticleMeta,
 } from "~/types/article";
 import { type Note } from "~/types/annotation";
-import { useState, useRef, useEffect, useCallback } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+} from "react";
 import { ArticleReaderHeader } from "./article-reader-header";
 import { ArticleMetadata } from "./article-metadata";
 import { ArticleContent } from "./article-content";
@@ -36,6 +42,8 @@ import { useReaderListening } from "~/hooks/use-reader-listening";
 import { segmentAtSourceOffset } from "~/lib/listening/document";
 import { StreamingAudioPlayer } from "./streaming-audio-player";
 import { ListeningHighlights } from "./listening-highlights";
+import { ArticleWebView } from "./article-web-view";
+import { getArticleWebUrl, type ArticleViewMode } from "~/lib/article-web-view";
 
 interface ArticleReaderProps {
   article: Article;
@@ -52,6 +60,10 @@ export function ArticleReader({
 }: ArticleReaderProps) {
   const [fontSize, setFontSize] = useState(19);
   const [showSettings, setShowSettings] = useState(false);
+  const [viewMode, setViewMode] = useState<ArticleViewMode>("reader");
+  const [showWebViewHint, setShowWebViewHint] = useState(false);
+  const hasShownWebViewHintRef = useRef(false);
+  const readerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const markedAsReadRef = useRef<string | null>(null);
@@ -76,6 +88,8 @@ export function ArticleReader({
     return meta?.imageUrl ?? null;
   })();
   const isPdf = isPdfArticle(article);
+  const webUrl = !isPdf ? getArticleWebUrl(article.url) : null;
+  const isWebView = viewMode === "web" && webUrl !== null;
   const listening = useReaderListening(
     article.id,
     article.content,
@@ -85,6 +99,38 @@ export function ArticleReader({
   const showDocumentAudio = !isPdf || hasExtractedText(article);
   const showExtractionWarning =
     isPdf && documentNeedsExtractionWarning(article);
+
+  const handleViewModeChange = (mode: ArticleViewMode) => {
+    if (mode === "web") {
+      listening.controller?.pause();
+      readerRef.current?.querySelectorAll("audio, video").forEach((media) => {
+        (media as HTMLMediaElement).pause();
+      });
+      window.getSelection()?.removeAllRanges();
+      setShowSettings(false);
+      if (viewMode !== "web") {
+        let hasSeenHint = hasShownWebViewHintRef.current;
+        try {
+          const key = `ril:web-view-hint:v1:${article.id}`;
+          hasSeenHint ||= sessionStorage.getItem(key) === "1";
+          sessionStorage.setItem(key, "1");
+        } catch {
+          // The reader's ref still suppresses repeat notices if storage is blocked.
+        }
+        hasShownWebViewHintRef.current = true;
+        setShowWebViewHint(!hasSeenHint);
+      }
+    } else {
+      setShowWebViewHint(false);
+    }
+    setViewMode(mode);
+  };
+
+  useLayoutEffect(() => {
+    if (!isWebView && scrollerRef.current) {
+      scrollerRef.current.scrollTop = lastScrollTopRef.current;
+    }
+  }, [isWebView]);
 
   const handleJumpToReadingPosition = useCallback((progressRatio: number) => {
     const scroller = scrollerRef.current;
@@ -129,7 +175,7 @@ export function ArticleReader({
     close: closeToc,
     open: openToc,
   } = useTocOpenPreference();
-  const tocContentKey = `${article.id}:${fontSize}:${article.content.length}`;
+  const tocContentKey = `${article.id}:${fontSize}:${article.content.length}:${isWebView}`;
   const { headings, activeId, scrollToHeading, hasToc } = useArticleToc({
     contentRef,
     scrollerRef,
@@ -166,7 +212,7 @@ export function ArticleReader({
 
   useEffect(() => {
     const el = scrollerRef.current;
-    if (!el || isPdf) return;
+    if (!el || isPdf || isWebView) return;
 
     const onScroll = () => {
       const scrollTop = el.scrollTop;
@@ -195,12 +241,15 @@ export function ArticleReader({
     onScroll();
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, [article.id, isPdf]);
+  }, [article.id, isPdf, isWebView]);
 
   const readingProgress = isPdf ? pdfProgress : progress;
 
   return (
-    <div className="bg-background relative flex h-dvh max-h-dvh w-full flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)]">
+    <div
+      ref={readerRef}
+      className="bg-background relative flex h-dvh max-h-dvh w-full flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)]"
+    >
       {/* m-slide-in uses transform; keep fixed/absolute docks outside it (iOS Safari) */}
       <div className="m-slide-in flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <ArticleReaderHeader
@@ -213,9 +262,21 @@ export function ArticleReader({
           isTocOpen={isTocOpen}
           onOpenToc={openToc}
           returnTo={returnTo}
+          viewMode={viewMode}
+          onViewModeChange={webUrl ? handleViewModeChange : undefined}
         />
 
-        <div className="bg-background-deep h-[2px]">
+        {isWebView && webUrl && (
+          <ArticleWebView
+            key={article.url}
+            url={webUrl}
+            title={article.title}
+            showEmbeddingHint={showWebViewHint}
+            onDismissEmbeddingHint={() => setShowWebViewHint(false)}
+          />
+        )}
+
+        <div hidden={isWebView} className="bg-background-deep h-[2px]">
           <div
             className="bg-accent h-full transition-[width] duration-150 ease-out"
             style={{ width: `${readingProgress}%` }}
@@ -226,6 +287,7 @@ export function ArticleReader({
           ref={isPdf ? undefined : scrollerRef}
           className={cn(
             "min-h-0 min-w-0 flex-1 pt-8 pb-36 sm:pt-12 sm:pb-40",
+            isWebView && "hidden",
             isPdf
               ? "flex flex-col overflow-hidden px-3 sm:px-6"
               : "scroll-pt-24 overflow-x-hidden overflow-y-auto px-5 sm:px-8",
@@ -283,7 +345,7 @@ export function ArticleReader({
         </div>
       </div>
 
-      {!isPdf && (
+      {!isPdf && !isWebView && (
         <HighlightToolbar
           contentRef={contentRef}
           onListenFrom={
@@ -311,7 +373,7 @@ export function ArticleReader({
         />
       )}
 
-      {hasToc && !isPdf && (
+      {hasToc && !isPdf && !isWebView && (
         <ArticleTableOfContents
           headings={headings}
           activeId={activeId}
@@ -325,6 +387,7 @@ export function ArticleReader({
         <div
           className={cn(
             "reader-audio-dock reader-audio-dock-bottom pointer-events-none absolute inset-x-0 z-30 px-5 sm:px-8",
+            isWebView && "hidden",
             isPlayerVisible
               ? "reader-audio-dock--visible"
               : "reader-audio-dock--hidden",

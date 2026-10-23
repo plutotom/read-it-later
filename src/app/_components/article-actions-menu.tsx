@@ -19,7 +19,10 @@ import {
   Archive,
   Share2,
   Trash2,
+  BookOpen,
+  Globe,
 } from "lucide-react";
+import { type ArticleViewMode } from "~/lib/article-web-view";
 import { ParaToggle } from "./para-toggle";
 import { ShareDialog } from "./share-dialog";
 import { cn } from "~/lib/utils";
@@ -41,6 +44,8 @@ interface ArticleActionsMenuProps {
   showShare?: boolean;
   align?: "start" | "center" | "end";
   className?: string;
+  viewMode?: ArticleViewMode;
+  onViewModeChange?: (mode: ArticleViewMode) => void;
 }
 
 export function ArticleActionsMenu({
@@ -53,6 +58,8 @@ export function ArticleActionsMenu({
   showShare = false,
   align = "end",
   className,
+  viewMode = "reader",
+  onViewModeChange,
 }: ArticleActionsMenuProps) {
   const { setMetadataEditArticle } = useContext(GeneralContext);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -86,6 +93,25 @@ export function ArticleActionsMenu({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align={align} className="w-48">
+          {onViewModeChange && (
+            <DropdownMenuItem
+              onPointerDown={preventMenuClickThrough}
+              onClick={(event) => {
+                event.stopPropagation();
+                onViewModeChange(viewMode === "web" ? "reader" : "web");
+              }}
+            >
+              {viewMode === "web" ? (
+                <BookOpen className="mr-2 h-4 w-4" aria-hidden />
+              ) : (
+                <Globe className="mr-2 h-4 w-4" aria-hidden />
+              )}
+              {viewMode === "web"
+                ? "Switch to Reader view"
+                : "Switch to Web view"}
+            </DropdownMenuItem>
+          )}
+
           <DropdownMenuItem
             onPointerDown={preventMenuClickThrough}
             onClick={(e) => {
