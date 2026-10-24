@@ -5,7 +5,7 @@
 
 import { sql } from "drizzle-orm";
 import { relations } from "drizzle-orm";
-import { index, pgTableCreator, pgEnum } from "drizzle-orm/pg-core";
+import { index, pgTableCreator, pgEnum, primaryKey } from "drizzle-orm/pg-core";
 import {
   account,
   accountRelations,
@@ -430,4 +430,148 @@ export const nativeSpeechCache = createTable("native_speech_cache", (d) => ({
 export const nativeSpeechOrphans = createTable("native_speech_orphan", (d) => ({
   url: d.text().primaryKey(),
   createdAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+}));
+
+// Admission counts for web streaming. Provider failures can still incur charges.
+export const listeningUsage = createTable(
+  "listening_usage",
+  (d) => ({
+    userId: d
+      .text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    window: d.varchar({ length: 32 }).notNull(),
+    characters: d.integer().notNull().default(0),
+    requests: d.integer().notNull().default(0),
+  }),
+  (t) => [primaryKey({ columns: [t.userId, t.window] })],
+);
+
+// Authenticated web accounting lives in the web DB, even when audio uses a separate speech DB.
+export const audioJobs = createTable("audio_job", (d) => ({
+  id: d.text().primaryKey(),
+  userId: d.text().references(() => user.id, { onDelete: "set null" }),
+  articleId: d.uuid().references(() => articles.id, { onDelete: "set null" }),
+  environment: d.text().notNull(),
+  path: d.text().notNull(),
+  allowanceUnits: d.integer().notNull().default(0),
+  allowancePeriod: d.text().notNull(),
+  state: d.text().notNull(),
+  fence: d.uuid().notNull(),
+  leaseUntil: d.timestamp({ withTimezone: true }).notNull(),
+  cacheState: d.text().notNull().default("pending"),
+  createdAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+}));
+export const audioAttempts = createTable(
+  "audio_attempt",
+  (d) => ({
+    id: d.uuid().primaryKey(),
+    jobId: d
+      .text()
+      .notNull()
+      .references(() => audioJobs.id),
+    userId: d.text().references(() => user.id, { onDelete: "set null" }),
+    environment: d.text().notNull(),
+    providerAccount: d.text().notNull(),
+    provider: d.text().notNull(),
+    model: d.text().notNull(),
+    voice: d.text().notNull(),
+    payloadHash: d.text().notNull(),
+    unit: d.text().notNull(),
+    requestedUnits: d.integer().notNull(),
+    reportedUnits: d.integer(),
+    measurement: d.text().notNull(),
+    state: d.text().notNull().default("dispatched"),
+    rateVersion: d.text(),
+    usdPerMillion: d.numeric({ precision: 24, scale: 9 }),
+    estimatedUsd: d.numeric({ precision: 30, scale: 15 }),
+    audioBytes: d.integer().notNull().default(0),
+    durationSeconds: d.real(),
+    startedAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+    finishedAt: d.timestamp({ withTimezone: true }),
+  }),
+  (t) => [
+    index("audio_attempt_user_date_idx").on(t.userId, t.startedAt),
+    index("audio_attempt_job_idx").on(t.jobId),
+    index("audio_attempt_date_idx").on(t.startedAt),
+  ],
+);
+export const audioEvents = createTable("audio_event", (d) => ({
+  id: d.text().primaryKey(),
+  jobId: d
+    .text()
+    .notNull()
+    .references(() => audioJobs.id),
+  attemptId: d.uuid().references(() => audioAttempts.id),
+  kind: d.text().notNull(),
+  units: d.integer(),
+  createdAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+}));
+export const audioBilling = createTable("audio_billing", (d) => ({
+  id: d.text().primaryKey(),
+  provider: d.text().notNull(),
+  providerAccount: d.text().notNull(),
+  environment: d.text().notNull(),
+  period: d.text().notNull(),
+  invoiceMonth: d.text().notNull(),
+  sku: d.text().notNull(),
+  model: d.text().notNull(),
+  currency: d.text().notNull(),
+  gross: d.numeric({ precision: 30, scale: 15 }).notNull(),
+  credits: d.numeric({ precision: 30, scale: 15 }).notNull(),
+  net: d.numeric({ precision: 30, scale: 15 }).notNull(),
+  importedAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+}));
+
+export const audioHistory = createTable("audio_history", (d) => ({
+  id: d.text().primaryKey(),
+  userId: d.text().references(() => user.id, { onDelete: "set null" }),
+  period: d.text().notNull(),
+  source: d.text().notNull(),
+  admittedUnits: d.integer().notNull(),
+  rawUnits: d.integer().notNull(),
+  capturedAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+}));
+export const audioAccountingCoverage = createTable(
+  "audio_accounting_coverage",
+  (d) => ({
+    id: d.text().primaryKey(),
+    startedAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+  }),
+);
+
+export const audioCacheDeliveries = createTable(
+  "audio_cache_delivery",
+  (d) => ({
+    id: d.uuid().primaryKey(),
+    userId: d.text().references(() => user.id, { onDelete: "set null" }),
+    articleId: d.uuid().references(() => articles.id, { onDelete: "set null" }),
+    artifactId: d.text().notNull(),
+    environment: d.text().notNull(),
+    createdAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+  }),
+);
+export const audioBillingImports = createTable("audio_billing_import", (d) => ({
+  id: d.text().primaryKey(),
+  source: d.text().notNull(),
+  snapshot: d.jsonb().notNull(),
+  importedAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+}));
+
+export const audioReservations = createTable("audio_reservation", (d) => ({
+  id: d.uuid().primaryKey(),
+  jobId: d
+    .text()
+    .notNull()
+    .references(() => audioJobs.id),
+  userId: d.text().references(() => user.id, { onDelete: "set null" }),
+  path: d.text().notNull(),
+  period: d.text().notNull(),
+  admittedAt: d.timestamp({ withTimezone: true }).notNull(),
+  reservedUnits: d.integer().notNull(),
+  rawUnits: d.integer().notNull(),
+  dispatchedUnits: d.integer().notNull().default(0),
+  rawDispatched: d.integer().notNull().default(0),
+  settled: d.boolean().notNull().default(false),
 }));

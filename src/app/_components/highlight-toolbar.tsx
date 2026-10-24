@@ -17,6 +17,7 @@ import { selectionToAnchor } from "~/lib/highlight-anchor";
 import { HIGHLIGHT_COLORS } from "~/server/services/annotationService";
 import type { HighlightColor } from "~/types/annotation";
 import { cn } from "~/lib/utils";
+import { Play } from "lucide-react";
 
 const SWATCH_CLASS: Record<HighlightColor, string> = {
   yellow: "bg-[#ffd60a]",
@@ -43,6 +44,7 @@ export type CreateHighlightArgs = {
 type Props = {
   contentRef: RefObject<HTMLElement | null>;
   onCreate: (args: CreateHighlightArgs) => void;
+  onListenFrom?: (sourceOffset: number) => void;
 };
 
 type Anchored = {
@@ -51,7 +53,11 @@ type Anchored = {
   args: Omit<CreateHighlightArgs, "color">;
 };
 
-export function HighlightToolbar({ contentRef, onCreate }: Props) {
+export function HighlightToolbar({
+  contentRef,
+  onCreate,
+  onListenFrom,
+}: Props) {
   const [anchored, setAnchored] = useState<Anchored | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -80,7 +86,10 @@ export function HighlightToolbar({ contentRef, onCreate }: Props) {
       const rect = range.getBoundingClientRect();
       setAnchored({
         top: rect.top,
-        left: rect.left + rect.width / 2,
+        left: Math.max(
+          132,
+          Math.min(window.innerWidth - 132, rect.left + rect.width / 2),
+        ),
         args: anchor,
       });
     };
@@ -89,9 +98,11 @@ export function HighlightToolbar({ contentRef, onCreate }: Props) {
     const onPointerUp = () => window.setTimeout(handleSelection, 0);
     document.addEventListener("mouseup", onPointerUp);
     document.addEventListener("touchend", onPointerUp);
+    document.addEventListener("keyup", handleSelection);
     return () => {
       document.removeEventListener("mouseup", onPointerUp);
       document.removeEventListener("touchend", onPointerUp);
+      document.removeEventListener("keyup", handleSelection);
     };
   }, [contentRef]);
 
@@ -123,7 +134,7 @@ export function HighlightToolbar({ contentRef, onCreate }: Props) {
     <div
       ref={toolbarRef}
       role="toolbar"
-      aria-label="Highlight color"
+      aria-label="Selection actions"
       className="border-rule bg-surface fixed z-50 -translate-x-1/2 -translate-y-full rounded-full border px-2 py-1.5 shadow-[var(--shadow-soft)]"
       style={{ top: anchored.top - 8, left: anchored.left }}
       // Prevent the toolbar from stealing the selection before the click lands.
@@ -143,6 +154,19 @@ export function HighlightToolbar({ contentRef, onCreate }: Props) {
           />
         ))}
       </div>
+      {onListenFrom && (
+        <button
+          type="button"
+          onClick={() => {
+            onListenFrom(anchored.args.startOffset);
+            window.getSelection()?.removeAllRanges();
+            dismiss();
+          }}
+          className="border-rule text-foreground hover:bg-background-deep mt-1.5 flex min-h-10 w-full items-center justify-center gap-2 rounded-b-xl border-t pt-1 text-sm font-medium"
+        >
+          <Play className="size-3.5" /> Listen from here
+        </button>
+      )}
     </div>
   );
 }

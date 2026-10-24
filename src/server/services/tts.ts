@@ -4,48 +4,30 @@
  * Supports chunking for long articles and caching via Vercel Blob
  */
 
-import { TextToSpeechClient } from "@google-cloud/text-to-speech";
-import { put, del } from "@vercel/blob";
+import { randomUUID } from "node:crypto";
+import type { TextToSpeechClient } from "@google-cloud/text-to-speech";
+import { put } from "@vercel/blob";
 import { env } from "~/env";
-import { DEFAULT_VOICE, isChirp3Voice } from "~/lib/tts-voices";
+import {
+  DEFAULT_VOICE,
+  isChirp3Voice,
+  toWeightedCharacters,
+} from "~/lib/tts-voices";
 import { htmlToChirpMarkup } from "~/server/services/tts-markup";
 import { JSDOM } from "jsdom";
 import type { google } from "@google-cloud/text-to-speech/build/protos/protos";
+import { getGoogleTTSClient } from "./google-tts-client";
+import { enforceMaxSentenceLength } from "./tts-text";
+import { beginAttempt, finishAttempt } from "./audio-usage/ledger";
+import { googleModel, prepareSpeech } from "./audio-usage/metering";
+export { enforceMaxSentenceLength } from "./tts-text";
 
 // Max characters per chunk (Google Cloud TTS limit is 5000 bytes, ~4000 chars to be safe)
 const MAX_CHUNK_CHARS = 4000;
 
-// Chirp 3 HD rejects requests when a single sentence (a run of text between
-// terminal punctuation) is too long. Keep each sentence well under that limit.
-const MAX_SENTENCE_CHARS = 500;
-
-const SENTENCE_TERMINALS = new Set([".", "!", "?", "…"]);
-
 // Audio format settings
 const AUDIO_ENCODING = "MP3" as const;
 const AUDIO_CONTENT_TYPE = "audio/mpeg";
-
-/**
- * Get Google Cloud TTS client
- * Supports credentials via JSON string in env var
- */
-function getTTSClient(): TextToSpeechClient {
-  const credentials = process.env.GOOGLE_CLOUD_TTS_CREDENTIALS;
-
-  if (credentials) {
-    try {
-      const parsedCredentials = JSON.parse(credentials) as object;
-      return new TextToSpeechClient({
-        credentials: parsedCredentials,
-      });
-    } catch {
-      throw new Error("Invalid GOOGLE_CLOUD_TTS_CREDENTIALS JSON format");
-    }
-  }
-
-  // Fall back to Application Default Credentials
-  return new TextToSpeechClient();
-}
 
 /**
  * Strip HTML tags and convert to speakable plain text
@@ -152,65 +134,6 @@ function findLastWordBoundary(slice: string): number {
 }
 
 /**
- * Guarantee no single sentence exceeds the engine's per-sentence limit.
- * Sentences are bounded by terminal punctuation and pause markup tokens; any
- * longer run is split at word boundaries by inserting periods. This is a safety
- * net for content (long unpunctuated paragraphs, headings) that would otherwise
- * make Google TTS reject the request.
- */
-export function enforceMaxSentenceLength(
-  text: string,
-  maxChars: number = MAX_SENTENCE_CHARS,
-): string {
-  // Protect multi-word pause tokens from space tokenization. They also act as
-  // natural sentence boundaries, so reset the running length when we hit one.
-  const LONG = "PL";
-  const SHORT = "PS";
-  const protectedText = text
-    .replace(/\[pause long\]/gi, LONG)
-    .replace(/\[pause\]/gi, SHORT);
-
-  const tokens = protectedText.split(/\s+/);
-  const out: string[] = [];
-  let runLength = 0;
-
-  for (const token of tokens) {
-    if (!token) continue;
-
-    if (token === LONG || token === SHORT) {
-      out.push(token);
-      runLength = 0;
-      continue;
-    }
-
-    const spacer = runLength > 0 ? 1 : 0;
-    if (runLength > 0 && runLength + spacer + token.length > maxChars) {
-      const prev = out[out.length - 1];
-      if (prev && prev !== LONG && prev !== SHORT) {
-        const lastChar = prev[prev.length - 1]!;
-        if (!SENTENCE_TERMINALS.has(lastChar)) {
-          out[out.length - 1] = prev + ".";
-        }
-      }
-      runLength = 0;
-    }
-
-    out.push(token);
-    runLength += (runLength > 0 ? 1 : 0) + token.length;
-
-    const lastChar = token[token.length - 1]!;
-    if (SENTENCE_TERMINALS.has(lastChar)) {
-      runLength = 0;
-    }
-  }
-
-  return out
-    .join(" ")
-    .replaceAll(LONG, "[pause long]")
-    .replaceAll(SHORT, "[pause]");
-}
-
-/**
  * Synthesize a single text chunk to audio
  * Returns the audio buffer and character count billed for this chunk
  */
@@ -225,16 +148,19 @@ async function synthesizeChunk(
     ? { markup: chunk }
     : { text: chunk };
 
-  const [response] = await client.synthesizeSpeech({
-    input,
-    voice: {
-      languageCode,
-      name: voiceName,
+  const [response] = await client.synthesizeSpeech(
+    {
+      input,
+      voice: {
+        languageCode,
+        name: voiceName,
+      },
+      audioConfig: {
+        audioEncoding: AUDIO_ENCODING,
+      },
     },
-    audioConfig: {
-      audioEncoding: AUDIO_ENCODING,
-    },
-  });
+    { retry: null, timeout: 90_000 },
+  );
 
   if (!response.audioContent) {
     throw new Error("No audio content received from TTS API");
@@ -283,22 +209,7 @@ export interface GenerateAudioResult {
  * Generate audio for an article
  * Handles chunking, synthesis, concatenation, and blob upload
  */
-export async function generateAudioForArticle(
-  articleId: string,
-  htmlContent: string,
-  voiceNameOverride?: string,
-): Promise<GenerateAudioResult> {
-  // Check if Blob token is available
-  if (!env.BLOB_READ_WRITE_TOKEN) {
-    throw new Error("BLOB_READ_WRITE_TOKEN is required for audio storage");
-  }
-
-  const client = getTTSClient();
-  const voiceName =
-    voiceNameOverride ?? process.env.TTS_VOICE_NAME ?? DEFAULT_VOICE;
-  // Derive language code from voice name (e.g., "en-US-Neural2-A" -> "en-US")
-  const languageCode = voiceName.split("-").slice(0, 2).join("-");
-
+export function prepareArticleAudio(htmlContent: string, voiceName: string) {
   const speakableText = isChirp3Voice(voiceName)
     ? htmlToChirpMarkup(htmlContent)
     : stripHtmlToPlainText(htmlContent);
@@ -310,31 +221,108 @@ export async function generateAudioForArticle(
   // Split any over-long sentence so Google TTS doesn't reject the request.
   const safeText = enforceMaxSentenceLength(speakableText);
 
-  const chunks = chunkText(safeText);
+  return chunkText(safeText);
+}
+
+export async function generateAudioForArticle(
+  articleId: string,
+  htmlContent: string,
+  voiceNameOverride?: string,
+  accounting?: {
+    userId: string;
+    jobId: string;
+    fence: string;
+    onDispatched: (units: number) => void;
+  },
+): Promise<GenerateAudioResult> {
+  // Check if Blob token is available
+  if (!env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error("BLOB_READ_WRITE_TOKEN is required for audio storage");
+  }
+
+  const client = getGoogleTTSClient();
+  const voiceName =
+    voiceNameOverride ?? process.env.TTS_VOICE_NAME ?? DEFAULT_VOICE;
+  // Derive language code from voice name (e.g., "en-US-Neural2-A" -> "en-US")
+  const languageCode = voiceName.split("-").slice(0, 2).join("-");
+
+  const chunks = prepareArticleAudio(htmlContent, voiceName);
 
   // Synthesize each chunk
   const audioBuffers: Buffer[] = [];
   let rawCharactersUsed = 0;
-  for (const chunk of chunks) {
-    const { buffer, charactersUsed } = await synthesizeChunk(
-      client,
-      chunk,
-      voiceName,
-      languageCode,
-    );
-    rawCharactersUsed += charactersUsed;
-    audioBuffers.push(buffer);
+  try {
+    for (const chunk of chunks) {
+      const prepared = prepareSpeech(
+        chunk,
+        "google",
+        googleModel(voiceName),
+        voiceName,
+      );
+      const attempt = accounting
+        ? await beginAttempt(
+            accounting.jobId,
+            accounting.userId,
+            accounting.fence,
+            prepared,
+            undefined,
+            {
+              units: toWeightedCharacters(chunk.length, voiceName),
+              raw: chunk.length,
+            },
+          )
+        : undefined;
+      accounting?.onDispatched(chunk.length);
+      let buffer: Buffer;
+      try {
+        const result = await synthesizeChunk(
+          client,
+          prepared.submitted,
+          voiceName,
+          languageCode,
+        );
+        buffer = result.buffer;
+        rawCharactersUsed += chunk.length;
+        if (attempt)
+          await finishAttempt(attempt, true, buffer.length).catch(() =>
+            console.error("audio_accounting", {
+              attempt,
+              event: "settlement_failed",
+            }),
+          );
+      } catch (error) {
+        if (attempt)
+          await finishAttempt(attempt, false, 0).catch(() => undefined);
+        throw error;
+      }
+      audioBuffers.push(buffer);
+    }
+  } finally {
+    await client.close().catch(() => undefined);
   }
 
   // Concatenate all audio
   const finalAudio = concatenateAudioBuffers(audioBuffers);
 
   // Upload to Vercel Blob
-  const filename = `article-audio/${articleId}.mp3`;
-  const blob = await put(filename, finalAudio, {
-    access: "public",
-    contentType: AUDIO_CONTENT_TYPE,
-  });
+  // One immutable identity per generation; old database clones may still use
+  // earlier MP3s. Reuse this path and these bytes for ambiguous upload retries.
+  const filename = `article-audio/${articleId}/${accounting?.fence ?? randomUUID()}.mp3`;
+  let blob: Awaited<ReturnType<typeof put>> | undefined;
+  for (let retry = 0; retry < 3; retry++) {
+    try {
+      blob = await put(filename, finalAudio, {
+        access: "public",
+        contentType: AUDIO_CONTENT_TYPE,
+        addRandomSuffix: false,
+        allowOverwrite: true,
+      });
+      break;
+    } catch (error) {
+      if (retry === 2) throw error;
+    }
+  }
+  if (!blob) throw new Error("Audio could not be saved");
 
   return {
     audioUrl: blob.url,
@@ -343,11 +331,4 @@ export async function generateAudioForArticle(
     voiceName,
     rawCharactersUsed,
   };
-}
-
-/**
- * Delete audio from Vercel Blob
- */
-export async function deleteAudioFromBlob(audioUrl: string): Promise<void> {
-  await del(audioUrl);
 }

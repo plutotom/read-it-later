@@ -70,6 +70,7 @@ export function ArticleDetailView({ id }: ArticleDetailViewProps) {
   return (
     <GeneralProvider>
       <ArticleReader
+        key={article.id}
         article={article}
         onMarkAsRead={handleMarkAsRead}
         initialNotes={notes}

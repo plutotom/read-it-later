@@ -1,3 +1,4 @@
+import { audioUsageRouter } from "~/server/api/routers/audioUsage";
 import { postRouter } from "~/server/api/routers/post";
 import { articleRouter } from "~/server/api/routers/article";
 import { folderRouter } from "~/server/api/routers/folder";
@@ -13,6 +14,7 @@ import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
+  audioUsage: audioUsageRouter,
   post: postRouter,
   article: articleRouter,
   folder: folderRouter,

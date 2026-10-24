@@ -22,10 +22,22 @@ export const env = createEnv({
       .min(1)
       .default("placeholder-discord-client-secret"),
     BETTER_AUTH_SECRET: z.string().min(1).default("dev-secret-change-me"),
+    AUDIO_USAGE_ADMIN_IDS: z.string().optional(),
+    // JSON rate cards for non-default contracts; server-owned, never accepted from clients.
+    AUDIO_USAGE_RATE_CARDS: z.string().optional(),
+    AUDIO_USAGE_PROVIDER_ACCOUNT: z.string().default("default"),
     // Google Cloud TTS
     GOOGLE_CLOUD_TTS_CREDENTIALS: z.string().optional(),
     TTS_VOICE_NAME: z.string().default("en-US-Chirp3-HD-Charon"),
     TTS_VOICE_LANGUAGE: z.string().default("en-US"),
+    // Authenticated web listening is rolled out independently of the iOS prototype.
+    WEB_SPEECH_ENABLED: z.enum(["true", "false"]).default("false"),
+    WEB_SPEECH_MONTHLY_CHARACTER_LIMIT: z.coerce
+      .number()
+      .int()
+      .min(1000)
+      .max(10_000_000)
+      .default(500_000),
     // Native speech is disabled unless a private test deployment explicitly opts in.
     NATIVE_SPEECH_ENABLED: z.enum(["true", "false"]).default("false"),
     // The enabled prototype remains unauthenticated until accounts land.
@@ -63,10 +75,16 @@ export const env = createEnv({
     DISCORD_CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET,
     NEXT_PUBLIC_AUTH_URL: process.env.NEXT_PUBLIC_AUTH_URL,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    AUDIO_USAGE_ADMIN_IDS: process.env.AUDIO_USAGE_ADMIN_IDS,
+    AUDIO_USAGE_RATE_CARDS: process.env.AUDIO_USAGE_RATE_CARDS,
+    AUDIO_USAGE_PROVIDER_ACCOUNT: process.env.AUDIO_USAGE_PROVIDER_ACCOUNT,
     // Google Cloud TTS
     GOOGLE_CLOUD_TTS_CREDENTIALS: process.env.GOOGLE_CLOUD_TTS_CREDENTIALS,
     TTS_VOICE_NAME: process.env.TTS_VOICE_NAME,
     TTS_VOICE_LANGUAGE: process.env.TTS_VOICE_LANGUAGE,
+    WEB_SPEECH_ENABLED: process.env.WEB_SPEECH_ENABLED,
+    WEB_SPEECH_MONTHLY_CHARACTER_LIMIT:
+      process.env.WEB_SPEECH_MONTHLY_CHARACTER_LIMIT,
     NATIVE_SPEECH_ENABLED: process.env.NATIVE_SPEECH_ENABLED,
     SPEECHIFY_API_KEY: process.env.SPEECHIFY_API_KEY,
     INWORLD_API_KEY: process.env.INWORLD_API_KEY,

@@ -11,6 +11,7 @@ import { type Article } from "~/types/article";
 import { ReadingSettings } from "./reading-settings";
 import { Button } from "~/components/ui/button";
 import { Settings, ArrowLeft, List } from "lucide-react";
+import { type ArticleViewMode } from "~/lib/article-web-view";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
 import { getReturnToLabel, sanitizeReturnTo } from "~/lib/article-navigation";
@@ -35,6 +36,8 @@ interface ArticleReaderHeaderProps {
   isTocOpen?: boolean;
   onOpenToc?: () => void;
   returnTo?: string;
+  viewMode?: ArticleViewMode;
+  onViewModeChange?: (mode: ArticleViewMode) => void;
 }
 
 export function ArticleReaderHeader({
@@ -47,6 +50,8 @@ export function ArticleReaderHeader({
   isTocOpen = false,
   onOpenToc,
   returnTo: returnToProp,
+  viewMode = "reader",
+  onViewModeChange,
 }: ArticleReaderHeaderProps) {
   const returnTo = sanitizeReturnTo(returnToProp ?? null);
   const utils = api.useUtils();
@@ -134,7 +139,7 @@ export function ArticleReaderHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-          {hasToc && !isTocOpen && onOpenToc && (
+          {viewMode === "reader" && hasToc && !isTocOpen && onOpenToc && (
             <Button
               variant="ghost"
               size="icon"
@@ -157,6 +162,7 @@ export function ArticleReaderHeader({
                 : "text-foreground-soft hover:bg-foreground/10 hover:text-foreground",
             )}
             aria-label="Reading settings"
+            disabled={viewMode === "web"}
           >
             <Settings className="h-4 w-4" />
           </Button>
@@ -165,6 +171,8 @@ export function ArticleReaderHeader({
             article={article}
             alwaysVisible
             showShare
+            viewMode={viewMode}
+            onViewModeChange={onViewModeChange}
             onArchive={() => archive({ id: article.id })}
             onUnarchive={() => unarchive({ id: article.id })}
             onDelete={() => deleteArticle({ id: article.id })}
@@ -173,7 +181,7 @@ export function ArticleReaderHeader({
         </div>
       </div>
 
-      {showSettings && (
+      {viewMode === "reader" && showSettings && (
         <div className="border-rule border-t px-4 py-3 sm:px-8">
           <div className="border-rule bg-surface flex flex-col gap-3 rounded-2xl border p-3 shadow-[var(--shadow-soft)]">
             <ReadingSettings

@@ -82,6 +82,39 @@ describe.skipIf(!testURL)("real Postgres native speech fencing", () => {
     expect(await artifacts.save(id, owner, "old")).toBe(false);
     expect(await artifacts.save(id, takeover, "new")).toBe(true);
     expect(await artifacts.read(id)).toBe("new");
+    expect(await artifacts.save(id, takeover, "new")).toBe(true);
+    expect(await artifacts.read(id)).toBe("new");
+  });
+  it("preserves a paid blob referenced by a separate cloned database schema", async () => {
+    const id = "c".repeat(64),
+      fence = randomUUID();
+    const clone = "speech_clone_" + randomUUID().replaceAll("-", "");
+    await db.delete(table).where(eq(table.id, id));
+    expect(await artifacts.acquire(id, fence)).toBe(true);
+    expect(await artifacts.save(id, fence, "paid shared audio")).toBe(true);
+    const url = (await artifacts.status(id))!.blobUrl!;
+    // Separate schema models a second speech DB cloned with the same blob URLs.
+    await db.execute(sql.raw(`create schema "${clone}"`));
+    try {
+      await db.execute(
+        sql.raw(
+          `create table "${clone}".cache as select * from "read-it-later_native_speech_cache" where id = '${id}'`,
+        ),
+      );
+      await removeArtifact(id);
+      expect((await artifacts.status(id))?.state).toBe("deleted");
+      const references = await db.execute(
+        sql.raw(
+          `select "blobUrl" from "${clone}".cache where state = 'stored'`,
+        ),
+      );
+      expect(references[0]?.blobUrl).toBe(url);
+      expect(blobs.has(url)).toBe(true);
+      const { gunzipSync } = await import("node:zlib");
+      expect(gunzipSync(blobs.get(url)!).toString()).toBe("paid shared audio");
+    } finally {
+      await db.execute(sql.raw(`drop schema "${clone}" cascade`));
+    }
   });
   it("deletion fences a worker already uploading; explicit later playback can recreate", async () => {
     const id = "b".repeat(64),

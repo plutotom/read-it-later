@@ -24,3 +24,11 @@
 ::highlight(ril-hl-gray) {
   background-color: color-mix(in srgb, #9ca3af 40%, transparent);
 }
+/* Speech ranges share the reader's text nodes without altering article markup. */
+::highlight(ril-speech-paragraph) {
+  background-color: color-mix(in oklch, var(--accent) 14%, transparent);
+}
+::highlight(ril-speech-word) {
+  background-color: color-mix(in oklch, var(--accent) 45%, transparent);
+  color: var(--foreground);
+}
