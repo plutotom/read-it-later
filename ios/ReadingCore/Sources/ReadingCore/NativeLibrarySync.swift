@@ -68,7 +68,7 @@ extension Library {
             cursor = page.cursor
             if !page.hasMore {
                 try recordSyncSuccess()
-                if try hasQuarantinedMutations() { throw NativeLibraryError.tooLarge }
+                if let error = try quarantinedMutationError() { throw error }
                 return
             }
         }

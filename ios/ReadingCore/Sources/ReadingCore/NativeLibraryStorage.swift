@@ -122,6 +122,28 @@ extension Library {
         try database.read { try NativeLibraryTextSnapshot.fetchOne($0, sql: "SELECT native_canonical_text.*, native_mapping.contentUnavailable FROM native_canonical_text JOIN native_mapping USING(localID) WHERE localID = ?", arguments: [articleID]) }
     }
 
+    /// Explicitly undo download cleanup using the latest retained server text, including text:// saves.
+    /// Clears suppression even when returning false so a safe authenticated pull can restore text.
+    /// Never fetches or enqueues a create.
+    @discardableResult public func restoreDownloadedText(id: String) throws -> Bool {
+        try database.write { db in
+            guard try !isDeleted(id: id, in: db),
+                  let old = try Article.fetchOne(db, key: id) else { return false }
+            guard let canonical = try NativeLibraryTextSnapshot.fetchOne(db, sql: "SELECT * FROM native_canonical_text WHERE localID = ?", arguments: [id]),
+                  canonical.format == "paper-drive-text-v1", !canonical.text.isEmpty,
+                  canonical.contentHash == Highlight.contentHash(canonical.text) else {
+                try db.execute(sql: "UPDATE article SET downloadSuppressed = 0 WHERE id = ?", arguments: [id])
+                return false
+            }
+            try retainText(old, in: db)
+            let unavailable = try Bool.fetchOne(db, sql: "SELECT contentUnavailable FROM native_mapping WHERE localID = ?", arguments: [id]) ?? false
+            let error = try pending(in: db, id: id).compactMap { try quarantineError($0.mutation) }.first
+            try db.execute(sql: "UPDATE article SET title = ?, text = ?, downloadSuppressed = 0, error = ? WHERE id = ?",
+                arguments: [canonical.title, canonical.text, error?.errorDescription ?? (unavailable ? NativeLibraryError.contentUnavailable.errorDescription : nil), id])
+            return true
+        }
+    }
+
     /// Includes legacy originals and previous canonical versions. These survive remote deletion and download cleanup.
     public func textSnapshots(articleID: String) throws -> [NativeLibraryTextSnapshot] {
         try database.read { try NativeLibraryTextSnapshot.fetchAll($0, sql: "SELECT * FROM native_text_snapshot WHERE localID = ? ORDER BY capturedAt, contentHash, source", arguments: [articleID]) }
@@ -171,17 +193,22 @@ extension Library {
             let payload = try NativeLibraryWire.encoder().encode(mutation)
             try db.execute(sql: "UPDATE native_pending SET mutationID = ?, payload = ? WHERE sequence = ?", arguments: [mutation.mutationId, payload, sequence])
         } else { try enqueue(mutation, localID: article.id, overlayFlags: isInitialCreate, in: db) }
-        if try exceedsSyncLimit(mutation) {
-            try db.execute(sql: "UPDATE article SET error = ? WHERE id = ?", arguments: [NativeLibraryError.tooLarge.errorDescription, article.id])
+        if let error = try quarantineError(mutation) {
+            try db.execute(sql: "UPDATE article SET error = ? WHERE id = ?", arguments: [error.errorDescription, article.id])
         }
     }
 
     func validateLocalSyncContent(id: String) throws {
         guard syncEnabled else { return }
-        let tooLarge = try database.read { db in
-            try pending(in: db, id: id).contains { try exceedsSyncLimit($0.mutation) }
+        let error = try database.read { db in
+            try pending(in: db, id: id).compactMap { try quarantineError($0.mutation) }.first
         }
-        if tooLarge { throw NativeLibraryError.tooLarge }
+        if let error { throw error }
+    }
+
+    func quarantineError(_ mutation: NativeLibraryMutation) throws -> NativeLibraryError? {
+        if mutation.kind == "create", !NativeLibraryWire.isPublicURL(mutation.url ?? "") { return .invalidURL }
+        return try exceedsSyncLimit(mutation) ? .tooLarge : nil
     }
 
     func exceedsSyncLimit(_ mutation: NativeLibraryMutation) throws -> Bool {
@@ -229,7 +256,8 @@ extension Library {
             var blockedUnmappedIDs: Set<String> = []
             for var item in try pending(in: db) {
                 guard !localIDs.contains(item.localID) else { continue }
-                if try exceedsSyncLimit(item.mutation) {
+                if let error = try quarantineError(item.mutation) {
+                    try db.execute(sql: "UPDATE article SET error = ? WHERE id = ?", arguments: [error.errorDescription, item.localID])
                     if try String.fetchOne(db, sql: "SELECT serverID FROM native_mapping WHERE localID = ?", arguments: [item.localID]) == nil {
                         blockedUnmappedIDs.insert(item.localID)
                     }
@@ -353,8 +381,8 @@ extension Library {
             try article.save(db)
         }
     }
-    func hasQuarantinedMutations() throws -> Bool {
-        try database.read { db in try pending(in: db).contains { try exceedsSyncLimit($0.mutation) } }
+    func quarantinedMutationError() throws -> NativeLibraryError? {
+        try database.read { db in try pending(in: db).compactMap { try quarantineError($0.mutation) }.first }
     }
 
     private func overlayPending(on article: inout Article, in db: Database) throws {
@@ -370,7 +398,7 @@ extension Library {
                 article.isRead = patch.isRead ?? article.isRead; article.isFavorite = patch.isFavorite ?? article.isFavorite
                 article.isArchived = patch.isArchived ?? article.isArchived
             }
-            if try exceedsSyncLimit(mutation) { article.error = NativeLibraryError.tooLarge.errorDescription }
+            if let error = try quarantineError(mutation) { article.error = error.errorDescription }
         }
     }
 

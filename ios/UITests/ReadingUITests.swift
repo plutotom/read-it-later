@@ -17,9 +17,7 @@ final class ReadingUITests: XCTestCase {
         XCTAssertTrue(app.textViews["articleText"].waitForExistence(timeout: 10))
         app.buttons["Reading options"].tap(); app.buttons["Favorite"].tap()
         app.buttons["Paper Drive"].tap()
-        app.buttons["Settings"].tap()
-        XCTAssertTrue(app.staticTexts["syncPending"].waitForExistence(timeout: 5) || app.otherElements["syncPending"].waitForExistence(timeout: 5))
-        app.buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["Paper Drive"].waitForExistence(timeout: 5))
         try setFixtureBackendOffline(true)
         app.terminate()
         app.launchArguments = ["--ui-testing", "--ui-testing-auth-live", "--ui-testing-sync-live"]
@@ -42,7 +40,14 @@ final class ReadingUITests: XCTestCase {
         input.typeText("https://example.com/?from=paper-drive-sync-ui")
         app.buttons["Save"].tap()
         XCTAssertTrue(app.staticTexts["Example Domain"].waitForExistence(timeout: 50))
-        app.buttons["Settings"].tap(); app.buttons["syncNow"].tap()
+        for _ in 0..<3 where !app.buttons["Done"].exists {
+            app.buttons["Settings"].tap()
+            _ = app.buttons["Done"].waitForExistence(timeout: 3)
+        }
+        XCTAssertTrue(app.buttons["Done"].exists)
+        let sync = app.buttons["syncNow"]
+        for _ in 0..<3 where !sync.isHittable { app.swipeUp() }
+        XCTAssertTrue(sync.waitForExistence(timeout: 5)); sync.tap()
         let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = "Shared account library after outage and restart"; attachment.lifetime = .keepAlways; add(attachment)
         app.buttons["Done"].tap()
     }

@@ -495,4 +495,154 @@ describe.skipIf(!url)("native library isolated local Postgres", () => {
       await connection`SELECT url FROM "read-it-later_article" WHERE id = ${id}`;
     expect(retained?.url).toBe(oversizedURL);
   });
+
+  it.each([
+    "ftp://example.com/legacy",
+    "data:text/plain,Legacy",
+    "file:///tmp/legacy",
+    "javascript:alert(1)",
+    "not a URL",
+    "",
+    "https://[invalid/legacy",
+    "https://fixture-user:fixture-password@example.com/legacy",
+    "https://fixture-user@example.com/legacy",
+    "https://:fixture-password@example.com/legacy",
+    "https://@example.com/legacy",
+    "text://fixture-user:fixture-password@manual/legacy",
+    "text:opaque-legacy",
+    "text:///missing-authority",
+    "https:example.com/legacy",
+    "https://example.com\\legacy",
+    "https://example.com/\nlegacy",
+  ])(
+    "advances past an unsupported legacy URL (%j) between an ordinary change and a deletion",
+    async (sourceURL) => {
+      const user = await seedOwner(),
+        id = randomUUID();
+      const ordinary = create(),
+        deleted = create();
+      const content = "<p>Retained legacy text 😀</p>";
+      await mutate(user, ordinary);
+      await connection`INSERT INTO "read-it-later_article" (id, "userId", url, title, content, "isRead", "isFavorite", "isArchived") VALUES (${id}, ${user}, ${sourceURL}, 'Legacy fixture', ${content}, true, true, true)`;
+      await mutate(user, deleted);
+      await connection`DELETE FROM "read-it-later_article" WHERE id = ${deleted.articleId}`;
+
+      const first = await pull(user, undefined, 1);
+      expect(first.changes.map((change) => change.id)).toEqual([
+        ordinary.articleId,
+      ]);
+      expect(first.hasMore).toBe(true);
+      const middle = await pull(user, first.cursor, 1);
+      expect(middle.hasMore).toBe(true);
+      expect(middle.cursor).not.toBe(first.cursor);
+      expect(middle.changes).toEqual([
+        {
+          id,
+          revision: "2",
+          deleted: false,
+          article: {
+            id,
+            url: `text://unavailable/${id}`,
+            title: "Legacy fixture",
+            text: "",
+            contentHash: createHash("sha256").update("").digest("hex"),
+            contentUnavailable: true,
+            format: "paper-drive-text-v1",
+            isRead: true,
+            isFavorite: true,
+            isArchived: true,
+            createdAt: expect.any(String) as string,
+            updatedAt: expect.any(String) as string,
+          },
+        },
+      ]);
+      const encoded = JSON.stringify(middle);
+      expect(encoded).not.toContain("fixture-user");
+      expect(encoded).not.toContain("fixture-password");
+      if (sourceURL) expect(encoded).not.toContain(JSON.stringify(sourceURL));
+      expect(Buffer.byteLength(encoded)).toBeLessThanOrEqual(
+        NATIVE_LIBRARY_PAGE_BYTES,
+      );
+      expect(
+        Buffer.byteLength(JSON.stringify(middle.changes[0])),
+      ).toBeLessThanOrEqual(NATIVE_LIBRARY_ARTICLE_BYTES);
+      const last = await pull(user, middle.cursor, 1);
+      expect(last.changes).toEqual([
+        {
+          id: deleted.articleId,
+          revision: "4",
+          deleted: true,
+          article: null,
+        },
+      ]);
+      expect(last.hasMore).toBe(false);
+      expect((await pull(user, last.cursor)).changes).toEqual([]);
+
+      // The wire fallback never replaces the stored identity or reader content.
+      const [retained] =
+        await connection`SELECT url, content, "isRead", "isFavorite", "isArchived" FROM "read-it-later_article" WHERE id = ${id}`;
+      expect(retained).toEqual({
+        url: sourceURL,
+        content,
+        isRead: true,
+        isFavorite: true,
+        isArchived: true,
+      });
+      await mutate(user, {
+        mutationId: randomUUID(),
+        kind: "update",
+        articleId: id,
+        patch: { isRead: false },
+      });
+      expect((await pull(user, last.cursor)).changes[0]?.article).toMatchObject(
+        {
+          id,
+          url: `text://unavailable/${id}`,
+          contentUnavailable: true,
+          isRead: false,
+        },
+      );
+      await connection`UPDATE "read-it-later_article" SET url = 'https://example.com/recovered' WHERE id = ${id}`;
+      const recovered = await pull(user, last.cursor);
+      expect(recovered.changes[0]?.article).toMatchObject({
+        id,
+        url: "https://example.com/recovered",
+        text: "Retained legacy text 😀",
+        isRead: false,
+        isFavorite: true,
+        isArchived: true,
+      });
+      expect(recovered.changes[0]?.article).not.toHaveProperty(
+        "contentUnavailable",
+      );
+    },
+  );
+
+  it.each([
+    "http://localhost/legacy",
+    "https://name.internal/legacy",
+    "http://127.0.0.1/legacy",
+    "https://[::1]/legacy",
+    "HTTPS://example.com/legacy?keep=1&keep=2#fragment",
+    "text://manual-123-abc",
+    "text://fixture/manual",
+    `https://example.com/${'"'.repeat(NATIVE_LIBRARY_URL_BYTES - 20)}`,
+  ])("preserves readable legacy URL identity (%j)", async (sourceURL) => {
+    const user = await seedOwner(),
+      id = randomUUID();
+    await connection`INSERT INTO "read-it-later_article" (id, "userId", url, title, content) VALUES (${id}, ${user}, ${sourceURL}, 'Readable fixture', '<p>Available 😀</p>')`;
+    const page = await pull(user);
+    expect(page.changes[0]?.article).toMatchObject({
+      id,
+      url: sourceURL,
+      text: "Available 😀",
+    });
+    expect(page.changes[0]?.article).not.toHaveProperty("contentUnavailable");
+    expect(
+      Buffer.byteLength(page.changes[0]!.article!.url),
+    ).toBeLessThanOrEqual(NATIVE_LIBRARY_URL_BYTES);
+    expect(
+      Buffer.byteLength(JSON.stringify(page.changes[0])),
+    ).toBeLessThanOrEqual(NATIVE_LIBRARY_ARTICLE_BYTES);
+  });
 });

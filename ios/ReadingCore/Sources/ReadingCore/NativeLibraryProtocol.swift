@@ -4,7 +4,7 @@ import FoundationNetworking
 #endif
 
 public enum NativeLibraryError: LocalizedError, Equatable {
-    case disabled, accountMismatch, invalidResponse, invalidSession, unauthorized, throttled, unavailable, alreadySyncing, tooLarge, contentUnavailable
+    case disabled, accountMismatch, invalidResponse, invalidSession, unauthorized, throttled, unavailable, alreadySyncing, tooLarge, invalidURL, contentUnavailable
     public var errorDescription: String? {
         switch self {
         case .contentUnavailable: "This article’s text is unavailable for offline sync. Its link and flags are saved."
@@ -16,6 +16,7 @@ public enum NativeLibraryError: LocalizedError, Equatable {
         case .unavailable: "Could not sync. Your changes remain saved on this device."
         case .alreadySyncing: "Library sync is already running."
         case .tooLarge: "An article exceeds the 200,000-character or 1 MB sync limit. Your changes remain on this device."
+        case .invalidURL: "An article’s link cannot be uploaded. Sync requires a public HTTP or HTTPS link without a username or password. Your article remains on this device."
         }
     }
 }
@@ -91,6 +92,29 @@ public protocol NativeLibraryAPI: Sendable {
 enum NativeLibraryWire {
     static let maxRequestBytes = 1_048_576
     static let maxCreateTextUTF16 = 200_000
+    /// Keep in step with isNativeLibraryPublicURL in src/lib/native-library.ts.
+    /// This is an upload policy only: server-owned text:// articles can still be pulled.
+    static func isPublicURL(_ value: String) -> Bool {
+        guard value == value.trimmingCharacters(in: .whitespacesAndNewlines),
+              let parts = URLComponents(string: value),
+              let scheme = parts.scheme?.lowercased(), ["http", "https"].contains(scheme),
+              (parts.user ?? "").isEmpty, (parts.password ?? "").isEmpty,
+              let url = parts.url, var host = url.host?.lowercased(),
+              parts.port.map({ (0...65535).contains($0) }) ?? true else { return false }
+        if host.hasSuffix(".") { host.removeLast() }
+        guard host.contains("."), !host.contains(":"),
+              ![".localhost", ".local", ".internal", ".test", ".invalid"].contains(where: host.hasSuffix),
+              !host.utf8.allSatisfy({ (48...57).contains($0) || $0 == 46 }),
+              !host.contains(where: { $0.isWhitespace || $0.isNewline || "#%/\\?@[]".contains($0) }) else { return false }
+        // WHATWG URL parsing recognizes abbreviated, octal and hex IPv4, and rejects
+        // domain names ending in an IPv4 number even when Foundation leaves them as names.
+        let last = host.split(separator: ".", omittingEmptySubsequences: false).last ?? ""
+        let decimal = !last.isEmpty && last.utf8.allSatisfy { (48...57).contains($0) }
+        let hex = last.hasPrefix("0x") && last.dropFirst(2).utf8.allSatisfy {
+            (48...57).contains($0) || (97...102).contains($0)
+        }
+        return !decimal && !hex
+    }
     static func decoder() -> JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { decoder in

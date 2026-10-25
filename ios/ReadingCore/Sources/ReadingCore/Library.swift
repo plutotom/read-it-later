@@ -43,7 +43,7 @@ public enum ArticleURL {
         parts.scheme = scheme
         parts.host = host
         parts.fragment = nil
-        guard let url = parts.url else { throw LibraryError.invalidURL }
+        guard let url = parts.url, NativeLibraryWire.isPublicURL(url.absoluteString) else { throw LibraryError.invalidURL }
         return url
     }
 }
@@ -150,8 +150,10 @@ public enum ArticleURL {
         try database.write { db in
             for article in try Article.fetchAll(db) { try retainText(article, in: db) }
             try db.execute(sql: "UPDATE article SET text = '', error = CASE WHEN COALESCE((SELECT contentUnavailable FROM native_mapping WHERE localID = article.id), 0) THEN ? ELSE NULL END, downloadSuppressed = 1", arguments: [NativeLibraryError.contentUnavailable.errorDescription])
-            for item in try pending(in: db) where try exceedsSyncLimit(item.mutation) {
-                try db.execute(sql: "UPDATE article SET error = ? WHERE id = ?", arguments: [NativeLibraryError.tooLarge.errorDescription, item.localID])
+            for item in try pending(in: db) {
+                if let error = try quarantineError(item.mutation) {
+                    try db.execute(sql: "UPDATE article SET error = ? WHERE id = ?", arguments: [error.errorDescription, item.localID])
+                }
             }
         }
         // Reclaim freed SQLite pages without deleting the library or its annotations.

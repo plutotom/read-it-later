@@ -237,6 +237,15 @@ private struct AccountReader: View {
         }
     }
 
+    func restoreDownloadedText(_ id: String) async {
+        guard let library else { return }
+        do {
+            let restored = try library.restoreDownloadedText(id: id)
+            refresh()
+            if !restored { await synchronize() }
+        } catch { self.error = error.localizedDescription }
+    }
+
     func serverArticleID(_ id: String) -> String? { try? library?.articleServerID(id) }
     func textSnapshots(_ id: String) -> [NativeLibraryTextSnapshot] { (try? library?.textSnapshots(articleID: id)) ?? [] }
     func canonicalSnapshot(_ id: String) -> NativeLibraryTextSnapshot? { try? library?.canonicalTextSnapshot(articleID: id) }

@@ -7,6 +7,8 @@ struct ReaderView: View {
     @Environment(SpeechSetup.self) private var speech
     let id: String
     @AppStorage("readerSize") private var readerSize = 19.0
+    @State private var preparationTask: Task<Void, Never>?
+    @State private var preparationID: UUID?
     @State private var preparingAudio = false
     @State private var audioError: String?
     @State private var showingSnapshots = false
@@ -41,7 +43,7 @@ struct ReaderView: View {
                         }
                         if article.isDownloaded {
                             Button {
-                                Task { await listen(offset: nil) }
+                                preparationTask = Task { await listen(offset: nil) }
                             } label: { Label(preparingAudio ? "Preparing…" : speech.accountMode && !speech.usingAccountPreview ? "Listen" : player.isSilentPreview ? "Try listening preview" : "Listen", systemImage: "headphones") }
                                 .buttonStyle(.bordered).disabled(preparingAudio).accessibilityIdentifier("startListening")
                             Text("\(player.isSilentPreview ? "Silent preview · " : "")Tap a paragraph to play from there. Long-press to select and highlight text.")
@@ -55,7 +57,7 @@ struct ReaderView: View {
                                               activeRange: player.document?.articleID == id ? player.currentChunk?.range : nil,
                                               wordRange: player.document?.articleID == id ? player.wordRange : nil,
                                               play: { offset in
-                                Task { await listen(offset: offset) }
+                                preparationTask = Task { await listen(offset: offset) }
                             }) { range in
                                 let saved = model.mutate { _ = try $0.addHighlight(articleId: id, content: article.text, range: range) }
                                 loadHighlights()
@@ -63,6 +65,10 @@ struct ReaderView: View {
                             }
                         } else {
                             ContentUnavailableView("Your link is safe", systemImage: "arrow.down.circle", description: Text("Download the text while online, then read it anywhere."))
+                        }
+                        if !article.isDownloaded, model.serverArticleID(id) != nil {
+                            Button { Task { await model.restoreDownloadedText(id) } } label: { Label("Restore saved text", systemImage: "arrow.down.doc") }
+                                .buttonStyle(.bordered).accessibilityIdentifier("restoreSavedText")
                         }
                         if (!article.isDownloaded || article.error != nil), let source = URL(string: article.url), ["http", "https"].contains(source.scheme?.lowercased() ?? "") {
                             Button { Task { await model.download(article) } } label: {
@@ -112,6 +118,7 @@ struct ReaderView: View {
             }
         }
         .task(id: id) { loadHighlights() }
+        .onDisappear { preparationTask?.cancel(); if let preparationID { player.cancelPreparation(preparationID) } }
         .sheet(isPresented: $showingHighlights) {
             NavigationStack {
                 List {
@@ -171,18 +178,21 @@ struct ReaderView: View {
 
     @MainActor private func listen(offset: Int?) async {
         guard !preparingAudio, let initial = article else { return }
-        preparingAudio = true; defer { preparingAudio = false }
+        let intent = player.beginPreparation(); preparationID = intent
+        preparingAudio = true; defer { preparingAudio = false; preparationID = nil }
         do {
             let document: ListeningDocument
             if speech.accountMode && !speech.usingAccountPreview {
                 if model.serverArticleID(id) == nil { await model.synchronize() }
                 guard let serverID = model.serverArticleID(id), let current = article else { throw SpeechError.backend("This article is waiting to sync. Connect to the internet and try again.") }
-                document = try await speech.accountDocument(serverID: serverID, localID: id, text: current.text, player: player)
+                document = try await speech.accountDocument(serverID: serverID, localID: id, text: current.text, player: player, expectedIntent: intent)
                 guard model.available else { return }
             } else { document = ListeningDocument(articleID: id, title: initial.title, text: initial.text) }
             let paragraph = offset.flatMap { document.chunk(atUTF16Offset: $0) }.map { document.chunks[$0].paragraph }
-            player.start(document, paragraph: paragraph)
-        } catch { audioError = error.localizedDescription }
+            try Task.checkCancellation()
+            player.start(document, paragraph: paragraph, expectedIntent: intent)
+        } catch is CancellationError { }
+        catch { if player.intentToken == intent { audioError = error.localizedDescription } }
     }
 
     private func loadHighlights() {

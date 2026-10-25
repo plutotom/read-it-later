@@ -49,18 +49,40 @@ function stableJSON(value: unknown): string {
   return JSON.stringify(value);
 }
 
+function isReadableLibraryURL(value: string): boolean {
+  // Read compatibility is broader than native create's public-URL policy:
+  // existing HTTP(S) links may point at internal hosts, and manual text is valid.
+  // Check the original authority too: URL normalizes empty userinfo away, while
+  // the native client's URLComponents rejects even an empty user/password.
+  const authority = /^(?:https?|text):\/\/([^/?#]*)/iu.exec(value)?.[1];
+  if (
+    !authority ||
+    authority.includes("@") ||
+    /[\u0000-\u0020\u007f\\]/u.test(value)
+  )
+    return false;
+  try {
+    const url = new URL(value);
+    return !!url.hostname && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
 function changeFromRow(row: ArticleRow): NativeLibraryChange {
   if (row.deleted)
     return { id: row.id, revision: row.revision, deleted: true, article: null };
   // The server ID is authoritative. Keep pathological source URLs on the server
   // and send an explicit unavailable representation rather than pin the feed.
-  const unavailable = row.oversized || row.oversizedURL;
   if (
     (!row.oversized && row.content === null) ||
     (!row.oversizedURL && row.url === null) ||
     row.title === null
   )
     throw new Error("Library ledger and article state disagree");
+  const unavailableURL =
+    row.oversizedURL || !isReadableLibraryURL(row.url ?? "");
+  const unavailable = row.oversized || unavailableURL;
   const document = unavailable
     ? {
         text: "",
@@ -74,7 +96,7 @@ function changeFromRow(row: ArticleRow): NativeLibraryChange {
     deleted: false,
     article: {
       id: row.id,
-      url: row.oversizedURL ? `text://unavailable/${row.id}` : (row.url ?? ""),
+      url: unavailableURL ? `text://unavailable/${row.id}` : (row.url ?? ""),
       title: row.title,
       text: document.text,
       ...(unavailable ? { contentUnavailable: true } : {}),

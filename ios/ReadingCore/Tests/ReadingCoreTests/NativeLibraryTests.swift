@@ -48,6 +48,9 @@ import GRDB
             NativeLibraryChange(revision: String($0.offset + 1), id: $0.element.id, deleted: false, article: $0.element)
         }, cursor: cursor, hasMore: more)
     }
+    private func pendingMutations(_ library: Library, id: String? = nil) throws -> [NativeLibraryMutation] {
+        try library.database.read { try library.pending(in: $0, id: id).map(\.mutation) }
+    }
 
     func testOptInAndLegacyBootstrapOnlyOnceAcrossRestart() async throws {
         let directory = try root(); defer { try? FileManager.default.removeItem(at: directory) }
@@ -216,6 +219,175 @@ import GRDB
         try library.apply(page([b, a, manual, pdf], cursor: "page-2"), after: "page-1")
         for article in try library.articles() { XCTAssertEqual(byServer[try library.articleServerID(article.id)!], article.id) }
         XCTAssertEqual(try library.syncState().pendingCount, 0)
+    }
+
+    func testPublicCreateURLPolicyMatchesBackendHostAndCredentialRules() throws {
+        let rejected = [
+            "https://intranet/", "https://localhost/", "https://localhost./",
+            "https://host.localhost/", "https://host.local/", "https://host.internal/",
+            "https://host.test/", "https://HOST.INVALID./", "https://127.0.0.1/",
+            "https://127.1/", "https://0x7f.1/", "https://0177.0.0.1/",
+            "https://2130706433/", "https://[::1]/", "https://example.123/",
+            "https://user@example.com/", "https://user:password@example.com/",
+            "https://:password@example.com/", "text://manual", "file:///example.com",
+            "https://example.com:65536/", "https://%31%32%37.0.0.1/"
+        ]
+        let library = try Library(syncEnabled: true)
+        for url in rejected {
+            XCTAssertFalse(NativeLibraryWire.isPublicURL(url), url)
+            XCTAssertThrowsError(try library.saveURL(url), url)
+        }
+        for url in ["https://example.com/a?query=keep", "http://EXAMPLE.COM./", "https://sub.example.com:8443/", "https://example.test.com/", "https://bücher.example/"] {
+            XCTAssertTrue(NativeLibraryWire.isPublicURL(url), url)
+            XCTAssertNoThrow(try library.saveURL(url), url)
+        }
+        XCTAssertEqual(try library.articles().count, 5)
+        XCTAssertEqual(try library.syncState().pendingCount, 5)
+    }
+
+    func testLegacyInvalidURLQuarantineSurvivesRestartWhileValidPushAndPullContinue() async throws {
+        let directory = try root(); defer { try? FileManager.default.removeItem(at: directory) }
+        let path = directory.appendingPathComponent("invalid-url.sqlite").path
+        let legacy = try Library(path: path)
+        // Simulate records accepted by the earlier, less restrictive local URL parser.
+        let invalidURLs = ["https://intranet/", "https://host.test/", "https://host.internal/", "https://127.1/"]
+        let originals = invalidURLs.map { url in
+            Article(id: UUID().uuidString.lowercased(), url: url, title: "Legacy", text: "Retained quote.", note: "Keep note", isRead: false, isFavorite: false, createdAt: Date(), error: nil)
+        }
+        try await legacy.database.write { db in for article in originals { try article.insert(db) } }
+        let quote = try legacy.addHighlight(articleId: originals[0].id, content: originals[0].text, range: NSRange(location: 0, length: 8))
+        let valid = try legacy.saveURL("https://example.com/valid")
+        try legacy.enableSync(session: session())
+        try legacy.toggleFavorite(id: originals[0].id) // An unmapped create must block its own flags only.
+        let retained = try pendingMutations(legacy, id: originals[0].id)
+        let reopened = try Library(path: path, syncEnabled: true)
+        let incoming = remote(url: "https://example.com/pulled")
+        let api = FixtureLibraryAPI()
+        api.onPull = { [self] _ in page([incoming], cursor: "pulled") }
+        do { try await reopened.sync(session: session(), client: api); XCTFail("Expected URL quarantine") }
+        catch { XCTAssertEqual(error as? NativeLibraryError, .invalidURL) }
+        XCTAssertEqual(api.pushes.flatMap { $0 }.map(\.articleId), [valid.id])
+        XCTAssertEqual(try reopened.syncCursor(), "pulled")
+        XCTAssertNotNil(try reopened.syncState().lastSuccess)
+        XCTAssertEqual(try reopened.syncState().lastError, NativeLibraryError.invalidURL.errorDescription)
+        XCTAssertEqual(try reopened.syncState().pendingCount, invalidURLs.count + 1)
+        for original in originals {
+            let article = try XCTUnwrap(reopened.articles().first { $0.id == original.id })
+            XCTAssertEqual(article.url, original.url); XCTAssertEqual(article.text, original.text)
+            XCTAssertEqual(article.note, original.note)
+            XCTAssertEqual(article.error, NativeLibraryError.invalidURL.errorDescription)
+        }
+        XCTAssertEqual(try reopened.highlights(articleId: originals[0].id).first?.id, quote.id)
+        XCTAssertEqual(try pendingMutations(reopened, id: originals[0].id), retained)
+        try reopened.removeDownloads()
+        XCTAssertEqual(try reopened.articles().first { $0.id == originals[0].id }?.error, NativeLibraryError.invalidURL.errorDescription)
+        let resumed = try Library(path: path, syncEnabled: true)
+        let secondValid = try resumed.saveURL("https://example.com/second-valid")
+        api.onPull = { [self] cursor in
+            XCTAssertEqual(cursor, "pulled")
+            return page([remote(url: "https://example.com/second-pull")], cursor: "pulled-again")
+        }
+        do { try await resumed.sync(session: session(), client: api); XCTFail("Expected URL quarantine") }
+        catch { XCTAssertEqual(error as? NativeLibraryError, .invalidURL) }
+        XCTAssertEqual(api.pushes.flatMap { $0 }.map(\.articleId), [valid.id, secondValid.id])
+        XCTAssertEqual(try resumed.syncCursor(), "pulled-again")
+        XCTAssertEqual(try pendingMutations(resumed, id: originals[0].id), retained)
+    }
+
+    func testFrozenInvalidCreateStaysImmutableAndDeleteBypassesQuarantine() async throws {
+        let library = try Library(syncEnabled: true)
+        let original = remote(url: "text://manual-fixture", text: "Canonical")
+        try library.apply(page([original]), after: nil)
+        let local = try XCTUnwrap(library.articles().first)
+        XCTAssertThrowsError(try library.saveContent(id: local.id, title: "Local", text: "Local quote.")) {
+            XCTAssertEqual($0 as? NativeLibraryError, .invalidURL)
+        }
+        // Older versions could have frozen such creates before receiving a backend 400.
+        try await library.database.write { try $0.execute(sql: "UPDATE native_pending SET frozen = 1") }
+        let frozen = try XCTUnwrap(pendingMutations(library).first)
+        try library.toggleFavorite(id: local.id)
+        let api = FixtureLibraryAPI()
+        do { try await library.sync(session: session(), client: api); XCTFail("Expected URL quarantine") }
+        catch { XCTAssertEqual(error as? NativeLibraryError, .invalidURL) }
+        XCTAssertEqual(api.pushes.flatMap { $0 }.map(\.kind), ["update"])
+        XCTAssertEqual(try pendingMutations(library).first, frozen)
+        try library.delete(id: local.id)
+        do { try await library.sync(session: session(), client: api); XCTFail("Frozen quarantine remains retained") }
+        catch { XCTAssertEqual(error as? NativeLibraryError, .invalidURL) }
+        XCTAssertEqual(api.pushes.flatMap { $0 }.map(\.kind), ["update", "delete"])
+        XCTAssertEqual(api.pushes.last?.first?.articleId, original.id)
+        XCTAssertTrue(try library.articles().isEmpty)
+        XCTAssertEqual(try pendingMutations(library).first, frozen)
+        XCTAssertTrue(try library.textSnapshots(articleID: local.id).contains { $0.text == "Local quote." })
+    }
+
+    func testDeletingNeverSentInvalidURLSupersedesBlockedCreate() async throws {
+        let library = try Library()
+        let article = Article(id: UUID().uuidString.lowercased(), url: "https://host.invalid/", title: "Legacy", text: "Local quote.", note: "Keep", isRead: false, isFavorite: false, createdAt: Date(), error: nil)
+        try await library.database.write { try article.insert($0) }
+        try library.enableSync()
+        try library.delete(id: article.id)
+        let api = FixtureLibraryAPI()
+        try await library.sync(session: session(), client: api)
+        XCTAssertEqual(api.pushes.flatMap { $0 }.map(\.kind), ["delete"])
+        XCTAssertEqual(try library.syncState().pendingCount, 0)
+        XCTAssertTrue(try library.textSnapshots(articleID: article.id).contains { $0.text == article.text })
+    }
+
+    func testManualTextDownloadRestoreUsesLatestCanonicalAcrossRestartsWithoutCreate() async throws {
+        let directory = try root(); defer { try? FileManager.default.removeItem(at: directory) }
+        let path = directory.appendingPathComponent("manual-restore.sqlite").path
+        let library = try Library(path: path, syncEnabled: true)
+        let original = remote(url: "text://manual-fixture", text: "Original quote.")
+        try library.apply(page([original]), after: nil)
+        let local = try XCTUnwrap(library.articles().first)
+        try library.saveNote(id: local.id, text: "Retained note")
+        let highlight = try library.addHighlight(articleId: local.id, content: local.text, range: NSRange(location: 0, length: 8))
+        try library.removeDownloads()
+        let reopened = try Library(path: path, syncEnabled: true)
+        let latest = remote(id: original.id, url: original.url, text: "Latest canonical text.", title: "Latest title", read: true, favorite: true)
+        try reopened.apply(page([latest], cursor: "latest"), after: "page-1")
+        XCTAssertFalse(try reopened.articles().first!.isDownloaded)
+        XCTAssertTrue(try reopened.restoreDownloadedText(id: local.id))
+        let restored = try XCTUnwrap(reopened.articles().first)
+        XCTAssertEqual(restored.text, latest.text); XCTAssertEqual(restored.title, latest.title)
+        XCTAssertFalse(restored.downloadSuppressed); XCTAssertNil(restored.error)
+        XCTAssertEqual(restored.note, "Retained note"); XCTAssertTrue(restored.isRead); XCTAssertTrue(restored.isFavorite)
+        XCTAssertEqual(try reopened.articleServerID(local.id), original.id)
+        XCTAssertEqual(try reopened.canonicalTextSnapshot(articleID: local.id)?.contentHash, Highlight.contentHash(restored.text))
+        XCTAssertEqual(try reopened.highlights(articleId: local.id).first?.id, highlight.id)
+        let retained = try XCTUnwrap(reopened.textSnapshots(articleID: local.id).first { $0.text == local.text })
+        XCTAssertNotNil(highlight.range(in: retained.text)); XCTAssertNil(highlight.range(in: restored.text))
+        XCTAssertEqual(try reopened.syncState().pendingCount, 0)
+        let resumed = try Library(path: path, syncEnabled: true)
+        XCTAssertEqual(try resumed.articles().first?.text, latest.text)
+        XCTAssertFalse(try resumed.articles().first!.downloadSuppressed)
+        let api = FixtureLibraryAPI()
+        api.onPull = { [self] cursor in XCTAssertEqual(cursor, "latest"); return page([], cursor: "latest") }
+        try await resumed.sync(session: session(), client: api)
+        XCTAssertTrue(api.pushes.isEmpty)
+        XCTAssertTrue(try resumed.restoreDownloadedText(id: local.id))
+        XCTAssertEqual(try resumed.syncState().pendingCount, 0)
+    }
+
+    func testRestoreWithoutCanonicalClearsSuppressionForSafePullAndDoesNotResurrectDeletion() throws {
+        let library = try Library(syncEnabled: true)
+        var unavailable = remote(url: "text://manual-unavailable", text: "")
+        unavailable.contentUnavailable = true
+        try library.apply(page([unavailable]), after: nil)
+        let local = try XCTUnwrap(library.articles().first)
+        try library.removeDownloads()
+        XCTAssertFalse(try library.restoreDownloadedText(id: local.id))
+        XCTAssertFalse(try library.articles().first!.downloadSuppressed)
+        XCTAssertEqual(try library.articles().first?.error, NativeLibraryError.contentUnavailable.errorDescription)
+        try library.apply(page([remote(id: unavailable.id, url: unavailable.url, text: "Safely pulled text")], cursor: "available"), after: "page-1")
+        XCTAssertEqual(try library.articles().first?.text, "Safely pulled text")
+        XCTAssertEqual(try library.syncState().pendingCount, 0)
+        try library.delete(id: local.id)
+        XCTAssertFalse(try library.restoreDownloadedText(id: local.id))
+        XCTAssertFalse(try library.restoreDownloadedText(id: "missing"))
+        XCTAssertTrue(try library.articles().isEmpty)
+        XCTAssertEqual(try library.syncState().pendingCount, 1)
     }
 
     func testRemoteDeleteWinsAndRetainsAnnotationsAndOriginalSnapshot() throws {

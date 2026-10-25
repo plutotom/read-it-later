@@ -97,19 +97,19 @@ import ReadingCore
         defaults.removeObject(forKey: "speech-server"); defaults.removeObject(forKey: "speech-catalog")
         status = "Silent preview enabled"
     }
-    private func configureAccount(_ player: ListeningPlayer) {
-        guard let account, !accountVoices.isEmpty else { return }
+    private func configureAccount(_ player: ListeningPlayer, expectedIntent: UUID? = nil, defaultVoiceID: String? = nil) {
+        guard let account, !accountVoices.isEmpty, expectedIntent == nil || player.intentToken == expectedIntent else { return }
         if configuredSession != account || usingAccountPreview || player.isSilentPreview {
-            let preferred = player.voice.id
-            player.configure(service: AccountSpeechService(client: AccountListeningClient(account: account), voices: accountVoices, cache: cache), transport: PCMPlaybackTransport(), address: account.server.absoluteString)
-            if let voice = accountVoices.first(where: { $0.id == preferred }) { player.setVoice(voice) }
+            let preferred = accountVoices.contains(where: { $0.id == player.voice.id }) ? player.voice.id : defaultVoiceID
+            player.configure(service: AccountSpeechService(client: AccountListeningClient(account: account), voices: accountVoices, cache: cache), transport: PCMPlaybackTransport(), address: account.server.absoluteString, preferredVoiceID: preferred, expectedIntent: expectedIntent)
             configuredSession = account
         }
         usingAccountPreview = false
     }
 
-    func connectAccount(_ player: ListeningPlayer) async {
+    func connectAccount(_ player: ListeningPlayer, expectedIntent: UUID? = nil) async {
         guard let account, !connecting else { return }
+        let intent = expectedIntent ?? player.intentToken
         connecting = true; defer { connecting = false }
         do {
             let catalog = try await AccountListeningClient(account: account).catalog()
@@ -119,17 +119,19 @@ import ReadingCore
             }
             accountVoices = catalog.voices.map(\.voice)
             defaults.set(try JSONEncoder().encode(catalog), forKey: "account-listening-catalog")
-            configureAccount(player)
-            if let preferred = catalog.defaultVoice, let voice = accountVoices.first(where: { $0.id == preferred }) { player.setVoice(voice) }
+            guard player.intentToken == intent else { return }
+            configureAccount(player, expectedIntent: intent, defaultVoiceID: catalog.defaultVoice)
             status = "Connected · \(accountVoices.count) account voices · shared web listening"
         } catch { status = error.localizedDescription }
     }
 
-    func accountDocument(serverID: String, localID: String, text: String, player: ListeningPlayer) async throws -> ListeningDocument {
+    func accountDocument(serverID: String, localID: String, text: String, player: ListeningPlayer, expectedIntent: UUID) async throws -> ListeningDocument {
         guard let account else { throw NativeAuthError.unauthorized }
-        if accountVoices.isEmpty { await connectAccount(player) }
+        if accountVoices.isEmpty { await connectAccount(player, expectedIntent: expectedIntent) }
+        try Task.checkCancellation()
+        guard player.intentToken == expectedIntent else { throw CancellationError() }
         guard !accountVoices.isEmpty else { throw SpeechError.backend(status) }
-        configureAccount(player)
+        configureAccount(player, expectedIntent: expectedIntent)
         let folder = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("ListeningManifests", isDirectory: true).appendingPathComponent(account.namespace, isDirectory: true)
         guard UUID(uuidString: serverID) != nil else { throw SpeechError.invalidResponse }
@@ -155,6 +157,8 @@ import ReadingCore
                   saved.articleId == serverID, saved.text == text else { throw error }
             try saved.validate(); manifest = saved
         }
+        try Task.checkCancellation()
+        guard player.intentToken == expectedIntent else { throw CancellationError() }
         return try ListeningDocument(manifest: manifest, localArticleID: localID)
     }
 
