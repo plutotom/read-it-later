@@ -102,13 +102,17 @@ export function NativePasswordForm({
                       ...(changing ? { currentPassword: current } : {}),
                     })
                       .then((result) => {
-                        if (!result) return; // A successful server redirect has no action result.
                         setPassword("");
                         setConfirm("");
                         setCurrent("");
                         if (result.error) {
                           setMessage(result.error);
                           setReauthenticate(result.reauthenticate ?? false);
+                        } else {
+                          // Reopen with the rotated cookie after the action response is applied.
+                          window.location.assign(
+                            "/native/password?passwordSaved=1",
+                          );
                         }
                       })
                       .catch(() =>
@@ -171,7 +175,7 @@ export function NativePasswordForm({
               )}
             </>
           )}
-          {message ? (
+          {message && !saved ? (
             <p role="alert" className="text-destructive text-sm">
               {message}
             </p>

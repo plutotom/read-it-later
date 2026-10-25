@@ -6,11 +6,6 @@ const state = vi.hoisted(() => ({
   changePassword: vi.fn(),
   allow: vi.fn(),
 }));
-vi.mock("next/navigation", () => ({
-  redirect: (path: string) => {
-    throw new Error("redirect:" + path);
-  },
-}));
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({ Origin: state.origin }),
 }));
@@ -69,7 +64,7 @@ it("enrolls only the authenticated account and never accepts an input user ID", 
       newPassword: "fixture-password-123",
       userId: "account-b",
     }),
-  ).rejects.toThrow("redirect:/native/password?passwordSaved=1");
+  ).resolves.toEqual({ success: true });
   expect(state.allow).toHaveBeenCalledWith("password-setup:account-a", 3);
   expect(state.setPassword).toHaveBeenCalledWith({
     headers: new Headers({ Origin: "https://auth.example.invalid" }),
@@ -83,7 +78,7 @@ it("requires the old password when changing one and revokes other sessions", asy
       newPassword: "fixture-password-123",
       currentPassword: "old-fixture",
     }),
-  ).rejects.toThrow("redirect:/native/password?passwordSaved=1");
+  ).resolves.toEqual({ success: true });
   expect(state.changePassword).toHaveBeenCalledWith({
     headers: new Headers({ Origin: "https://auth.example.invalid" }),
     body: {
