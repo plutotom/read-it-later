@@ -730,7 +730,7 @@ import GRDB
         let data = try library.exportJSON()
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
         let restored = try decoder.decode(LibraryBackup.self, from: data)
-        XCTAssertEqual(restored.formatVersion, 3)
+        XCTAssertEqual(restored.formatVersion, 4)
         XCTAssertEqual(restored.articles.first { $0.id == article.id }?.note, "Retained local note")
         XCTAssertEqual(restored.articles.first { $0.id == localDelete.id }?.note, "Deleted local note")
         XCTAssertTrue(restored.highlights.contains { $0.id == highlight.id })
@@ -739,7 +739,7 @@ import GRDB
         XCTAssertNotNil(highlight.range(in: snapshot.text))
         XCTAssertTrue(restored.textSnapshots?.contains { $0.localID == localDelete.id && $0.text == "Retained deleted quote." } == true)
         let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-        XCTAssertEqual(Set(json.keys), Set(["formatVersion", "articles", "highlights", "textSnapshots"]))
+        XCTAssertEqual(Set(json.keys), Set(["formatVersion", "articles", "highlights", "textSnapshots", "notes", "annotationStates", "permanentAnnotationDeletions", "annotationRecovery", "annotationImports", "canonicalTextSnapshots"]))
         for forbidden in ["token", "native_pending", "mutationId", "namespace", "cursor"] {
             XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("\"\(forbidden)\""))
         }

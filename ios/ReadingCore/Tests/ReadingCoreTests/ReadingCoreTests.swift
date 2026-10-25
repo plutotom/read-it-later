@@ -107,7 +107,7 @@ final class ReadingCoreTests: XCTestCase {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let backup = try decoder.decode(LibraryBackup.self, from: reopened.exportJSON())
-        XCTAssertEqual(backup.formatVersion, 3)
+        XCTAssertEqual(backup.formatVersion, 4)
         XCTAssertEqual(backup.highlights.first?.text, highlight.text)
         try reopened.deleteHighlight(id: highlight.id)
         XCTAssertTrue(try reopened.highlights(articleId: article.id).isEmpty)

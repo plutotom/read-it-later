@@ -52,6 +52,7 @@ public enum ArticleURL {
 @MainActor public final class Library {
     let database: DatabaseQueue
     public internal(set) var syncEnabled = false
+    public internal(set) var annotationSyncEnabled = false
     var syncEpoch: UInt64 = 0
     var activeSync: Task<Void, Error>?
 
@@ -94,7 +95,9 @@ public enum ArticleURL {
             }
         }
         Self.registerNativeLibraryMigration(&migrator)
+        Self.registerNativeAnnotationMigration(&migrator)
         try migrator.migrate(database)
+        annotationSyncEnabled = try database.read { try Bool.fetchOne($0, sql: "SELECT annotationsEnabled FROM native_sync_state WHERE singleton = 1") ?? false }
         if syncEnabled { try enableSync() }
     }
 
@@ -163,7 +166,24 @@ public enum ArticleURL {
         try database.write { try $0.execute(sql: "UPDATE article SET error = ? WHERE id = ?", arguments: [message, id]) }
     }
     public func saveNote(id: String, text: String) throws {
-        try database.write { try $0.execute(sql: "UPDATE article SET note = ? WHERE id = ?", arguments: [text, id]) }
+        if annotationSyncEnabled { try Self.validateNoteContent(text) }
+        try database.write { db in
+            guard annotationSyncEnabled else {
+                try db.execute(sql: "UPDATE article SET note = ? WHERE id = ?", arguments: [text, id])
+                return
+            }
+            guard try Article.fetchOne(db, key: id) != nil, try !isDeleted(id: id, in: db) else { return }
+            if let noteID = try String.fetchOne(db, sql: "SELECT annotationID FROM native_annotation_import WHERE kind = 'inline-note' AND legacyID = ?", arguments: [id]) {
+                try updateNote(id: noteID, content: text, in: db)
+            } else {
+                let note = LibraryNote(id: UUID().uuidString.lowercased(), articleId: try annotationParentID(id, in: db), highlightId: nil, content: text, createdAt: Date(), updatedAt: Date())
+                try note.insert(db)
+                _ = try markAnnotationImport(kind: "inline-note", legacyID: id, annotationID: note.id, in: db)
+                _ = try markAnnotationImport(kind: "note", legacyID: note.id, annotationID: note.id, in: db)
+                try setAnnotationState(kind: "note", id: note.id, articleId: note.articleId, deleted: false, in: db)
+                try enqueueNoteCreate(note, in: db)
+            }
+        }
     }
     public func toggleRead(id: String) throws {
         try database.write { db in
@@ -185,6 +205,7 @@ public enum ArticleURL {
         try database.write { db in
             if let article = try Article.fetchOne(db, key: id) {
                 try retainText(article, in: db)
+                try retainArticleAnnotations(id: id, in: db)
                 if syncEnabled {
                     try enqueueDelete(id: id, in: db)
                     return // Hide synced deletions; recovery exports retain their notes and highlights.
@@ -198,7 +219,13 @@ public enum ArticleURL {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
         let backup = try database.read { db in
-            LibraryBackup(formatVersion: 3, articles: try Article.fetchAll(db), highlights: try Highlight.fetchAll(db), textSnapshots: try NativeLibraryTextSnapshot.fetchAll(db, sql: "SELECT * FROM native_text_snapshot ORDER BY localID, capturedAt, contentHash, source"))
+            LibraryBackup(formatVersion: 4, articles: try Article.fetchAll(db), highlights: try Highlight.fetchAll(db),
+                notes: try LibraryNote.fetchAll(db),
+                annotationStates: try NativeAnnotationState.fetchAll(db, sql: "SELECT * FROM native_annotation_state ORDER BY kind, id, articleId"),
+                permanentAnnotationDeletions: try NativeAnnotationPermanentDeletion.fetchAll(db, sql: "SELECT * FROM native_annotation_permanent ORDER BY kind, id"),
+                annotationRecovery: try NativeAnnotationRecovery.fetchAll(db, sql: "SELECT * FROM native_annotation_recovery ORDER BY capturedAt, id"),
+                annotationImports: try NativeAnnotationImport.fetchAll(db, sql: "SELECT * FROM native_annotation_import ORDER BY kind, legacyID"),
+                canonicalTextSnapshots: try NativeLibraryTextSnapshot.fetchAll(db, sql: "SELECT * FROM native_canonical_text ORDER BY localID"), textSnapshots: try NativeLibraryTextSnapshot.fetchAll(db, sql: "SELECT * FROM native_text_snapshot ORDER BY localID, capturedAt, contentHash, source"))
         }
         return try encoder.encode(backup)
     }
@@ -206,7 +233,11 @@ public enum ArticleURL {
 
 extension Library {
     public func highlights(articleId: String) throws -> [Highlight] {
-        try database.read { try Highlight.fetchAll($0, sql: "SELECT * FROM highlight WHERE articleId = ? ORDER BY startOffset, createdAt, id", arguments: [articleId]) }
+        try database.read { db in
+            let parent = try annotationParentID(articleId, in: db)
+            guard try !annotationSyncEnabled || (!isDeleted(id: articleId, in: db) && !isDeleted(id: parent, in: db)) else { return [] }
+            return try Highlight.fetchAll(db, sql: "SELECT highlight.* FROM highlight LEFT JOIN native_annotation_state s ON s.kind = 'highlight' AND s.id = highlight.id AND s.articleId = highlight.articleId WHERE highlight.articleId = ? AND COALESCE(s.deleted, 0) = 0 AND COALESCE(s.present, 1) = 1 AND NOT EXISTS (SELECT 1 FROM native_annotation_permanent p WHERE p.kind = 'highlight' AND p.id = lower(highlight.id)) ORDER BY startOffset, createdAt, highlight.id", arguments: [parent])
+        }
     }
 
     @discardableResult public func addHighlight(articleId: String, content: String, range: NSRange) throws -> Highlight {
@@ -215,23 +246,51 @@ extension Library {
               range.length <= content.utf16.count - range.location,
               let selected = Range(range, in: content), !content[selected].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw HighlightError.invalidSelection }
         return try database.write { db in
-            guard let article = try Article.fetchOne(db, key: articleId), article.text == content else { throw HighlightError.invalidSelection }
+            guard try !isDeleted(id: articleId, in: db), let article = try Article.fetchOne(db, key: articleId), article.text == content else { throw HighlightError.invalidSelection }
+            let parent = try annotationParentID(articleId, in: db)
             let hash = Highlight.contentHash(content)
-            if let existing = try Highlight.fetchOne(db, sql: "SELECT * FROM highlight WHERE articleId = ? AND anchorContentHash = ? AND startOffset = ? AND endOffset = ?", arguments: [articleId, hash, range.location, NSMaxRange(range)]) { return existing }
-            let highlight = Highlight(id: UUID().uuidString, articleId: articleId,
+            if let existing = try Highlight.fetchOne(db, sql: "SELECT * FROM highlight WHERE articleId = ? AND anchorContentHash = ? AND startOffset = ? AND endOffset = ? AND NOT EXISTS (SELECT 1 FROM native_annotation_state s WHERE s.kind = 'highlight' AND s.id = highlight.id AND s.articleId = highlight.articleId AND (s.deleted = 1 OR s.present = 0)) AND NOT EXISTS (SELECT 1 FROM native_annotation_permanent p WHERE p.kind = 'highlight' AND p.id = lower(highlight.id))", arguments: [parent, hash, range.location, NSMaxRange(range)]) { return existing }
+            var highlight = Highlight(id: UUID().uuidString.lowercased(), articleId: parent,
                 text: String(content[selected]), startOffset: range.location, endOffset: NSMaxRange(range),
-                contextPrefix: String(content[..<selected.lowerBound].suffix(32)),
-                contextSuffix: String(content[selected.upperBound...].prefix(32)),
+                contextPrefix: NativeAnnotationSourceAnchor.boundedContext(String(content[..<selected.lowerBound].suffix(32)), suffix: true),
+                contextSuffix: NativeAnnotationSourceAnchor.boundedContext(String(content[selected.upperBound...].prefix(32)), suffix: false),
                 anchorContentHash: hash, color: .yellow, createdAt: Date(), version: 1)
+            highlight.sourceAnchor = originalSource(highlight)
+            if let canonical = try NativeLibraryTextSnapshot.fetchOne(db, sql: "SELECT * FROM native_canonical_text WHERE localID = ?", arguments: [articleId]),
+               canonical.format == "paper-drive-text-v1", canonical.text == content, canonical.contentHash == hash {
+                highlight.sourceAnchor?.space = "paper-drive-text-v1"
+                highlight.canonicalAnchor = NativeAnnotationCanonicalAnchor(text: highlight.text, startOffset: highlight.startOffset, endOffset: highlight.endOffset, contentHash: hash)
+                highlight.resolution = "anchored"
+            } else { highlight.resolution = "unresolved" }
+            highlight.updatedAt = highlight.createdAt
+            guard highlight.sourceAnchor?.isValid == true else { throw HighlightError.invalidSelection }
             try highlight.insert(db)
+            try setAnnotationState(kind: "highlight", id: highlight.id, articleId: parent, deleted: false, in: db)
+            if annotationSyncEnabled {
+                _ = try markAnnotationImport(kind: "highlight", legacyID: highlight.id, annotationID: highlight.id, in: db)
+                try enqueueHighlightCreate(highlight, in: db)
+            }
             return highlight
         }
     }
 
     public func setHighlightColor(id: String, color: HighlightColor) throws {
-        try database.write { try $0.execute(sql: "UPDATE highlight SET color = ? WHERE id = ?", arguments: [color.rawValue, id]) }
+        try database.write { db in
+            guard var highlight = try Highlight.fetchOne(db, key: id), try !annotationDeleted(kind: "highlight", id: id, articleId: highlight.articleId, in: db), try !isDeleted(id: highlight.articleId, in: db) else { return }
+            try recoverAnnotation(highlight, kind: "highlight", id: id, articleId: highlight.articleId, reason: "local-edit", in: db)
+            highlight.color = color; highlight.updatedAt = Date(); try highlight.update(db)
+            if annotationSyncEnabled {
+                try enqueueAnnotation(NativeLibraryMutation(mutationId: UUID().uuidString.lowercased(), kind: "highlight.update", articleId: highlight.articleId, patch: NativeLibraryPatch(color: color), highlightId: id), localID: highlight.articleId, in: db)
+            }
+        }
     }
     public func deleteHighlight(id: String) throws {
-        try database.write { try $0.execute(sql: "DELETE FROM highlight WHERE id = ?", arguments: [id]) }
+        try database.write { db in
+            guard let highlight = try Highlight.fetchOne(db, key: id), try !annotationDeleted(kind: "highlight", id: id, articleId: highlight.articleId, in: db) else { return }
+            try tombstoneAnnotation(kind: "highlight", id: id, articleId: highlight.articleId, reason: "local-delete", in: db)
+            if annotationSyncEnabled, try !isDeleted(id: highlight.articleId, in: db) {
+                try enqueueAnnotation(NativeLibraryMutation(mutationId: UUID().uuidString.lowercased(), kind: "highlight.delete", articleId: highlight.articleId, highlightId: id), localID: highlight.articleId, in: db)
+            }
+        }
     }
 }

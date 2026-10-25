@@ -1,6 +1,8 @@
 # Paper Drive — native 0.2 developer preview
 
-This is a **native reader with streaming speech support**. The library remains local to the iPhone; listening uses the separate native speech API. Sign-in and article sync use the existing web account. Public release remains a later milestone.
+This is a **native reader with streaming speech support**. The phone keeps an offline copy of the shared account library. Sign-in, sync and authenticated Google listening use the existing web backend. Public release remains a later milestone.
+
+Testing checklist: [iOS beta test guide](../docs/ios-beta-testing.md).
 
 The separate native speech deployment is still deferred. See [iOS status and next steps](../docs/plans/native-ios-next-steps.md)
 for the resume checklist and [the sign-in/sync plan](../docs/plans/native-ios-auth-sync.md)
@@ -17,11 +19,11 @@ The auth origin comes from `AUTH_SERVER_URL` in `project.yml` (default `https://
 
 Sessions are stored in this device’s Keychain. A previously verified, unexpired session permits offline reading; foreground checks detect revocation. Logout locks immediately and retries server revocation when online. Text, annotations, bookmarks, listening settings and cached audio are partitioned by account **and backend origin**. They remain on the phone after logout for that account’s next sign-in. Audio limits apply to each account’s cache (200 MB default). The first signed-in account receives a backup of the legacy local library once, preserving IDs, notes and highlights; the original database is retained. A later account cannot import it.
 
-Safari sharing requires a current signed-in destination. The extension receives only an opaque account/environment namespace and expiry, never a token. Its pending links stay with that destination. After sign-in, articles and read/favorite/archive flags sync through the account library API. Notes and highlights stay local in this first sync slice; the UI says so. Apple sign-in and native Discord OAuth remain future work.
+Safari sharing requires a current signed-in destination. The extension receives only an opaque account/environment namespace and expiry, never a token. Its pending links stay with that destination. After sign-in, articles and read/favorite/archive flags sync through the account library API. Notes and highlights sync through protocol 2; unresolved saved quotes remain readable without guessing a new position. Apple sign-in and native Discord OAuth remain future work.
 
 ## Shared library (development branch)
 
-The matching backend release and migrations 0015/0016 are required. The iOS app pulls web articles and readable text, queues offline saves/read/favorite/archive changes and deletions, and retries after a restart or temporary outage. Safari shares enter the same durable queue. Deleting a synced article deletes it from the account; removing downloaded text only changes this device’s storage. Repeated saves deduplicate conservatively without erasing existing web content or annotations. Existing duplicate web URLs retain distinct server identities.
+The matching backend release and migrations 0015/0016/0017 are required. The iOS app pulls web articles and readable text, queues offline saves/read/favorite/archive changes and deletions, and retries after a restart or temporary outage. Safari shares enter the same durable queue. Deleting a synced article deletes it from the account; removing downloaded text only changes this device’s storage. Repeated saves deduplicate conservatively without erasing existing web content or annotations. Existing duplicate web URLs retain distinct server identities.
 
 Settings shows pending changes, last successful sync, errors and **Sync now**. Oversized content does not block the rest of the library: unsupported remote text keeps a link/flags record, and oversized local uploads remain recoverable until removed or reduced. Stale edits cannot resurrect deleted IDs. Original local text and annotation quotes survive canonical text replacement; **Reading options → Saved text versions** exposes preserved versions. These recovery snapshots and queued uploads remain when clearing ordinary downloads.
 
@@ -191,24 +193,29 @@ local content. No analytics is added. Original websites see normal download requ
 ## Next milestones
 
 1. Review the article-sync build against isolated fixtures; then validate physical-device behavior.
-2. Implement rich reader snapshots/assets and web-compatible highlights.
-3. Extend the article sync protocol to notes, highlights and shared progress with explicit anchor mappings.
+2. Validate protocol-2 notes and highlight round trips against isolated fixtures.
+3. Add rich reader assets and shared reading/listening progress.
 4. Add Apple/native Discord sign-in, account recovery and deletion.
 5. Finish release accessibility/privacy/icon/signing work; then TestFlight.
 6. Validate live voices, latency, sleep, interruptions, and output routes on physical hardware.
 
-## Highlight storage (0.1.1)
+## Notes and highlight sync
 
-An additive `v2-highlights` SQLite migration preserves the existing library.
-Highlights store UTF-16 offsets, exact quote, prefix/suffix, and a SHA-256 hash of
-the extracted plain text. They are local to this reader's text, not interchangeable
-with web HTML anchors yet. If article text changes, the quote is retained in the
-Highlights sheet but not painted at potentially incorrect offsets. Automatic
-re-anchoring and highlight-specific notes remain future work. Overlapping highlights
-are retained; later painted ranges determine the visible overlap color.
+Additive SQLite migrations preserve existing highlights and imports each legacy inline
+note once into an independent note with a stable identity. The reader can add,
+edit and delete multiple notes and preserves all eight web highlight colors.
+Local edits and their durable queued operations commit together.
 
-JSON export now uses `{formatVersion: 2, articles: [...], highlights: [...]}` instead
-of the initial bare article array. No existing on-device data is rewritten by export.
+Protocol 2 keeps each highlight’s original quote, UTF-16 selector and hash.
+Verified canonical and web placements are separate projections; ambiguous or
+changed text leaves a recoverable quote in **Highlights** instead of guessing.
+Remote sync refreshes an open reader. Oversized annotation collections report a
+limit and retain existing local records. Removing downloaded text preserves notes,
+quotes and recovery versions.
+
+JSON export format 4 includes independent notes, source selectors, verified
+placements and recovery records. It contains no session credentials or mutation
+receipts. Re-import remains a future feature.
 
 ## Streaming listening (0.2)
 

@@ -52,6 +52,59 @@ final class ReadingUITests: XCTestCase {
         app.buttons["Done"].tap()
     }
 
+    @MainActor func testLiveIndependentNotesAndHighlightSync() throws {
+        guard ProcessInfo.processInfo.environment["NATIVE_ANNOTATIONS_LIVE_TEST"] == "1" else { throw XCTSkip("Requires the isolated annotation backend and synthetic fixtures") }
+        try setFixtureBackendOffline(false)
+        defer { try? setFixtureBackendOffline(false) }
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--ui-testing-auth-live", "--ui-testing-sync-live", "--reset-ui-test-library"]
+        app.launch()
+        XCTAssertTrue(app.textFields["authEmail"].waitForExistence(timeout: 15))
+        app.textFields["authEmail"].tap(); app.textFields["authEmail"].typeText("native-sync@example.invalid")
+        app.secureTextFields["authPassword"].tap(); app.secureTextFields["authPassword"].typeText("isolated-sync-password-123")
+        app.buttons["authSignIn"].tap()
+        XCTAssertTrue(app.staticTexts["A shared web article"].waitForExistence(timeout: 30))
+        app.staticTexts["A shared web article"].tap()
+        XCTAssertTrue(app.textViews["articleText"].waitForExistence(timeout: 10))
+        XCTAssertEqual(app.buttons["showHighlights"].label, "Highlights (2)")
+        app.buttons["showHighlights"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Saved quote")).firstMatch.waitForExistence(timeout: 5))
+        app.buttons["Done"].tap()
+        try setFixtureBackendOffline(true)
+        app.buttons["Add a note"].tap()
+        let editor = app.textViews["Article note"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 5)); editor.tap(); editor.typeText("A native note saved offline")
+        app.buttons["Save"].tap()
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--ui-testing-auth-live", "--ui-testing-sync-live"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["A shared web article"].waitForExistence(timeout: 20))
+        app.staticTexts["A shared web article"].tap()
+        let edit = app.buttons["editNote-00000000-0000-4000-8000-000000000045"]
+        for _ in 0..<5 where !edit.isHittable || edit.frame.maxY > app.frame.maxY - 100 { app.scrollViews.firstMatch.swipeUp() }
+        XCTAssertTrue(app.staticTexts["A native note saved offline"].waitForExistence(timeout: 5))
+        XCTAssertTrue(edit.isHittable); edit.tap()
+        XCTAssertTrue(editor.waitForExistence(timeout: 5)); editor.tap()
+        editor.typeText(" — edited on iOS")
+        app.buttons["Save"].tap()
+        let remove = app.buttons["deleteNote-00000000-0000-4000-8000-000000000044"]
+        for _ in 0..<4 where !remove.isHittable || remove.frame.minY < 120 { app.scrollViews.firstMatch.swipeDown() }
+        XCTAssertTrue(remove.isHittable); remove.tap()
+        try setFixtureBackendOffline(false)
+        app.buttons["Paper Drive"].tap()
+        app.buttons["Settings"].tap()
+        let sync = app.buttons["syncNow"]
+        for _ in 0..<4 where !sync.isHittable { app.swipeUp() }
+        XCTAssertTrue(sync.waitForExistence(timeout: 5)); sync.tap()
+        let done = app.buttons["Done"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5)); done.tap()
+        app.staticTexts["A shared web article"].tap()
+        for _ in 0..<4 where !app.staticTexts["A native note saved offline"].isHittable { app.swipeUp() }
+        XCTAssertFalse(app.staticTexts["First web note"].exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@ AND label CONTAINS %@", "Second web note", "edited on iOS")).firstMatch.exists)
+        let capture = XCTAttachment(screenshot: app.screenshot()); capture.name = "Independent notes after offline restart and sync"; capture.lifetime = .keepAlways; add(capture)
+    }
+
     private func setFixtureBackendOffline(_ offline: Bool) throws {
         let expectation = expectation(description: "fixture backend control")
         var request = URLRequest(url: URL(string: "http://127.0.0.1:4117/state")!)

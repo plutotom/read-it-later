@@ -4,14 +4,14 @@ import GRDB
 extension Library {
     /// Await from launch/foreground/manual refresh and after local writes. The caller owns retry scheduling.
     /// Repeated concurrent calls never dispatch a second copy of the outbox.
-    public func sync(session: NativeAuthSession, client: any NativeLibraryAPI = NativeLibraryClient()) async throws {
+    public func sync(session: NativeAuthSession, client: (any NativeLibraryAPI)? = nil) async throws {
         guard syncEnabled else { throw NativeLibraryError.disabled }
         guard activeSync == nil else { throw NativeLibraryError.alreadySyncing }
         try Task.checkCancellation()
         try bindSync(session)
         syncEpoch &+= 1
         let epoch = syncEpoch
-        let task = Task { @MainActor in try await self.runSync(session: session, client: client, epoch: epoch) }
+        let task = Task { @MainActor in try await self.runSync(session: session, client: client ?? NativeLibraryClient(protocolVersion: self.annotationSyncEnabled ? 2 : 1), epoch: epoch) }
         activeSync = task
         do {
             try await withTaskCancellationHandler(operation: { try await task.value }, onCancel: { task.cancel() })
@@ -46,15 +46,7 @@ extension Library {
         try checkSync(epoch: epoch)
         guard verified.user.id == session.user.id, verified.server == session.server,
               verified.expiresAt > Date(), verified.token == session.token else { throw NativeLibraryError.accountMismatch }
-        // Drain in durable order. New edits arriving during a request are retained and sent in a later batch.
-        while true {
-            try checkSync(epoch: epoch)
-            let batch = try prepareBatch()
-            if batch.isEmpty { break }
-            let acknowledgment = try await client.push(verified, mutations: batch.map(\.mutation))
-            try checkSync(epoch: epoch)
-            try acknowledge(acknowledgment, batch: batch)
-        }
+        try await drainOutbox(session: verified, client: client, epoch: epoch)
         var cursor = try syncCursor()
         var seen: Set<String> = []
         for _ in 0..<10_000 {
@@ -67,12 +59,26 @@ extension Library {
             try apply(page, after: cursor)
             cursor = page.cursor
             if !page.hasMore {
+                // A pull may discover the live parent for a deferred edit, or receive
+                // a new local edit while awaiting the response. Drain that fresh work once.
+                try await drainOutbox(session: verified, client: client, epoch: epoch)
                 try recordSyncSuccess()
                 if let error = try quarantinedMutationError() { throw error }
                 return
             }
         }
         throw NativeLibraryError.invalidResponse
+    }
+
+    private func drainOutbox(session: NativeAuthSession, client: any NativeLibraryAPI, epoch: UInt64) async throws {
+        while true {
+            try checkSync(epoch: epoch)
+            let batch = try prepareBatch()
+            if batch.isEmpty { return }
+            let acknowledgment = try await client.push(session, mutations: batch.map(\.mutation))
+            try checkSync(epoch: epoch)
+            try acknowledge(acknowledgment, batch: batch)
+        }
     }
 
     private func bindSync(_ session: NativeAuthSession) throws {
