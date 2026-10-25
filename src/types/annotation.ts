@@ -17,6 +17,9 @@ export interface Highlight {
   version: number;
   anchorContentHash?: string | null;
   anchorStatus: HighlightAnchorStatus;
+  anchorSpace?: string | null;
+  sourceAnchor?: unknown;
+  webAnchor?: unknown;
   tags?: string[];
   createdAt: Date;
   updatedAt: Date;

@@ -26,8 +26,10 @@ struct NativeLibraryPending: FetchableRecord {
     let mutation: NativeLibraryMutation
     let frozen: Bool
     let overlayFlags: Bool
+    let annotationRevision: String?
+    let annotationGeneration: Int?
     init(row: Row) throws {
-        sequence = row["sequence"]; localID = row["localID"]; frozen = row["frozen"]; overlayFlags = row["overlayFlags"]
+        sequence = row["sequence"]; localID = row["localID"]; frozen = row["frozen"]; overlayFlags = row["overlayFlags"]; annotationRevision = row["annotationRevision"]; annotationGeneration = row["annotationGeneration"]
         let data: Data = row["payload"]
         mutation = try NativeLibraryWire.decoder().decode(NativeLibraryMutation.self, from: data)
     }
@@ -101,6 +103,11 @@ extension Library {
                 try enqueueCreate(article, in: db)
                 if article.isArchived { try enqueuePatch(id: article.id, patch: NativeLibraryPatch(isArchived: true), in: db) }
             }
+            if annotationSyncEnabled {
+                for serverID in try String.fetchAll(db, sql: "SELECT DISTINCT serverID FROM native_mapping WHERE serverID IS NOT NULL") {
+                    _ = try Self.canonicalizeAnnotationAliases(serverID: serverID, in: db)
+                }
+            }
         }
         syncEnabled = true
     }
@@ -112,7 +119,7 @@ extension Library {
     public func syncState() throws -> NativeLibrarySyncState {
         try database.read { db in
             let row = try Row.fetchOne(db, sql: "SELECT * FROM native_sync_state WHERE singleton = 1")!
-            return NativeLibrarySyncState(pendingCount: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM native_pending")!,
+            return NativeLibrarySyncState(pendingCount: try Int.fetchOne(db, sql: "SELECT (SELECT COUNT(*) FROM native_pending) + (SELECT COUNT(*) FROM native_annotation_deferred)")!,
                 lastSuccess: row["lastSuccess"], lastError: row["lastError"], isSyncing: activeSync != nil)
         }
     }
@@ -207,15 +214,21 @@ extension Library {
     }
 
     func quarantineError(_ mutation: NativeLibraryMutation) throws -> NativeLibraryError? {
+        if mutation.isAnnotation {
+            if (mutation.content ?? mutation.patch?.content ?? "").contains("\0") { return .invalidAnnotation }
+            if mutation.kind == "highlight.create", mutation.sourceAnchor?.isValid != true { return .invalidAnnotation }
+        }
         if mutation.kind == "create", !NativeLibraryWire.isPublicURL(mutation.url ?? "") { return .invalidURL }
         return try exceedsSyncLimit(mutation) ? .tooLarge : nil
     }
 
     func exceedsSyncLimit(_ mutation: NativeLibraryMutation) throws -> Bool {
         if let text = mutation.text, text.utf16.count > NativeLibraryWire.maxCreateTextUTF16 { return true }
+        if let content = mutation.content ?? mutation.patch?.content, content.utf16.count > 200_000 { return true }
+        if let source = mutation.sourceAnchor, source.text.utf16.count > 200_000 { return true }
         if let title = mutation.title, title.utf16.count > 2048 { return true }
         if let url = mutation.url, url.utf16.count > 8192 { return true }
-        return try NativeLibraryWire.encoder().encode(NativeLibraryWire.Batch(mutations: [mutation])).count > NativeLibraryWire.maxRequestBytes
+        return try NativeLibraryWire.encoder().encode(NativeLibraryWire.Batch(protocolVersion: annotationSyncEnabled ? 2 : 1, mutations: [mutation])).count > NativeLibraryWire.maxRequestBytes
     }
 
     func enqueuePatch(id: String, patch: NativeLibraryPatch, in db: Database) throws {
@@ -256,7 +269,25 @@ extension Library {
             var blockedUnmappedIDs: Set<String> = []
             for var item in try pending(in: db) {
                 guard !localIDs.contains(item.localID) else { continue }
+                if item.mutation.isAnnotation {
+                    guard annotationSyncEnabled else { localIDs.insert(item.localID); continue }
+                    if !item.frozen, !item.mutation.kind.hasSuffix(".delete"), let id = item.mutation.annotationID,
+                       try annotationDeleted(kind: item.mutation.kind.hasPrefix("note.") ? "note" : "highlight", id: id, articleId: item.localID, in: db) {
+                        // If a verified old-parent miss is already waiting for its live
+                        // destination, preserve a newer unsent assignment in that same durable slot.
+                        let kind = item.mutation.kind.hasPrefix("note.") ? "note" : "highlight"
+                        if try !annotationPermanentlyDeleted(kind: kind, id: id, in: db),
+                           try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM native_annotation_deferred WHERE kind = ? AND id = ?)", arguments: [kind, id]) == true {
+                            try deferAnnotationAssignment(item, in: db)
+                        }
+                        // Frozen receipts still retry unchanged; only never-sent work can be superseded.
+                        try db.execute(sql: "DELETE FROM native_pending WHERE sequence = ? AND mutationID = ? AND frozen = 0", arguments: [item.sequence, item.mutation.mutationId])
+                        continue
+                    }
+                    guard try String.fetchOne(db, sql: "SELECT serverID FROM native_mapping WHERE localID = ?", arguments: [item.localID]) != nil else { localIDs.insert(item.localID); continue }
+                }
                 if let error = try quarantineError(item.mutation) {
+                    if item.mutation.isAnnotation { localIDs.insert(item.localID) }
                     try db.execute(sql: "UPDATE article SET error = ? WHERE id = ?", arguments: [error.errorDescription, item.localID])
                     if try String.fetchOne(db, sql: "SELECT serverID FROM native_mapping WHERE localID = ?", arguments: [item.localID]) == nil {
                         blockedUnmappedIDs.insert(item.localID)
@@ -271,11 +302,14 @@ extension Library {
                         mutation.articleId = serverID
                     }
                     let data = try NativeLibraryWire.encoder().encode(mutation)
-                    try db.execute(sql: "UPDATE native_pending SET payload = ?, frozen = 1 WHERE sequence = ?", arguments: [data, item.sequence])
+                    let kind = mutation.kind.hasPrefix("note.") ? "note" : "highlight"
+                    let annotationRevision = mutation.isAnnotation ? try String.fetchOne(db, sql: "SELECT revision FROM native_annotation_state WHERE kind = ? AND id = ? AND articleId = ?", arguments: [kind, mutation.annotationID, item.localID]) : nil
+                    let generation = mutation.isAnnotation ? try Int.fetchOne(db, sql: "SELECT generation FROM native_annotation_state WHERE kind = ? AND id = ? AND articleId = ?", arguments: [kind, mutation.annotationID, item.localID]) : nil
+                    try db.execute(sql: "UPDATE native_pending SET payload = ?, frozen = 1, annotationRevision = ?, annotationGeneration = ? WHERE sequence = ?", arguments: [data, annotationRevision, generation, item.sequence])
                     item = try NativeLibraryPending.fetchOne(db, sql: "SELECT * FROM native_pending WHERE sequence = ?", arguments: [item.sequence])!
                 }
                 let proposed = selected.map(\.mutation) + [item.mutation]
-                if try NativeLibraryWire.encoder().encode(NativeLibraryWire.Batch(mutations: proposed)).count > NativeLibraryWire.maxRequestBytes {
+                if try NativeLibraryWire.encoder().encode(NativeLibraryWire.Batch(protocolVersion: annotationSyncEnabled ? 2 : 1, mutations: proposed)).count > NativeLibraryWire.maxRequestBytes {
                     if selected.isEmpty { throw NativeLibraryError.tooLarge }
                     break
                 }
@@ -287,27 +321,82 @@ extension Library {
     }
 
     func acknowledge(_ acknowledgment: NativeLibraryAcknowledgment, batch: [NativeLibraryPending]) throws {
-        guard acknowledgment.protocolVersion == 1, acknowledgment.results.count == batch.count,
+        guard acknowledgment.protocolVersion == (annotationSyncEnabled ? 2 : 1), acknowledgment.results.count == batch.count,
               Set(acknowledgment.results.map(\.mutationId)) == Set(batch.map { $0.mutation.mutationId }) else { throw NativeLibraryError.invalidResponse }
         let sent = Dictionary(uniqueKeysWithValues: batch.map { ($0.mutation.mutationId, $0) })
         for result in acknowledgment.results {
+            if let revision = result.effectRevision {
+                guard !revision.isEmpty, revision.utf8.count <= 128, revision.utf8.allSatisfy({ (48...57).contains($0) }) else { throw NativeLibraryError.invalidResponse }
+            }
+            if result.permanentDeletion != nil {
+                guard result.status == "deleted", sent[result.mutationId]?.mutation.isAnnotation == true else { throw NativeLibraryError.invalidResponse }
+            }
             guard ["applied", "deleted"].contains(result.status), UUID(uuidString: result.articleId) != nil,
                   let item = sent[result.mutationId],
                   item.mutation.kind == "create" || result.articleId == item.mutation.articleId,
-                  item.mutation.kind != "delete" || result.status == "deleted" else { throw NativeLibraryError.invalidResponse }
+                  (!item.mutation.kind.hasSuffix(".delete") && item.mutation.kind != "delete") || result.status == "deleted",
+                  !item.mutation.isAnnotation || result.annotationId == nil || result.annotationId?.lowercased() == item.mutation.annotationID?.lowercased() else { throw NativeLibraryError.invalidResponse }
         }
         try database.write { db in
-            for result in acknowledgment.results {
+            // Preserve durable assignment order even if the transport returns receipts out of order.
+            for result in acknowledgment.results.sorted(by: { sent[$0.mutationId]!.sequence < sent[$1.mutationId]!.sequence }) {
                 let item = sent[result.mutationId]!
                 // A cancelled/replaced job cannot clear another job's queued assignment.
                 guard try String.fetchOne(db, sql: "SELECT mutationID FROM native_pending WHERE sequence = ?", arguments: [item.sequence]) == result.mutationId else { throw NativeLibraryError.invalidResponse }
                 if let mappedID = try String.fetchOne(db, sql: "SELECT serverID FROM native_mapping WHERE localID = ?", arguments: [item.localID]), mappedID != result.articleId {
                     throw NativeLibraryError.invalidResponse
                 }
-                if result.status == "deleted", let article = try Article.fetchOne(db, key: item.localID) { try retainText(article, in: db) }
+                if item.mutation.isAnnotation {
+                    let context = try annotationParentID(item.localID, in: db)
+                    if result.status == "deleted", let id = item.mutation.annotationID {
+                        let kind = item.mutation.kind.hasPrefix("note.") ? "note" : "highlight"
+                        if result.permanentDeletion == true {
+                            try recordPermanentAnnotationDeletion(kind: kind, id: id, revision: result.effectRevision, in: db)
+                        } else if let effectRevision = result.effectRevision {
+                            // The server effect, rather than dispatch time or the pull cursor,
+                            // orders this exact receipt against even an unobserved round-trip move.
+                            try tombstoneAnnotation(kind: kind, id: id, articleId: context, reason: "server-delete", revision: effectRevision, cascade: result.permanentDeletion == nil, in: db)
+                        } else {
+                            // Compatibility with receipts minted before effect revisions existed.
+                            let currentGeneration = try Int.fetchOne(db, sql: "SELECT generation FROM native_annotation_state WHERE kind = ? AND id = ? AND articleId = ?", arguments: [kind, id, context]) ?? 0
+                            if currentGeneration == (item.annotationGeneration ?? 0) {
+                                try tombstoneAnnotation(kind: kind, id: id, articleId: context, reason: "server-delete", cascade: result.permanentDeletion == nil, in: db)
+                            }
+                        }
+                    }
+                    if result.status == "applied", let effectRevision = result.effectRevision, let id = item.mutation.annotationID {
+                        try recordAppliedAnnotationEffect(kind: item.mutation.kind.hasPrefix("note.") ? "note" : "highlight", id: id, articleId: context, revision: effectRevision, in: db)
+                    }
+                    try db.execute(sql: "DELETE FROM native_pending WHERE sequence = ? AND mutationID = ?", arguments: [item.sequence, result.mutationId])
+                    if item.mutation.kind.hasSuffix(".delete"), let id = item.mutation.annotationID {
+                        // A newer explicit delete supersedes older deferred assignments even
+                        // when this parent-context delete becomes an old-parent miss.
+                        let kind = item.mutation.kind.hasPrefix("note.") ? "note" : "highlight"
+                        try db.execute(sql: "DELETE FROM native_annotation_deferred WHERE kind = ? AND id = ? AND sequence < ?", arguments: [kind, id, item.sequence])
+                    }
+                    if result.status == "deleted", result.permanentDeletion == false {
+                        try deferAnnotationAssignment(item, in: db)
+                        if let id = item.mutation.annotationID {
+                            try routeDeferredAnnotation(kind: item.mutation.kind.hasPrefix("note.") ? "note" : "highlight", id: id, in: db)
+                        }
+                    } else if result.status == "deleted", result.permanentDeletion != true, let effectRevision = result.effectRevision {
+                        try rebaseAssignmentAfterStaleReceipt(item, effectRevision: effectRevision, in: db)
+                    }
+                    if let id = item.mutation.annotationID {
+                        try reconcileAnnotationDeleteOverlay(kind: item.mutation.kind.hasPrefix("note.") ? "note" : "highlight", id: id, articleId: context, in: db)
+                    }
+                    continue
+                }
+                if result.status == "deleted", let article = try Article.fetchOne(db, key: item.localID) {
+                    try retainText(article, in: db)
+                    try retainArticleAnnotations(id: item.localID, in: db)
+                }
                 try db.execute(sql: "UPDATE native_mapping SET serverID = ?, deleted = MAX(deleted, ?) WHERE localID = ?",
                     arguments: [result.articleId, result.status == "deleted", item.localID])
                 try db.execute(sql: "DELETE FROM native_pending WHERE sequence = ? AND mutationID = ?", arguments: [item.sequence, result.mutationId])
+                if annotationSyncEnabled {
+                    _ = try Self.canonicalizeAnnotationAliases(serverID: result.articleId, in: db)
+                }
                 if item.mutation.kind == "create", result.status == "applied" {
                     try reconcileCanonicalAfterCreate(id: item.localID, in: db)
                 }
@@ -324,14 +413,14 @@ extension Library {
     }
 
     private func validate(_ page: NativeLibraryPage, after cursor: String?) throws {
-        guard page.protocolVersion == 1, page.changes.count <= 50, !page.cursor.isEmpty, page.cursor.utf8.count <= 8192,
+        guard page.protocolVersion == (annotationSyncEnabled ? 2 : 1), page.changes.count <= 50, !page.cursor.isEmpty, page.cursor.utf8.count <= 8192,
               !page.hasMore || (!page.changes.isEmpty && page.cursor != cursor),
               Set(page.changes.map(\.id)).count == page.changes.count else { throw NativeLibraryError.invalidResponse }
         for change in page.changes {
             guard UUID(uuidString: change.id) != nil, !change.revision.isEmpty, change.revision.utf8.count <= 128,
                   change.revision.utf8.allSatisfy({ (48...57).contains($0) }) else { throw NativeLibraryError.invalidResponse }
             if change.deleted {
-                guard change.article == nil else { throw NativeLibraryError.invalidResponse }; continue
+                guard change.article == nil, change.annotations == nil else { throw NativeLibraryError.invalidResponse }; continue
             }
             guard let article = change.article, article.id == change.id, article.format == "paper-drive-text-v1",
                   article.contentHash == Highlight.contentHash(article.text),
@@ -342,6 +431,13 @@ extension Library {
                   let url = URLComponents(string: article.url), let scheme = url.scheme?.lowercased(),
                   ["http", "https", "text"].contains(scheme), url.user == nil, url.password == nil,
                   scheme == "text" || !(url.host ?? "").isEmpty else { throw NativeLibraryError.invalidResponse }
+            if let annotations = change.annotations {
+                guard page.protocolVersion == 2 else { throw NativeLibraryError.invalidResponse }
+                try annotations.validate(article: article)
+            }
+            if page.protocolVersion == 2 {
+                guard change.annotations != nil, try NativeLibraryWire.responseEncoder().encode(change).count <= NativeLibraryWire.maxRequestBytes else { throw NativeLibraryError.invalidResponse }
+            }
         }
     }
 
@@ -356,7 +452,10 @@ extension Library {
         for localID in localIDs {
             try db.execute(sql: "UPDATE native_mapping SET serverID = ? WHERE localID = ?", arguments: [change.id, localID])
             if change.deleted {
-                if let article = try Article.fetchOne(db, key: localID) { try retainText(article, in: db) }
+                if let article = try Article.fetchOne(db, key: localID) {
+                    try retainText(article, in: db)
+                    try retainArticleAnnotations(id: localID, in: db)
+                }
                 // Remote deletes hide rather than cascade-delete local notes/highlights.
                 try db.execute(sql: "UPDATE native_mapping SET deleted = 1 WHERE localID = ?", arguments: [localID])
                 continue
@@ -379,6 +478,12 @@ extension Library {
             try overlayPending(on: &article, in: db)
             if article.downloadSuppressed { article.text = "" }
             try article.save(db)
+        }
+        // Apply the annotation collection exactly once per server parent, even if several
+        // local reader rows retain distinct downloads/text histories for that same article.
+        if annotationSyncEnabled, !change.deleted, let remote = change.article, let annotations = change.annotations,
+           let parent = try Self.canonicalizeAnnotationAliases(serverID: change.id, in: db), try !isDeleted(id: parent, in: db) {
+            try applyAnnotations(annotations, article: remote, localID: parent, revision: change.revision, in: db)
         }
     }
     func quarantinedMutationError() throws -> NativeLibraryError? {

@@ -51,6 +51,7 @@ private struct AccountReader: View {
 
 @MainActor @Observable final class LibraryModel {
     var articles: [Article] = []
+    private(set) var noteSearchText: [String: String] = [:]
     var error: String?
     var downloading: Set<String> = []
     var available = false
@@ -62,6 +63,8 @@ private struct AccountReader: View {
     private var scheduledSync: Task<Void, Never>?
     private var needsSync = false
     private(set) var syncEnabled = false
+    private(set) var annotationSyncEnabled = false
+    private(set) var contentRevision = 0
     private(set) var syncing = false
     private(set) var pendingChanges = 0
     private(set) var lastSync: Date?
@@ -113,7 +116,10 @@ private struct AccountReader: View {
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--ui-testing"), !ProcessInfo.processInfo.arguments.contains("--ui-testing-sync-live") { enable = false }
             #endif
-            if enable { try library?.enableSync(session: account); syncEnabled = true }
+            if enable {
+                try library?.enableAnnotationSync(session: account)
+                syncEnabled = true; annotationSyncEnabled = true
+            }
             available = true
             refresh()
         } catch { self.error = error.localizedDescription }
@@ -122,12 +128,17 @@ private struct AccountReader: View {
     func deactivate() {
         scheduledSync?.cancel(); scheduledSync = nil
         library?.cancelSync()
-        downloadGeneration = UUID(); downloading.removeAll(); articles = []; available = false; library = nil
+        downloadGeneration = UUID(); downloading.removeAll(); articles = []; noteSearchText = [:]; available = false; library = nil
     }
 
     func refresh() {
         do {
             articles = try library?.articles() ?? []
+            noteSearchText = [:]
+            if annotationSyncEnabled, let library {
+                for article in articles { noteSearchText[article.id] = try library.notes(articleId: article.id).map(\.content).joined(separator: "\n") }
+            }
+            contentRevision += 1
             if syncEnabled, let state = try library?.syncState() {
                 pendingChanges = state.pendingCount; lastSync = state.lastSuccess
             }
@@ -225,7 +236,7 @@ private struct AccountReader: View {
                 #if DEBUG
                 local = true
                 #endif
-                try await library.sync(session: account, client: NativeLibraryClient(allowLocalhost: local))
+                try await library.sync(session: account, client: NativeLibraryClient(allowLocalhost: local, protocolVersion: annotationSyncEnabled ? 2 : 1))
                 guard available else { return }
                 syncError = nil
             } while needsSync && !Task.isCancelled
@@ -253,6 +264,10 @@ private struct AccountReader: View {
     func export() -> Data? {
         do { return try library?.exportJSON() }
         catch { self.error = error.localizedDescription; return nil }
+    }
+
+    func notes(articleId: String) throws -> [LibraryNote] {
+        try library?.notes(articleId: articleId) ?? []
     }
 
     func highlights(articleId: String) throws -> [Highlight] {

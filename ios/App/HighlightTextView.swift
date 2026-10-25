@@ -9,6 +9,10 @@ extension HighlightColor {
         case .green: return .systemGreen
         case .blue: return .systemBlue
         case .pink: return .systemPink
+        case .purple: return .systemPurple
+        case .orange: return .systemOrange
+        case .red: return .systemRed
+        case .gray: return .systemGray
         }
     }
 }

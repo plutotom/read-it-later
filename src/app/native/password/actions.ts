@@ -4,6 +4,8 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { auth } from "~/server/auth";
 import { allowAuthAttempt } from "~/server/services/native-auth/rate-limit";
+import { isPasswordSetupSessionFresh } from "~/server/services/native-auth/password-session";
+import { hasAccountPassword } from "~/server/services/native-auth/password-status";
 
 const inputSchema = z.object({
   newPassword: z.string().min(12).max(128),
@@ -25,7 +27,7 @@ export async function saveNativePassword(input: unknown) {
   });
   if (!session) return { error: "Sign in with Discord first." };
   // Password enrollment must prove a recent social sign-in, not just a long-lived cookie.
-  if (Date.now() - session.session.createdAt.getTime() > 10 * 60_000) {
+  if (!isPasswordSetupSessionFresh(session.session.createdAt)) {
     return {
       error: "Sign in with Discord again before changing your password.",
       reauthenticate: true,
@@ -34,7 +36,13 @@ export async function saveNativePassword(input: unknown) {
   try {
     if (!(await allowAuthAttempt(`password-setup:${session.user.id}`, 3)))
       return { error: "Wait a minute before trying again." };
-    if (parsed.data.currentPassword) {
+    if (await hasAccountPassword(session.user.id)) {
+      if (!parsed.data.currentPassword) {
+        return {
+          error:
+            "Your account already has a password. Reload this page and enter your current password to change it.",
+        };
+      }
       await auth.api.changePassword({
         headers: requestHeaders,
         body: {
@@ -52,7 +60,7 @@ export async function saveNativePassword(input: unknown) {
   } catch {
     return {
       error:
-        "Could not save the password. If you already have one, enter your current password too.",
+        "Could not save the password. Check your current password if you are changing it, or reload this page and try again.",
     };
   }
   return { success: true };

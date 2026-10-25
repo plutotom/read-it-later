@@ -41,14 +41,14 @@ private final class LibraryHTTPProtocol: URLProtocol, @unchecked Sendable {
 }
 
 final class NativeLibraryClientTests: XCTestCase {
-    private func fixture(handler: @escaping @Sendable (URLRequest) throws -> LibraryHTTPReply) -> (NativeLibraryClient, NativeAuthSession) {
+    private func fixture(protocolVersion: Int = 1, handler: @escaping @Sendable (URLRequest) throws -> LibraryHTTPReply) -> (NativeLibraryClient, NativeAuthSession) {
         let server = URL(string: "https://\(UUID().uuidString.lowercased()).example.com")!
         LibraryHTTPProtocol.fixtures.register(server.host!, handler: handler)
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [LibraryHTTPProtocol.self]
         config.httpShouldSetCookies = true // The client must override this.
         let session = NativeAuthSession(user: NativeAuthUser(id: "fixture-a", name: "A", email: "fixture@example.com"), token: "fixture-only-signed-token", expiresAt: .distantFuture, server: server)
-        return (NativeLibraryClient(configuration: config), session)
+        return (NativeLibraryClient(configuration: config, protocolVersion: protocolVersion), session)
     }
 
     func testExactPathsSignedBearerNoCookiesAndOpaqueCursorEncoding() async throws {
@@ -128,4 +128,86 @@ final class NativeLibraryClientTests: XCTestCase {
         do { _ = try await client.pull(session, cursor: nil); XCTFail("Accepted malformed article date") }
         catch { XCTAssertEqual(error as? NativeLibraryError, .invalidResponse) }
     }
+    func testProtocolTwoOptInUsesQueryAndMutationEnvelopeWithAnnotationFields() async throws {
+        let articleID = UUID().uuidString.lowercased()
+        let noteID = UUID().uuidString.lowercased()
+        let mutation = NativeLibraryMutation(mutationId: UUID().uuidString.lowercased(), kind: "note.create", articleId: articleID, noteId: noteID, content: "Fixture note")
+        let (client, session) = fixture(protocolVersion: 2) { request in
+            if request.url!.path == "/api/native/library" {
+                let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+                XCTAssertEqual(query.first { $0.name == "protocolVersion" }?.value, "2")
+                return LibraryHTTPReply(status: 200, data: try NativeLibraryWire.encoder().encode(NativeLibraryPage(protocolVersion: 2, changes: [], cursor: "two", hasMore: false)))
+            }
+            let body: Data
+            if let bytes = request.httpBody { body = bytes }
+            else {
+                let stream = try XCTUnwrap(request.httpBodyStream)
+                stream.open(); defer { stream.close() }
+                var bytes = Data()
+                var buffer = [UInt8](repeating: 0, count: 4096)
+                while stream.hasBytesAvailable {
+                    let count = stream.read(&buffer, maxLength: buffer.count)
+                    guard count >= 0 else { throw NativeLibraryError.invalidResponse }
+                    if count == 0 { break }
+                    bytes.append(contentsOf: buffer.prefix(count))
+                }
+                body = bytes
+            }
+            let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+            XCTAssertEqual(json["protocolVersion"] as? Int, 2)
+            let rows = try XCTUnwrap(json["mutations"] as? [[String: Any]])
+            XCTAssertEqual(rows.first?["noteId"] as? String, noteID)
+            XCTAssertEqual(rows.first?["content"] as? String, "Fixture note")
+            XCTAssertNil(rows.first?["patch"])
+            return LibraryHTTPReply(status: 200, data: try NativeLibraryWire.encoder().encode(NativeLibraryAcknowledgment(protocolVersion: 2,
+                results: [NativeLibraryMutationResult(mutationId: mutation.mutationId, status: "applied", articleId: articleID, annotationId: noteID, effectRevision: "42")])))
+        }
+        XCTAssertEqual(client.protocolVersion, 2)
+        _ = try await client.pull(session, cursor: nil)
+        let ack = try await client.push(session, mutations: [mutation])
+        XCTAssertEqual(ack.results.first?.annotationId, noteID)
+        XCTAssertEqual(ack.results.first?.effectRevision, "42")
+        let (legacy, legacySession) = fixture { _ in XCTFail("Protocol 1 dispatched an annotation"); throw NativeLibraryError.invalidResponse }
+        do { _ = try await legacy.push(legacySession, mutations: [mutation]); XCTFail("Accepted protocol 2 mutation") }
+        catch { XCTAssertEqual(error as? NativeLibraryError, .invalidResponse) }
+    }
+
+    func testStrictMutationValidationRejectsNullNotesAndMalformedSourceBeforeTransport() async throws {
+        let articleID = UUID().uuidString.lowercased()
+        let (client, session) = fixture(protocolVersion: 2) { _ in
+            XCTFail("Invalid annotation reached transport")
+            throw NativeLibraryError.unavailable
+        }
+        for mutation in [
+            NativeLibraryMutation(mutationId: UUID().uuidString.lowercased(), kind: "note.create", articleId: articleID, noteId: UUID().uuidString.lowercased(), content: "bad\0note"),
+            NativeLibraryMutation(mutationId: UUID().uuidString.lowercased(), kind: "note.update", articleId: articleID, patch: NativeLibraryPatch(content: "bad\0edit"), noteId: UUID().uuidString.lowercased())
+        ] {
+            do { _ = try await client.push(session, mutations: [mutation]); XCTFail("Accepted NUL") }
+            catch { XCTAssertEqual(error as? NativeAnnotationError, .invalidNoteContent) }
+        }
+        let sources = [
+            NativeAnnotationSourceAnchor(space: "web-dom-v1", text: "quote", startOffset: 0, endOffset: 5, contextPrefix: "", contextSuffix: "", contentHash: ""),
+            NativeAnnotationSourceAnchor(space: "local-text-v1", text: "quote", startOffset: 0, endOffset: 5, contextPrefix: String(repeating: "x", count: 2049), contextSuffix: "", contentHash: Highlight.contentHash("quote")),
+            NativeAnnotationSourceAnchor(space: "local-text-v1", text: "quote", startOffset: 0, endOffset: 5, contextPrefix: "", contextSuffix: "bad\0context", contentHash: Highlight.contentHash("quote"))
+        ]
+        for source in sources {
+            let mutation = NativeLibraryMutation(mutationId: UUID().uuidString.lowercased(), kind: "highlight.create", articleId: articleID, highlightId: UUID().uuidString.lowercased(), color: .yellow, sourceAnchor: source)
+            do { _ = try await client.push(session, mutations: [mutation]); XCTFail("Accepted invalid new selector") }
+            catch { XCTAssertEqual(error as? NativeLibraryError, .invalidAnnotation) }
+        }
+    }
+
+    func testOptionalPermanentDeletionFlagDecodesOnDeletedProtocolTwoReceipts() async throws {
+        let mutation = NativeLibraryMutation(mutationId: UUID().uuidString.lowercased(), kind: "note.delete", articleId: UUID().uuidString.lowercased(), noteId: UUID().uuidString.lowercased())
+        for permanent in [true, false] {
+            let (client, session) = fixture(protocolVersion: 2) { _ in
+                let response = NativeLibraryAcknowledgment(protocolVersion: 2, results: [NativeLibraryMutationResult(mutationId: mutation.mutationId, status: "deleted", articleId: mutation.articleId, annotationId: mutation.noteId, effectRevision: "6", permanentDeletion: permanent)])
+                return LibraryHTTPReply(status: 200, data: try NativeLibraryWire.encoder().encode(response))
+            }
+            let result = try await client.push(session, mutations: [mutation])
+            XCTAssertEqual(result.results.first?.permanentDeletion, permanent)
+            XCTAssertEqual(result.results.first?.effectRevision, "6")
+        }
+    }
+
 }

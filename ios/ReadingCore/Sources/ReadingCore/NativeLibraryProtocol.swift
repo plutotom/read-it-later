@@ -4,9 +4,11 @@ import FoundationNetworking
 #endif
 
 public enum NativeLibraryError: LocalizedError, Equatable {
-    case disabled, accountMismatch, invalidResponse, invalidSession, unauthorized, throttled, unavailable, alreadySyncing, tooLarge, invalidURL, contentUnavailable
+    case invalidAnnotation, annotationLimit, disabled, accountMismatch, invalidResponse, invalidSession, unauthorized, throttled, unavailable, alreadySyncing, tooLarge, invalidURL, contentUnavailable
     public var errorDescription: String? {
         switch self {
+        case .invalidAnnotation: "A saved annotation cannot be uploaded. Its original text remains on this device."
+        case .annotationLimit: "Some annotations exceed the sync limit. Existing notes and highlights remain on this device."
         case .contentUnavailable: "This article’s text is unavailable for offline sync. Its link and flags are saved."
         case .disabled: "Library sync is disabled."
         case .accountMismatch: "This library belongs to another account or server. Open that account's library."
@@ -41,6 +43,7 @@ public struct NativeLibraryChange: Codable, Sendable {
     public let id: String
     public let deleted: Bool
     public let article: NativeLibraryArticle?
+    public var annotations: NativeAnnotationSnapshot? = nil
 }
 
 public struct NativeLibraryPage: Codable, Sendable {
@@ -54,8 +57,11 @@ public struct NativeLibraryPatch: Codable, Sendable, Equatable {
     public var isRead: Bool?
     public var isFavorite: Bool?
     public var isArchived: Bool?
-    public init(isRead: Bool? = nil, isFavorite: Bool? = nil, isArchived: Bool? = nil) {
+    public var content: String?
+    public var color: HighlightColor?
+    public init(isRead: Bool? = nil, isFavorite: Bool? = nil, isArchived: Bool? = nil, content: String? = nil, color: HighlightColor? = nil) {
         self.isRead = isRead; self.isFavorite = isFavorite; self.isArchived = isArchived
+        self.content = content; self.color = color
     }
 }
 
@@ -70,12 +76,23 @@ public struct NativeLibraryMutation: Codable, Sendable, Equatable {
     public var isRead: Bool?
     public var isFavorite: Bool?
     public var patch: NativeLibraryPatch?
+    public var noteId: String? = nil
+    public var highlightId: String? = nil
+    public var content: String? = nil
+    public var color: HighlightColor? = nil
+    public var sourceAnchor: NativeAnnotationSourceAnchor? = nil
+
+    var isAnnotation: Bool { kind.hasPrefix("note.") || kind.hasPrefix("highlight.") }
+    var annotationID: String? { kind.hasPrefix("note.") ? noteId : highlightId }
 }
 
 public struct NativeLibraryMutationResult: Codable, Sendable {
     public let mutationId: String
     public let status: String
     public let articleId: String
+    public var annotationId: String? = nil
+    public var effectRevision: String? = nil
+    public var permanentDeletion: Bool? = nil
 }
 
 public struct NativeLibraryAcknowledgment: Codable, Sendable {
@@ -133,7 +150,13 @@ enum NativeLibraryWire {
         encoder.dateEncodingStrategy = .iso8601
         return encoder
     }
-    struct Batch: Encodable { let protocolVersion = 1; let mutations: [NativeLibraryMutation] }
+    /// Response budget measurement follows JSON.stringify rather than changing frozen uploads.
+    static func responseEncoder() -> JSONEncoder {
+        let encoder = encoder()
+        encoder.outputFormatting.insert(.withoutEscapingSlashes)
+        return encoder
+    }
+    struct Batch: Encodable { var protocolVersion = 1; let mutations: [NativeLibraryMutation] }
 }
 
 private final class LibraryRedirectBlocker: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
@@ -147,13 +170,15 @@ private final class LibraryRedirectBlocker: NSObject, URLSessionTaskDelegate, @u
 public struct NativeLibraryClient: NativeLibraryAPI {
     private let transport: URLSession
     private let allowLocalhost: Bool
-    public init(configuration: URLSessionConfiguration? = nil, allowLocalhost: Bool = false) {
+    public let protocolVersion: Int
+    public init(configuration: URLSessionConfiguration? = nil, allowLocalhost: Bool = false, protocolVersion: Int = 1) {
         let config = (configuration?.copy() as? URLSessionConfiguration) ?? .ephemeral
         config.httpShouldSetCookies = false; config.httpCookieStorage = nil; config.urlCredentialStorage = nil
         config.urlCache = nil; config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.timeoutIntervalForRequest = 30; config.timeoutIntervalForResource = 60
         transport = URLSession(configuration: config, delegate: LibraryRedirectBlocker(), delegateQueue: nil)
         self.allowLocalhost = allowLocalhost
+        self.protocolVersion = protocolVersion
     }
     public func verify(_ session: NativeAuthSession) async throws -> NativeAuthSession {
         struct Profile: Decodable { let user: NativeAuthUser; let expiresAt: Date }
@@ -162,14 +187,23 @@ public struct NativeLibraryClient: NativeLibraryAPI {
         return NativeAuthSession(user: profile.user, token: session.token, expiresAt: profile.expiresAt, server: session.server)
     }
     public func pull(_ session: NativeAuthSession, cursor: String?) async throws -> NativeLibraryPage {
+        guard [1, 2].contains(protocolVersion) else { throw NativeLibraryError.invalidResponse }
         var query = [URLQueryItem(name: "limit", value: "50")]
+        if protocolVersion == 2 { query.append(URLQueryItem(name: "protocolVersion", value: "2")) }
         if let cursor { query.append(URLQueryItem(name: "cursor", value: cursor)) }
         return try await send(session, path: "api/native/library", query: query)
     }
     public func push(_ session: NativeAuthSession, mutations: [NativeLibraryMutation]) async throws -> NativeLibraryAcknowledgment {
-        guard !mutations.isEmpty, mutations.count <= 25 else { throw NativeLibraryError.invalidResponse }
-        let body = try NativeLibraryWire.encoder().encode(NativeLibraryWire.Batch(mutations: mutations))
-        guard body.count <= NativeLibraryWire.maxRequestBytes, mutations.allSatisfy({ ($0.text?.utf16.count ?? 0) <= NativeLibraryWire.maxCreateTextUTF16 }) else { throw NativeLibraryError.tooLarge }
+        guard [1, 2].contains(protocolVersion), protocolVersion == 2 || !mutations.contains(where: \.isAnnotation), !mutations.isEmpty, mutations.count <= 25 else { throw NativeLibraryError.invalidResponse }
+        for mutation in mutations {
+            if mutation.kind == "note.create" || mutation.kind == "note.update" {
+                guard !(mutation.content ?? mutation.patch?.content ?? "").contains("\0") else { throw NativeAnnotationError.invalidNoteContent }
+            }
+            if mutation.kind == "highlight.create", mutation.sourceAnchor?.isValid != true { throw NativeLibraryError.invalidAnnotation }
+        }
+        let body = try NativeLibraryWire.encoder().encode(NativeLibraryWire.Batch(protocolVersion: protocolVersion, mutations: mutations))
+        guard body.count <= NativeLibraryWire.maxRequestBytes, mutations.allSatisfy({ ($0.text?.utf16.count ?? 0) <= NativeLibraryWire.maxCreateTextUTF16 &&
+            (($0.content ?? $0.patch?.content)?.utf16.count ?? 0) <= 200_000 && ($0.sourceAnchor?.text.utf16.count ?? 0) <= 200_000 }) else { throw NativeLibraryError.tooLarge }
         return try await send(session, path: "api/native/library/mutations", body: body)
     }
     private func send<T: Decodable>(_ session: NativeAuthSession, path: String, query: [URLQueryItem] = [], body: Data? = nil) async throws -> T {

@@ -30,7 +30,7 @@ struct LibraryView: View {
         model.articles.filter {
             (filter != "Unread" || !$0.isRead) && (filter != "Favorites" || $0.isFavorite) &&
             (filter == "Archived" ? $0.isArchived : !$0.isArchived) &&
-            (search.isEmpty || "\($0.title) \($0.url) \($0.text) \($0.note)".localizedCaseInsensitiveContains(search))
+            (search.isEmpty || "\($0.title) \($0.url) \($0.text) \(model.annotationSyncEnabled ? model.noteSearchText[$0.id] ?? "" : $0.note)".localizedCaseInsensitiveContains(search))
         }
     }
 
@@ -44,12 +44,12 @@ struct LibraryView: View {
                             .font(.subheadline).foregroundStyle(.secondary)
                     }.padding(.vertical, 8)
                     if model.syncEnabled {
-                        HStack(spacing: 6) {
-                            if model.syncing { ProgressView().controlSize(.small) }
-                            Text(model.syncing ? "Syncing…" : model.pendingChanges > 0 ? "\(model.pendingChanges) changes waiting to sync" : "Account library")
-                                .font(.caption).foregroundStyle(.secondary)
-                            Spacer()
-                            Button { Task { await model.synchronize() } } label: { Image(systemName: "arrow.triangle.2.circlepath") }.accessibilityLabel("Sync library").disabled(model.syncing)
+                        if model.pendingChanges > 0 {
+                            HStack(spacing: 6) {
+                                if model.syncing { ProgressView().controlSize(.small) }
+                                Text(model.syncing ? "Syncing…" : "\(model.pendingChanges) changes waiting to sync")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
                         }
                         if let message = model.syncError { Text(message).font(.caption).foregroundStyle(.orange) }
                     }
@@ -148,7 +148,7 @@ struct LibraryView: View {
                             if let date = model.lastSync { LabeledContent("Last synced") { Text(date, style: .relative) } }
                             if let message = model.syncError { Text(message).foregroundStyle(.orange) }
                             Button(model.syncing ? "Syncing…" : "Sync now") { Task { await model.synchronize() } }.disabled(model.syncing).accessibilityIdentifier("syncNow")
-                            Text("Articles, read/favorite/archive state and deletions sync with your web account. Offline edits stay queued for this account. Notes and highlights remain on this iPhone during this stage.").font(.footnote).foregroundStyle(.secondary)
+                            Text("Articles, read/favorite/archive state, notes, highlights and deletions sync with your web account. Offline edits stay queued for this account. Saved quotes remain available when their original position cannot be verified.").font(.footnote).foregroundStyle(.secondary)
                         }
                     }
                     Section("Native reader") {

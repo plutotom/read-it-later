@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { beforeAll, afterAll, describe, expect, it } from "vitest";
+import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 import * as schema from "~/server/db/schema";
 import {
   NATIVE_LIBRARY_ARTICLE_BYTES,
@@ -11,6 +11,7 @@ import {
   NATIVE_LIBRARY_TITLE_CHARACTERS,
   NATIVE_LIBRARY_URL_BYTES,
 } from "~/lib/native-library";
+vi.mock("~/server/db", () => ({ db: {} }));
 import { mutateNativeLibrary, pullNativeLibrary } from "./service";
 import { signNativeLibraryCursor } from "./cursor";
 

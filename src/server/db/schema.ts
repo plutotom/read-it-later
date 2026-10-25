@@ -4,6 +4,8 @@
  */
 
 import { sql } from "drizzle-orm";
+import type { SourceAnchor } from "~/lib/native-annotations";
+import type { WebAnchor } from "~/lib/annotation-anchor";
 import { relations } from "drizzle-orm";
 import { index, pgTableCreator, pgEnum, primaryKey } from "drizzle-orm/pg-core";
 import {
@@ -166,6 +168,15 @@ export const highlights = createTable(
     anchorStatus: highlightAnchorStatusEnum("anchor_status")
       .notNull()
       .default("anchored"),
+    // Original selector and a separately verified DOM projection. Native source
+    // offsets must never be interpreted as legacy DOM offsets by the painter.
+    anchorSpace: d
+      .text()
+      .$type<SourceAnchor["space"]>()
+      .notNull()
+      .default("web-dom-v1"),
+    sourceAnchor: d.jsonb().$type<SourceAnchor>(),
+    webAnchor: d.jsonb().$type<WebAnchor>(),
     // Tags for organizing highlights (optional)
     tags: d.text().array(),
     createdAt: d
@@ -575,3 +586,31 @@ export const audioReservations = createTable("audio_reservation", (d) => ({
   rawDispatched: d.integer().notNull().default(0),
   settled: d.boolean().notNull().default(false),
 }));
+
+// Existing 0015 owner counter. Annotation FK/locking shares this exact row.
+export const nativeLibraryOwners = createTable("native_library_owner", (d) => ({
+  ownerId: d
+    .text("owner_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  revision: d.bigint({ mode: "bigint" }).notNull().default(0n),
+}));
+
+// Permanent annotation identities/tombstones; intentionally no child/parent FK.
+export const nativeAnnotations = createTable(
+  "native_annotation",
+  (d) => ({
+    ownerId: d
+      .text("owner_id")
+      .notNull()
+      .references(() => nativeLibraryOwners.ownerId, { onDelete: "cascade" }),
+    kind: d.text().$type<"note" | "highlight">().notNull(),
+    id: d.uuid().notNull(),
+    articleId: d.uuid("article_id").notNull(),
+    deleted: d.boolean().notNull(),
+  }),
+  (t) => [
+    primaryKey({ columns: [t.ownerId, t.kind, t.id, t.articleId] }),
+    index("native_annotation_article_idx").on(t.ownerId, t.articleId),
+  ],
+);
