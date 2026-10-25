@@ -304,6 +304,90 @@ final class ReadingUITests: XCTestCase {
         app.buttons["Close listening player"].tap()
     }
 
+    @MainActor func testJumpToSpokenTextReturnsFromScrolledPositionWithoutResuming() throws {
+        let app = launchLongReader()
+        app.buttons["startListening"].tap()
+        XCTAssertTrue(app.buttons["Pause preview"].waitForExistence(timeout: 5))
+        app.buttons["Pause preview"].tap()
+        for _ in 0..<3 { app.swipeUp() }
+        let jump = app.buttons["jumpToSpokenText"]
+        XCTAssertTrue(jump.waitForExistence(timeout: 5))
+        assertJumpIsAboveMiniPlayer(app)
+        jump.tap()
+        XCTAssertTrue(jump.waitForNonExistence(timeout: 5), "Jump must put the spoken text onscreen even when contentOffset is nonzero")
+        XCTAssertTrue(app.buttons["Play preview"].exists, "Following text must preserve paused playback")
+        app.swipeUp()
+        XCTAssertTrue(jump.waitForExistence(timeout: 5), "Scrolling away must restore the control")
+        assertJumpIsAboveMiniPlayer(app)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Spoken text above mini player"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.buttons["expandPlayer"].waitForExistence(timeout: 5), "The library must keep its mini player after leaving the reader")
+        XCTAssertEqual(app.buttons.matching(identifier: "expandPlayer").count, 1)
+        XCTAssertFalse(jump.exists)
+        app.cells.containing(.staticText, identifier: "An offline test article").firstMatch.tap()
+        XCTAssertTrue(app.buttons["expandPlayer"].waitForExistence(timeout: 5))
+        app.buttons["expandPlayer"].tap()
+        XCTAssertEqual(app.staticTexts["playbackStatus"].label, "Paused")
+        app.buttons["Done"].tap()
+    }
+
+    @MainActor func testJumpToSpokenTextReturnsAfterFinishedPlaybackIsSeeked() throws {
+        let app = launchLongReader()
+        app.buttons["startListening"].tap()
+        XCTAssertTrue(app.buttons["expandPlayer"].waitForExistence(timeout: 5))
+        app.buttons["expandPlayer"].tap()
+        let status = app.staticTexts["playbackStatus"]
+        let position = app.sliders["playbackPosition"]
+        func seekAndPause() {
+            position.adjust(toNormalizedSliderPosition: 0.9)
+            XCTAssertTrue(app.buttons["Pause preview"].waitForExistence(timeout: 5))
+            app.buttons["playerPlayPause"].tap()
+            XCTAssertEqual(status.label, "Paused")
+            app.buttons["Done"].tap()
+        }
+        seekAndPause()
+        let jump = app.buttons["jumpToSpokenText"]
+        XCTAssertTrue(jump.waitForExistence(timeout: 5))
+        app.buttons["expandPlayer"].tap()
+        position.adjust(toNormalizedSliderPosition: 1)
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Finished"), object: status)], timeout: 10), .completed)
+        app.buttons["Done"].tap()
+        XCTAssertTrue(jump.waitForNonExistence(timeout: 5))
+        app.buttons["expandPlayer"].tap()
+        seekAndPause()
+        XCTAssertTrue(jump.waitForExistence(timeout: 5), "Finishing must not erase the cached offscreen direction needed after seeking")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.cells.containing(.staticText, identifier: "An offline test article").firstMatch.tap()
+        XCTAssertTrue(jump.waitForExistence(timeout: 5), "Reopening a paused article must restore the offscreen control")
+        assertJumpIsAboveMiniPlayer(app)
+        jump.tap()
+        XCTAssertTrue(jump.waitForNonExistence(timeout: 5))
+    }
+
+    @MainActor private func assertJumpIsAboveMiniPlayer(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        let jump = app.buttons["jumpToSpokenText"]
+        let controls = [app.buttons["expandPlayer"], app.buttons["Play preview"], app.buttons["Close listening player"]]
+        XCTAssertEqual(app.buttons.matching(identifier: "expandPlayer").count, 1, file: file, line: line)
+        XCTAssertTrue(jump.isHittable, file: file, line: line)
+        for control in controls {
+            XCTAssertTrue(control.isHittable, file: file, line: line)
+            XCTAssertLessThanOrEqual(jump.frame.maxY + 8, control.frame.minY, "Spoken-text button must sit above every mini-player control", file: file, line: line)
+        }
+    }
+
+    @MainActor private func launchLongReader() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--reset-ui-test-library", "--ui-testing-long-article"]
+        app.launch()
+        let article = app.staticTexts["An offline test article"]
+        XCTAssertTrue(article.waitForExistence(timeout: 15))
+        article.tap()
+        return app
+    }
+
     @MainActor func testSilentListeningPlayerAndParagraphAction() throws {
         let app = launchFreshApp()
         let article = app.staticTexts["An offline test article"]

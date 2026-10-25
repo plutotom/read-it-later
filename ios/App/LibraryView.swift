@@ -62,7 +62,7 @@ struct LibraryView: View {
                 }
                 ForEach(filtered) { article in
                     NavigationLink {
-                        ReaderView(model: model, id: article.id)
+                        ReaderView(model: model, id: article.id, expandPlayer: { showingPlayer = true })
                     } label: {
                         VStack(alignment: .leading, spacing: 7) {
                             Text(URL(string: article.url)?.host ?? article.url)
@@ -85,6 +85,9 @@ struct LibraryView: View {
                     }
                 }
             }
+            .safeAreaInset(edge: .bottom) {
+                if player.document != nil { MiniListeningPlayer(player: player) { showingPlayer = true } }
+            }
             .navigationTitle("Paper Drive")
             .searchable(text: $search, prompt: "Search your library")
             .toolbar {
@@ -92,9 +95,6 @@ struct LibraryView: View {
                 ToolbarItem(placement: .topBarTrailing) { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("Save a link").disabled(!model.available) }
             }
             .refreshable { await model.resume() }
-        }
-        .safeAreaInset(edge: .bottom) {
-            if player.document != nil { MiniListeningPlayer(player: player) { showingPlayer = true } }
         }
         .fullScreenCover(isPresented: $showingPlayer) { ListeningPlayerView(player: player) }
         .task { await model.resume() }

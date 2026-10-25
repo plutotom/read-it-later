@@ -87,7 +87,7 @@ App Group, and on-device storage remain unchanged so existing libraries survive 
 5. Add the build to an internal testing group and install it through TestFlight.
 
 Use an Xcode/SDK release currently accepted by App Store Connect. The current version
-is 0.2.0 (7); increment `CURRENT_PROJECT_VERSION` in `project.yml` for each new upload.
+is 0.2.0 (8); increment `CURRENT_PROJECT_VERSION` in `project.yml` for each new upload.
 Equivalent commands from the repository root (no credentials in command arguments):
 
 ```sh
