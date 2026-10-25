@@ -6,6 +6,11 @@ const state = vi.hoisted(() => ({
   changePassword: vi.fn(),
   allow: vi.fn(),
 }));
+vi.mock("next/navigation", () => ({
+  redirect: (path: string) => {
+    throw new Error("redirect:" + path);
+  },
+}));
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({ Origin: state.origin }),
 }));
@@ -59,12 +64,12 @@ it("requires a fresh authenticated identity and refuses cross-origin enrollment"
 });
 
 it("enrolls only the authenticated account and never accepts an input user ID", async () => {
-  expect(
-    await saveNativePassword({
+  await expect(
+    saveNativePassword({
       newPassword: "fixture-password-123",
       userId: "account-b",
     }),
-  ).toEqual({ success: true });
+  ).rejects.toThrow("redirect:/native/password?passwordSaved=1");
   expect(state.allow).toHaveBeenCalledWith("password-setup:account-a", 3);
   expect(state.setPassword).toHaveBeenCalledWith({
     headers: new Headers({ Origin: "https://auth.example.invalid" }),
@@ -73,12 +78,12 @@ it("enrolls only the authenticated account and never accepts an input user ID", 
 });
 
 it("requires the old password when changing one and revokes other sessions", async () => {
-  expect(
-    await saveNativePassword({
+  await expect(
+    saveNativePassword({
       newPassword: "fixture-password-123",
       currentPassword: "old-fixture",
     }),
-  ).toEqual({ success: true });
+  ).rejects.toThrow("redirect:/native/password?passwordSaved=1");
   expect(state.changePassword).toHaveBeenCalledWith({
     headers: new Headers({ Origin: "https://auth.example.invalid" }),
     body: {

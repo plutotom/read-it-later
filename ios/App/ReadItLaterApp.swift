@@ -16,24 +16,34 @@ import ReadingCore
     }
 }
 
+@MainActor private final class AccountReaderContext {
+    let model: LibraryModel
+    let player: ListeningPlayer
+    let speech: SpeechSetup
+    init(session: NativeAuthSession, auth: AccountAuth) {
+        model = LibraryModel(account: session)
+        player = ListeningPlayer(bookmarkNamespace: session.namespace)
+        speech = SpeechSetup(namespace: auth.bypassForReaderTests ? nil : session.namespace)
+    }
+}
+
 private struct AccountReader: View {
     let session: NativeAuthSession
     let auth: AccountAuth
-    @State private var model: LibraryModel
-    @State private var player: ListeningPlayer
-    @State private var speech: SpeechSetup
-    init(session: NativeAuthSession, auth: AccountAuth) {
-        self.session = session; self.auth = auth
-        _model = State(initialValue: LibraryModel(account: session))
-        _player = State(initialValue: ListeningPlayer(bookmarkNamespace: session.namespace))
-        _speech = State(initialValue: SpeechSetup(namespace: auth.bypassForReaderTests ? nil : session.namespace))
-    }
+    @State private var context: AccountReaderContext?
     var body: some View {
-        LibraryView(model: model).environment(player).environment(speech).environment(auth)
-            .task {
-                auth.onLock = { [weak model, weak player] in model?.deactivate(); player?.close() }
-                await speech.bootstrap(player)
-            }
+        Group {
+            if let context {
+                LibraryView(model: context.model).environment(context.player).environment(context.speech).environment(auth)
+            } else { ProgressView("Opening your library…") }
+        }.task {
+            // Open SQLite once for this account view's lifetime, never during body evaluation.
+            guard context == nil else { return }
+            let value = AccountReaderContext(session: session, auth: auth)
+            context = value
+            auth.onLock = { [weak value] in value?.model.deactivate(); value?.player.close() }
+            await value.speech.bootstrap(value.player)
+        }
     }
 }
 

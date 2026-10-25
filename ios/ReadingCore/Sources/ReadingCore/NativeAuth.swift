@@ -70,11 +70,11 @@ public struct NativeAuthClient: NativeAuthAPI {
     private let session: URLSession
     public init(server: URL, configuration: URLSessionConfiguration? = nil) {
         self.server = server
-            let config = configuration ?? URLSessionConfiguration.ephemeral
-            config.httpShouldSetCookies = false; config.httpCookieStorage = nil
-            config.urlCache = nil; config.requestCachePolicy = .reloadIgnoringLocalCacheData
-            config.timeoutIntervalForRequest = 30; config.timeoutIntervalForResource = 40
-            self.session = URLSession(configuration: config, delegate: AuthRedirectBlocker(), delegateQueue: nil)
+        let config = configuration ?? URLSessionConfiguration.ephemeral
+        config.httpShouldSetCookies = false; config.httpCookieStorage = nil
+        config.urlCache = nil; config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.timeoutIntervalForRequest = 30; config.timeoutIntervalForResource = 40
+        self.session = URLSession(configuration: config, delegate: AuthRedirectBlocker(), delegateQueue: nil)
     }
 
     public func signIn(email: String, password: String) async throws -> NativeAuthSession {

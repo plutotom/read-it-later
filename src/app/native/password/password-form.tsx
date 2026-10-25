@@ -17,9 +17,11 @@ import { saveNativePassword } from "./actions";
 export function NativePasswordForm({
   email,
   discordAvailable,
+  saved,
 }: {
   email: string | null;
   discordAvailable: boolean;
+  saved: boolean;
 }) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -28,7 +30,6 @@ export function NativePasswordForm({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [reauthenticate, setReauthenticate] = useState(false);
-  const [done, setDone] = useState(false);
 
   async function signIn() {
     setBusy(true);
@@ -80,7 +81,7 @@ export function NativePasswordForm({
               <p className="text-sm">
                 Account: <strong>{email}</strong>
               </p>
-              {done ? (
+              {saved ? (
                 <p role="status">
                   Password saved. Return to Paper Drive and sign in. Your
                   library will stay on this iPhone until library sync is added.
@@ -107,7 +108,7 @@ export function NativePasswordForm({
                         if (result.error) {
                           setMessage(result.error);
                           setReauthenticate(result.reauthenticate ?? false);
-                        } else setDone(true);
+                        }
                       })
                       .catch(() =>
                         setMessage("Could not reach the server. Try again."),

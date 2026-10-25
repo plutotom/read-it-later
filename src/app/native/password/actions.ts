@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "~/server/auth";
 import { allowAuthAttempt } from "~/server/services/native-auth/rate-limit";
@@ -49,11 +50,13 @@ export async function saveNativePassword(input: unknown) {
         body: { newPassword: parsed.data.newPassword },
       });
     }
-    return { success: true };
   } catch {
     return {
       error:
         "Could not save the password. If you already have one, enter your current password too.",
     };
   }
+  // Password changes rotate the cookie. Navigate after it is applied rather than
+  // rendering this request again with the just-revoked session cookie.
+  redirect("/native/password?passwordSaved=1");
 }
