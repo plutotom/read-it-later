@@ -1,4 +1,14 @@
 import { randomUUID } from "node:crypto";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  writeFile,
+  copyFile,
+  rm,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
@@ -10,10 +20,29 @@ const url = process.env.LISTENING_TEST_DATABASE_URL;
 describe.skipIf(!url)("web listening upgrade from an existing database", () => {
   const schema = "listening_upgrade_" + randomUUID().replaceAll("-", "");
   let connection: postgres.Sql | undefined;
+  let migrationFolder: string | undefined;
 
   beforeAll(async () => {
     if (!url || !["localhost", "127.0.0.1"].includes(new URL(url).hostname))
       throw new Error("Migration tests require an isolated local database.");
+    // Freeze this regression to the listening upgrade it actually models.
+    // Future migrations get their own full-chain test rather than running on
+    // an intentionally minimal 0012 fixture lacking unrelated application tables.
+    migrationFolder = await mkdtemp(join(tmpdir(), "ril-listening-upgrade-"));
+    await mkdir(join(migrationFolder, "meta"));
+    const journal = JSON.parse(
+      await readFile("drizzle/meta/_journal.json", "utf8"),
+    ) as { entries: { tag: string }[] };
+    journal.entries = journal.entries.slice(0, 15);
+    await writeFile(
+      join(migrationFolder, "meta/_journal.json"),
+      JSON.stringify(journal),
+    );
+    for (const entry of journal.entries)
+      await copyFile(
+        join("drizzle", entry.tag + ".sql"),
+        join(migrationFolder, entry.tag + ".sql"),
+      );
     // Both application tables and migration history stay in this test's schema.
     connection = postgres(url, { max: 1, onnotice: () => undefined });
     await connection.unsafe(`CREATE SCHEMA "${schema}"`);
@@ -59,6 +88,8 @@ describe.skipIf(!url)("web listening upgrade from an existing database", () => {
       await connection.unsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
       await connection.end();
     }
+    if (migrationFolder)
+      await rm(migrationFolder, { recursive: true, force: true });
   });
 
   it("preserves legacy records, applies once, and leaves usage empty until streaming", async () => {
@@ -71,7 +102,11 @@ describe.skipIf(!url)("web listening upgrade from an existing database", () => {
       highlights: [...(await sql`SELECT * FROM "read-it-later_highlight"`)],
     });
     const before = await legacyState();
-    const options = { migrationsFolder: "drizzle", migrationsSchema: schema };
+    if (!migrationFolder) throw new Error("Missing migration fixture folder");
+    const options = {
+      migrationsFolder: migrationFolder,
+      migrationsSchema: schema,
+    };
     await migrate(drizzle(sql), options);
     expect(await legacyState()).toEqual(before);
     expect(

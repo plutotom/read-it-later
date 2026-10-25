@@ -13,6 +13,7 @@ public struct Article: Codable, FetchableRecord, PersistableRecord, Identifiable
     public var createdAt: Date
     public var error: String?
     public var downloadSuppressed: Bool = false
+    public var isArchived: Bool = false
     public var isDownloaded: Bool { !text.isEmpty }
 }
 
@@ -42,16 +43,19 @@ public enum ArticleURL {
         parts.scheme = scheme
         parts.host = host
         parts.fragment = nil
-        guard let url = parts.url else { throw LibraryError.invalidURL }
+        guard let url = parts.url, NativeLibraryWire.isPublicURL(url.absoluteString) else { throw LibraryError.invalidURL }
         return url
     }
 }
 
 /// Main-actor ownership keeps UI writes ordered. The extension only writes inbox files.
 @MainActor public final class Library {
-    private let database: DatabaseQueue
+    let database: DatabaseQueue
+    public internal(set) var syncEnabled = false
+    var syncEpoch: UInt64 = 0
+    var activeSync: Task<Void, Error>?
 
-    public init(path: String? = nil) throws {
+    public init(path: String? = nil, syncEnabled: Bool = false) throws {
         if let path { database = try DatabaseQueue(path: path) }
         else { database = try DatabaseQueue() }
         var migrator = DatabaseMigrator()
@@ -89,11 +93,13 @@ public enum ArticleURL {
                 t.add(column: "downloadSuppressed", .boolean).notNull().defaults(to: false)
             }
         }
+        Self.registerNativeLibraryMigration(&migrator)
         try migrator.migrate(database)
+        if syncEnabled { try enableSync() }
     }
 
     public func articles() throws -> [Article] {
-        try database.read { try Article.fetchAll($0, sql: "SELECT * FROM article ORDER BY createdAt DESC, id") }
+        try database.read { try Article.fetchAll($0, sql: "SELECT article.* FROM article LEFT JOIN native_mapping ON native_mapping.localID = article.id WHERE COALESCE(native_mapping.deleted, 0) = 0 ORDER BY createdAt DESC, article.id") }
     }
 
     public func backup(to path: String) throws {
@@ -104,9 +110,10 @@ public enum ArticleURL {
     @discardableResult public func saveURL(_ input: String) throws -> Article {
         let url = try ArticleURL.parse(input)
         return try database.write { db in
-            if let existing = try Article.fetchOne(db, sql: "SELECT * FROM article WHERE url = ?", arguments: [url.absoluteString]) { return existing }
-            let article = Article(id: UUID().uuidString, url: url.absoluteString, title: url.host ?? "Saved article", text: "", note: "", isRead: false, isFavorite: false, createdAt: Date(), error: nil)
+            if let existing = try Article.fetchOne(db, sql: "SELECT article.* FROM article LEFT JOIN native_mapping ON native_mapping.localID = article.id WHERE url = ? AND COALESCE(native_mapping.deleted, 0) = 0 ORDER BY createdAt, article.id LIMIT 1", arguments: [url.absoluteString]) { return existing }
+            let article = Article(id: UUID().uuidString.lowercased(), url: url.absoluteString, title: url.host ?? "Saved article", text: "", note: "", isRead: false, isFavorite: false, createdAt: Date(), error: nil)
             try article.insert(db)
+            if syncEnabled { try enqueueCreate(article, in: db) }
             return article
         }
     }
@@ -128,12 +135,27 @@ public enum ArticleURL {
     }
 
     public func saveContent(id: String, title: String, text: String) throws {
-        try database.write { try $0.execute(sql: "UPDATE article SET title = ?, text = ?, error = NULL, downloadSuppressed = 0 WHERE id = ?", arguments: [title, text, id]) }
+        try database.write { db in
+            guard let old = try Article.fetchOne(db, key: id) else { return }
+            if old.text != text { try retainText(old, in: db) }
+            try db.execute(sql: "UPDATE article SET title = ?, text = ?, error = NULL, downloadSuppressed = 0 WHERE id = ?", arguments: [title, text, id])
+            if syncEnabled, let article = try Article.fetchOne(db, key: id) { try enqueueCreate(article, in: db) }
+        }
+        // Report after committing, so an oversized download never rolls back the local article.
+        try validateLocalSyncContent(id: id)
     }
     /// Removes only downloaded text. Links, metadata, notes, and highlight quotes survive.
     /// Suppression is durable so resuming the app does not immediately undo cleanup.
     public func removeDownloads() throws {
-        try database.write { try $0.execute(sql: "UPDATE article SET text = '', error = NULL, downloadSuppressed = 1") }
+        try database.write { db in
+            for article in try Article.fetchAll(db) { try retainText(article, in: db) }
+            try db.execute(sql: "UPDATE article SET text = '', error = CASE WHEN COALESCE((SELECT contentUnavailable FROM native_mapping WHERE localID = article.id), 0) THEN ? ELSE NULL END, downloadSuppressed = 1", arguments: [NativeLibraryError.contentUnavailable.errorDescription])
+            for item in try pending(in: db) {
+                if let error = try quarantineError(item.mutation) {
+                    try db.execute(sql: "UPDATE article SET error = ? WHERE id = ?", arguments: [error.errorDescription, item.localID])
+                }
+            }
+        }
         // Reclaim freed SQLite pages without deleting the library or its annotations.
         try? database.writeWithoutTransaction { try $0.execute(sql: "VACUUM") }
     }
@@ -144,20 +166,39 @@ public enum ArticleURL {
         try database.write { try $0.execute(sql: "UPDATE article SET note = ? WHERE id = ?", arguments: [text, id]) }
     }
     public func toggleRead(id: String) throws {
-        try database.write { try $0.execute(sql: "UPDATE article SET isRead = NOT isRead WHERE id = ?", arguments: [id]) }
+        try database.write { db in
+            try db.execute(sql: "UPDATE article SET isRead = NOT isRead WHERE id = ?", arguments: [id])
+            if syncEnabled, let article = try Article.fetchOne(db, key: id) {
+                try enqueuePatch(id: id, patch: NativeLibraryPatch(isRead: article.isRead), in: db)
+            }
+        }
     }
     public func toggleFavorite(id: String) throws {
-        try database.write { try $0.execute(sql: "UPDATE article SET isFavorite = NOT isFavorite WHERE id = ?", arguments: [id]) }
+        try database.write { db in
+            try db.execute(sql: "UPDATE article SET isFavorite = NOT isFavorite WHERE id = ?", arguments: [id])
+            if syncEnabled, let article = try Article.fetchOne(db, key: id) {
+                try enqueuePatch(id: id, patch: NativeLibraryPatch(isFavorite: article.isFavorite), in: db)
+            }
+        }
     }
     public func delete(id: String) throws {
-        try database.write { try $0.execute(sql: "DELETE FROM article WHERE id = ?", arguments: [id]) }
+        try database.write { db in
+            if let article = try Article.fetchOne(db, key: id) {
+                try retainText(article, in: db)
+                if syncEnabled {
+                    try enqueueDelete(id: id, in: db)
+                    return // Hide synced deletions; recovery exports retain their notes and highlights.
+                }
+            }
+            try db.execute(sql: "DELETE FROM article WHERE id = ?", arguments: [id])
+        }
     }
     public func exportJSON() throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
         let backup = try database.read { db in
-            LibraryBackup(formatVersion: 2, articles: try Article.fetchAll(db), highlights: try Highlight.fetchAll(db))
+            LibraryBackup(formatVersion: 3, articles: try Article.fetchAll(db), highlights: try Highlight.fetchAll(db), textSnapshots: try NativeLibraryTextSnapshot.fetchAll(db, sql: "SELECT * FROM native_text_snapshot ORDER BY localID, capturedAt, contentHash, source"))
         }
         return try encoder.encode(backup)
     }

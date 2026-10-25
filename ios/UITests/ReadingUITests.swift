@@ -1,6 +1,68 @@
 import XCTest
 
 final class ReadingUITests: XCTestCase {
+    @MainActor func testLiveLibrarySyncWithBackendOutageAndRestart() throws {
+        guard ProcessInfo.processInfo.environment["NATIVE_SYNC_LIVE_TEST"] == "1" else { throw XCTSkip("Requires isolated sync backend/proxy fixtures on ports 4115–4117") }
+        try setFixtureBackendOffline(false)
+        defer { try? setFixtureBackendOffline(false) }
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--ui-testing-auth-live", "--ui-testing-sync-live", "--reset-ui-test-library"]
+        app.launch()
+        XCTAssertTrue(app.textFields["authEmail"].waitForExistence(timeout: 15))
+        app.textFields["authEmail"].tap(); app.textFields["authEmail"].typeText("native-sync@example.invalid")
+        app.secureTextFields["authPassword"].tap(); app.secureTextFields["authPassword"].typeText("isolated-sync-password-123")
+        app.buttons["authSignIn"].tap()
+        XCTAssertTrue(app.staticTexts["A shared web article"].waitForExistence(timeout: 30))
+        app.staticTexts["A shared web article"].tap()
+        XCTAssertTrue(app.textViews["articleText"].waitForExistence(timeout: 10))
+        app.buttons["Reading options"].tap(); app.buttons["Favorite"].tap()
+        app.buttons["Paper Drive"].tap()
+        XCTAssertTrue(app.navigationBars["Paper Drive"].waitForExistence(timeout: 5))
+        try setFixtureBackendOffline(true)
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--ui-testing-auth-live", "--ui-testing-sync-live"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["A shared web article"].waitForExistence(timeout: 20))
+        app.staticTexts["A shared web article"].tap()
+        app.buttons["Mark read"].tap()
+        app.buttons["Paper Drive"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "waiting to sync")).firstMatch.waitForExistence(timeout: 10))
+        app.terminate()
+        try setFixtureBackendOffline(false)
+        app.launch()
+        XCTAssertTrue(app.staticTexts["A shared web article"].waitForExistence(timeout: 20))
+        app.staticTexts["A shared web article"].tap()
+        XCTAssertTrue(app.buttons["Read"].waitForExistence(timeout: 10))
+        app.buttons["Paper Drive"].tap()
+        app.buttons["Save a link"].tap()
+        let input = app.textFields["articleURLInput"]
+        XCTAssertTrue(input.waitForExistence(timeout: 5)); input.tap()
+        input.typeText("https://example.com/?from=paper-drive-sync-ui")
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts["Example Domain"].waitForExistence(timeout: 50))
+        for _ in 0..<3 where !app.buttons["Done"].exists {
+            app.buttons["Settings"].tap()
+            _ = app.buttons["Done"].waitForExistence(timeout: 3)
+        }
+        XCTAssertTrue(app.buttons["Done"].exists)
+        let sync = app.buttons["syncNow"]
+        for _ in 0..<3 where !sync.isHittable { app.swipeUp() }
+        XCTAssertTrue(sync.waitForExistence(timeout: 5)); sync.tap()
+        let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = "Shared account library after outage and restart"; attachment.lifetime = .keepAlways; add(attachment)
+        app.buttons["Done"].tap()
+    }
+
+    private func setFixtureBackendOffline(_ offline: Bool) throws {
+        let expectation = expectation(description: "fixture backend control")
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:4117/state")!)
+        request.httpMethod = "POST"; request.httpBody = Data((offline ? "offline" : "online").utf8)
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            XCTAssertNil(error); XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+            expectation.fulfill()
+        }.resume()
+        wait(for: [expectation], timeout: 10)
+    }
+
     @MainActor func testLivePasswordSessionRoundTrip() throws {
         guard ProcessInfo.processInfo.environment["NATIVE_AUTH_LIVE_TEST"] == "1" else { throw XCTSkip("Requires the isolated local auth fixture server on port 4115") }
         let app = XCUIApplication()

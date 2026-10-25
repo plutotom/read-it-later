@@ -58,12 +58,22 @@ import OSLog
     private func bindTransport() {
         (transport as? any StreamingSpeechTransport)?.onRenderChange = { [weak self] in self?.tick() }
     }
-    public func configure(service: any SpeechService, transport: any SpeechTransport, address: String = "") {
-        guard !service.voices.isEmpty else { return }
-        close(); self.service = service; self.transport = transport; voice = service.voices[0]; backendAddress = address; bindTransport()
+    public func configure(service: any SpeechService, transport: any SpeechTransport, address: String = "", preferredVoiceID: String? = nil, expectedIntent: UUID? = nil) {
+        guard !service.voices.isEmpty, expectedIntent == nil || expectedIntent == intentToken else { return }
+        close(); self.service = service; self.transport = transport
+        voice = service.voices.first(where: { $0.id == preferredVoiceID }) ?? service.voices[0]
+        backendAddress = address; bindTransport()
+        if let expectedIntent { intentToken = expectedIntent }
     }
 
-    public func start(_ document: ListeningDocument, paragraph: Int? = nil) {
+    /// A later control, another article, or cache clearing invalidates delayed metadata work.
+    public func beginPreparation() -> UUID { pause(); invalidate(); return intentToken }
+    public func cancelPreparation(_ expectedIntent: UUID) {
+        if intentToken == expectedIntent { intentToken = UUID() }
+    }
+
+    public func start(_ document: ListeningDocument, paragraph: Int? = nil, expectedIntent: UUID? = nil) {
+        guard expectedIntent == nil || expectedIntent == intentToken else { return }
         if self.document != document {
             saveBookmark(); invalidate()
             self.document = document; chunkIndex = 0; chunkTime = 0; durations = [:]; wordRange = nil
@@ -218,7 +228,11 @@ import OSLog
     }
     private func request(at index: Int) -> SpeechRequest? {
         guard let chunks = document?.chunks, chunks.indices.contains(index) else { return nil }
-        return SpeechRequest(text: chunks[index].text, voice: voice, configurationID: service.configurationID)
+        let identity: SpeechSegmentIdentity?
+        if let articleId = document?.serverArticleID, let revision = document?.serverRevision {
+            identity = SpeechSegmentIdentity(articleId: articleId, revision: revision, segment: chunks[index].id)
+        } else { identity = nil }
+        return SpeechRequest(text: chunks[index].text, voice: voice, configurationID: service.configurationID, segment: identity)
     }
     private func invalidate() {
         generation = UUID()

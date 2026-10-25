@@ -4,11 +4,41 @@
  */
 import { and, asc, desc, eq } from "drizzle-orm";
 import type { db as Db } from "~/server/db";
-import { highlights, notes } from "~/server/db/schema";
+import { articles, highlights, notes } from "~/server/db/schema";
 
 type Database = typeof Db;
 type Highlight = typeof highlights.$inferSelect;
 type Note = typeof notes.$inferSelect;
+
+async function requireOwnedArticle(
+  db: Database,
+  userId: string,
+  articleId: string,
+): Promise<void> {
+  const article = await db.query.articles.findFirst({
+    columns: { id: true },
+    where: and(eq(articles.id, articleId), eq(articles.userId, userId)),
+  });
+  if (!article) throw new Error("Article not found");
+}
+
+async function requireMatchingHighlight(
+  db: Database,
+  userId: string,
+  articleId: string,
+  highlightId: string | null | undefined,
+): Promise<void> {
+  if (highlightId == null) return;
+  const highlight = await db.query.highlights.findFirst({
+    columns: { id: true },
+    where: and(
+      eq(highlights.id, highlightId),
+      eq(highlights.userId, userId),
+      eq(highlights.articleId, articleId),
+    ),
+  });
+  if (!highlight) throw new Error("Highlight not found for article");
+}
 
 // Order here drives the swatch order in the highlight toolbar.
 export const HIGHLIGHT_COLORS = [
@@ -59,6 +89,7 @@ export async function createHighlight(
   userId: string,
   input: CreateHighlightInput,
 ): Promise<Highlight> {
+  await requireOwnedArticle(db, userId, input.articleId);
   const [created] = await db
     .insert(highlights)
     .values({
@@ -159,6 +190,13 @@ export async function createNote(
   userId: string,
   input: CreateNoteInput,
 ): Promise<Note> {
+  await requireOwnedArticle(db, userId, input.articleId);
+  await requireMatchingHighlight(
+    db,
+    userId,
+    input.articleId,
+    input.highlightId,
+  );
   const [created] = await db
     .insert(notes)
     .values({
@@ -196,6 +234,19 @@ export async function updateNote(
       where: and(eq(notes.id, id), eq(notes.userId, userId)),
     });
   }
+
+  const existing = await db.query.notes.findFirst({
+    where: and(eq(notes.id, id), eq(notes.userId, userId)),
+  });
+  if (!existing) return undefined;
+
+  await requireOwnedArticle(db, userId, existing.articleId);
+  await requireMatchingHighlight(
+    db,
+    userId,
+    existing.articleId,
+    patch.highlightId === undefined ? existing.highlightId : patch.highlightId,
+  );
 
   const [updated] = await db
     .update(notes)

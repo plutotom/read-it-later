@@ -81,3 +81,25 @@ describe("listening document", () => {
     );
   });
 });
+
+it("exports canonical paragraphs before splitting and preserves Unicode source mappings", () => {
+  const { document, root } = parse(
+    "<p>  One &amp;  two 😀. </p><p>" +
+      "word ".repeat(250) +
+      "End.</p><script>ignored()</script>",
+  );
+  const canonical = document.canonical!;
+  expect(canonical.text).toBe(
+    "One & two 😀.\n\n" + "word ".repeat(250) + "End.",
+  );
+  expect(canonical.text.length).toBe(canonical.sourceOffsets.length);
+  for (const segment of canonical.segments) {
+    expect(canonical.text.slice(segment.start, segment.end)).toBe(segment.text);
+    expect(document.segments[segment.index]!.text).toBe(segment.text);
+  }
+  for (let i = 0; i < canonical.text.length; i++) {
+    const original = canonical.sourceOffsets[i]!;
+    if (original >= 0 && canonical.text[i] !== " ")
+      expect(root.textContent[original]).toBe(canonical.text[i]);
+  }
+});

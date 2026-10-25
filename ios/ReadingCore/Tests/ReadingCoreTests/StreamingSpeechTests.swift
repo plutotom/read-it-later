@@ -167,3 +167,24 @@ extension StreamingSpeechTests {
         player.close(); await service.end()
     }
 }
+
+extension StreamingSpeechTests {
+    @MainActor func testRetiredArticleFailureCannotCancelNewMetadataPreparation() async throws {
+        let service = OpenStreamService(), transport = StreamingTestTransport()
+        let player = ListeningPlayer(service: service, transport: transport, automaticallyTick: false)
+        let a = ListeningDocument(articleID: "old", title: "Old", text: "Old request.")
+        let b = ListeningDocument(articleID: "new", title: "New", text: "New request.")
+        player.start(a)
+        for _ in 0..<100 where await service.count() == 0 { try await Task.sleep(for: .milliseconds(2)) }
+        let pending = player.beginPreparation()
+        await service.fail("Old request.")
+        for _ in 0..<30 { await Task.yield() }
+        XCTAssertEqual(player.intentToken, pending)
+        player.start(b, expectedIntent: pending)
+        for _ in 0..<100 where await service.version("New request.") == 0 { try await Task.sleep(for: .milliseconds(2)) }
+        XCTAssertEqual(player.document?.articleID, "new")
+        let dispatched = await service.version("New request.")
+        XCTAssertEqual(dispatched, 1)
+        player.close(); await service.end()
+    }
+}

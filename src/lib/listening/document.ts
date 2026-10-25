@@ -17,6 +17,19 @@ export interface ListeningDocument {
   revision: string;
   paragraphs: ListeningParagraph[];
   segments: ListeningSegment[];
+  /** Exact normalized paragraphs before splitting; legacy DOM offsets stay unchanged. */
+  canonical?: {
+    text: string;
+    sourceOffsets: number[];
+    paragraphs: ListeningParagraph[];
+    segments: Array<{
+      index: number;
+      paragraph: number;
+      start: number;
+      end: number;
+      text: string;
+    }>;
+  };
 }
 
 const BLOCKS =
@@ -33,6 +46,16 @@ export function createListeningDocument(root: HTMLElement): ListeningDocument {
   const walker = root.ownerDocument.createTreeWalker(root, 1 | 4);
   const paragraphs: ListeningParagraph[] = [];
   const segments: ListeningSegment[] = [];
+  let canonicalText = "";
+  const canonicalOffsets: number[] = [];
+  const canonicalParagraphs: ListeningParagraph[] = [];
+  const canonicalSegments: Array<{
+    index: number;
+    paragraph: number;
+    start: number;
+    end: number;
+    text: string;
+  }> = [];
   let sourceOffset = 0;
   let owner: Element | null = null;
   let text = "";
@@ -44,6 +67,18 @@ export function createListeningDocument(root: HTMLElement): ListeningDocument {
     }
     if (!text) return;
     const paragraph = paragraphs.length;
+    if (canonicalText) {
+      canonicalText += "\n\n";
+      canonicalOffsets.push(-1, -1);
+    }
+    const canonicalStart = canonicalText.length;
+    canonicalText += text;
+    for (const offset of offsets) canonicalOffsets.push(offset);
+    canonicalParagraphs.push({
+      index: paragraph,
+      start: canonicalStart,
+      end: canonicalText.length,
+    });
     paragraphs.push({
       index: paragraph,
       start: offsets[0]!,
@@ -65,7 +100,14 @@ export function createListeningDocument(root: HTMLElement): ListeningDocument {
         }
       }
       const piece = text.slice(start, end).trimEnd();
-      if (piece)
+      if (piece) {
+        canonicalSegments.push({
+          index: segments.length,
+          paragraph,
+          start: canonicalStart + start,
+          end: canonicalStart + start + piece.length,
+          text: piece,
+        });
         segments.push({
           index: segments.length,
           paragraph,
@@ -73,6 +115,7 @@ export function createListeningDocument(root: HTMLElement): ListeningDocument {
           sourceOffsets: offsets.slice(start, start + piece.length),
           estimatedDuration: Math.max(0.5, piece.split(/\s+/u).length / 2.8),
         });
+      }
       start = end;
       while (text[start] === " ") start++;
     }
@@ -123,6 +166,12 @@ export function createListeningDocument(root: HTMLElement): ListeningDocument {
     ),
     paragraphs,
     segments,
+    canonical: {
+      text: canonicalText,
+      sourceOffsets: canonicalOffsets,
+      paragraphs: canonicalParagraphs,
+      segments: canonicalSegments,
+    },
   };
 }
 
