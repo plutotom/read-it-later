@@ -132,9 +132,6 @@ struct ReaderView: View {
             }
         }
         .animation(.snappy, value: showSpokenFollowButton)
-        .onChange(of: spokenAnchor) { _, anchor in
-            if anchor == nil { followVisibility = .hidden }
-        }
         .navigationBarTitleDisplayMode(.inline)
         .alert("Could not start listening", isPresented: Binding(get: { audioError != nil }, set: { if !$0 { audioError = nil } })) {
             Button("OK") { audioError = nil }

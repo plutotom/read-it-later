@@ -12,13 +12,6 @@ final class SpokenTextScrollTests: XCTestCase {
         XCTAssertNil(SpokenTextScroll.anchor(wordRange: NSRange(location: -1, length: 4), chunkRange: NSRange(location: 0, length: 0)))
     }
 
-    func testSessionAllowsFollowOnlyForTheOpenArticleWhileListening() {
-        XCTAssertTrue(SpokenTextScroll.sessionAllowsFollow(isCurrentArticle: true, isIdle: false, isFinished: false))
-        XCTAssertFalse(SpokenTextScroll.sessionAllowsFollow(isCurrentArticle: false, isIdle: false, isFinished: false))
-        XCTAssertFalse(SpokenTextScroll.sessionAllowsFollow(isCurrentArticle: true, isIdle: true, isFinished: false))
-        XCTAssertFalse(SpokenTextScroll.sessionAllowsFollow(isCurrentArticle: true, isIdle: false, isFinished: true))
-    }
-
     func testButtonHidesWhenSpokenTextIsAlreadyOnScreen() {
         let visible = CGRect(x: 0, y: 100, width: 390, height: 500)
         let onScreen = CGRect(x: 16, y: 240, width: 200, height: 22)
@@ -41,22 +34,24 @@ final class SpokenTextScrollTests: XCTestCase {
     }
 
     func testTargetOffsetPlacesSpokenTextNearTheTopWithContext() {
-        // Spoken highlight sits 800pt down the visible bounds; pull it to 56pt below the top inset.
+        // UIKit conversion returns content Y, even when the reader is already scrolled.
         let offset = SpokenTextScroll.targetOffsetY(
-            spokenMinYInVisibleBounds: 800,
-            currentOffsetY: 120,
+            spokenMinYInScrollContent: 1500,
             topInset: 48,
             minOffsetY: -48,
             maxOffsetY: 4000
         )
-        XCTAssertEqual(offset, 120 + (800 - (48 + SpokenTextScroll.contextAbove)))
-        XCTAssertEqual(offset, 816)
+        XCTAssertEqual(offset, 1396)
+        let visible = CGRect(x: 0, y: offset + 48, width: 390, height: 600)
+        XCTAssertEqual(SpokenTextScroll.visibility(
+            spokenRectInVisibleBounds: CGRect(x: 16, y: 1500, width: 100, height: 22),
+            visibleBounds: visible
+        ), .hidden)
     }
 
     func testTargetOffsetClampsToContentBoundsOnLongAndShortArticles() {
         let pastEnd = SpokenTextScroll.targetOffsetY(
-            spokenMinYInVisibleBounds: 9000,
-            currentOffsetY: 0,
+            spokenMinYInScrollContent: 9000,
             topInset: 0,
             minOffsetY: 0,
             maxOffsetY: 3200
@@ -64,8 +59,7 @@ final class SpokenTextScrollTests: XCTestCase {
         XCTAssertEqual(pastEnd, 3200)
 
         let beforeStart = SpokenTextScroll.targetOffsetY(
-            spokenMinYInVisibleBounds: -200,
-            currentOffsetY: 40,
+            spokenMinYInScrollContent: -200,
             topInset: 47,
             minOffsetY: -47,
             maxOffsetY: 1800
@@ -73,8 +67,7 @@ final class SpokenTextScrollTests: XCTestCase {
         XCTAssertEqual(beforeStart, -47)
 
         let shortArticle = SpokenTextScroll.targetOffsetY(
-            spokenMinYInVisibleBounds: 400,
-            currentOffsetY: 0,
+            spokenMinYInScrollContent: 400,
             topInset: 0,
             minOffsetY: 0,
             maxOffsetY: 0
@@ -84,7 +77,7 @@ final class SpokenTextScrollTests: XCTestCase {
 }
 
 extension SpokenTextScrollTests {
-    @MainActor func testPlayerReportsWordThenChunkAnchorsAndIgnoresOtherArticles() async {
+    @MainActor func testPlayerReportsWordAnchorsAndIgnoresOtherArticles() async {
         let document = ListeningDocument(articleID: "article", title: "Test", text: "First paragraph here.\n\nSecond paragraph here.")
         let player = ListeningPlayer(service: ImmediateWordService(), transport: ManualWordTransport(), automaticallyTick: false)
         XCTAssertNil(player.spokenTextAnchor(forArticleID: "article"))
@@ -99,6 +92,24 @@ extension SpokenTextScrollTests {
         XCTAssertNil(player.spokenTextAnchor(forArticleID: "article"))
     }
 
+    @MainActor func testPlayerFallsBackToChunkAndAllowsFollowAfterFinishingAndSeeking() async {
+        let document = ListeningDocument(articleID: "article", title: "Test", text: "First paragraph.\n\nLast paragraph.")
+        let transport = ManualWordTransport()
+        let player = ListeningPlayer(service: ImmediateWordService(includeWords: false), transport: transport, automaticallyTick: false)
+        let offscreen = SpokenTextFollowVisibility.visible(direction: .down)
+        player.start(document, paragraph: 1)
+        await waitUntil { player.state == .playing }
+        XCTAssertEqual(player.spokenTextAnchor(forArticleID: "article"), SpokenTextAnchor(range: document.chunks[1].range, precision: .chunk))
+        transport.position = 8
+        player.tick()
+        XCTAssertEqual(player.state, .finished)
+        XCTAssertFalse(SpokenTextScroll.shouldShowButton(sessionAllows: player.spokenTextAnchor(forArticleID: "article") != nil, visibility: offscreen))
+        player.seek(to: player.total - 1)
+        await waitUntil { player.state == .playing }
+        XCTAssertTrue(SpokenTextScroll.shouldShowButton(sessionAllows: player.spokenTextAnchor(forArticleID: "article") != nil, visibility: offscreen))
+        player.close()
+    }
+
     @MainActor private func waitUntil(_ condition: () -> Bool) async {
         for _ in 0..<2000 {
             if condition() { return }
@@ -109,11 +120,13 @@ extension SpokenTextScrollTests {
 }
 
 private actor ImmediateWordService: SpeechService {
+    let includeWords: Bool
+    init(includeWords: Bool = true) { self.includeWords = includeWords }
     nonisolated let voices = [SpeechVoice(id: "a", name: "A", language: "en")]
     nonisolated let configurationID = "spoken-anchor-test"
     func generate(_ request: SpeechRequest) async throws -> SpeechResponse {
         let first = try NSRegularExpression(pattern: #"\S+"#).firstMatch(in: request.text, range: NSRange(location: 0, length: request.text.utf16.count))!.range
-        return SpeechResponse(audio: .simulated, duration: 8, marks: [SpeechMark(range: first, start: 0, end: 8)])
+        return SpeechResponse(audio: .simulated, duration: 8, marks: includeWords ? [SpeechMark(range: first, start: 0, end: 8)] : [])
     }
 }
 

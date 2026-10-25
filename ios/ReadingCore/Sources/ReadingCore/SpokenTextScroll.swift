@@ -38,11 +38,6 @@ public enum SpokenTextScroll {
         return nil
     }
 
-    /// The button is for the open article while audio is active (playing, paused, buffering, or failed).
-    public static func sessionAllowsFollow(isCurrentArticle: Bool, isIdle: Bool, isFinished: Bool) -> Bool {
-        isCurrentArticle && !isIdle && !isFinished
-    }
-
     public static func shouldShowButton(sessionAllows: Bool, visibility: SpokenTextFollowVisibility) -> Bool {
         sessionAllows && visibility != .hidden
     }
@@ -76,17 +71,17 @@ public enum SpokenTextScroll {
             : .visible(direction: .down)
     }
 
-    /// Scroll so the spoken range sits near the top of the viewport, with a little context above.
+    /// Takes the absolute content coordinate returned by converting the text rect into the scroll view.
+    /// The current content offset is already represented by the scroll view's bounds origin.
     public static func targetOffsetY(
-        spokenMinYInVisibleBounds: CGFloat,
-        currentOffsetY: CGFloat,
+        spokenMinYInScrollContent: CGFloat,
         topInset: CGFloat,
         contextAbove: CGFloat = contextAbove,
         minOffsetY: CGFloat,
         maxOffsetY: CGFloat
     ) -> CGFloat {
         let desiredMinY = topInset + contextAbove
-        let target = currentOffsetY + (spokenMinYInVisibleBounds - desiredMinY)
+        let target = spokenMinYInScrollContent - desiredMinY
         if maxOffsetY <= minOffsetY { return minOffsetY }
         return min(max(target, minOffsetY), maxOffsetY)
     }

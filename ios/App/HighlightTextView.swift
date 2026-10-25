@@ -131,8 +131,7 @@ struct HighlightTextView: UIViewRepresentable {
             let minOffset = -scroll.adjustedContentInset.top
             let maxOffset = max(minOffset, scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
             let target = SpokenTextScroll.targetOffsetY(
-                spokenMinYInVisibleBounds: rectInScroll.minY,
-                currentOffsetY: scroll.contentOffset.y,
+                spokenMinYInScrollContent: rectInScroll.minY,
                 topInset: scroll.adjustedContentInset.top,
                 minOffsetY: minOffset,
                 maxOffsetY: maxOffset

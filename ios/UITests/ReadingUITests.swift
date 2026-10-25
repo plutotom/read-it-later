@@ -251,6 +251,60 @@ final class ReadingUITests: XCTestCase {
         app.buttons["Close listening player"].tap()
     }
 
+    @MainActor func testJumpToSpokenTextReturnsFromScrolledPositionWithoutResuming() throws {
+        let app = launchLongReader()
+        app.buttons["startListening"].tap()
+        XCTAssertTrue(app.buttons["Pause preview"].waitForExistence(timeout: 5))
+        app.buttons["Pause preview"].tap()
+        for _ in 0..<3 { app.swipeUp() }
+        let jump = app.buttons["jumpToSpokenText"]
+        XCTAssertTrue(jump.waitForExistence(timeout: 5))
+        jump.tap()
+        XCTAssertTrue(jump.waitForNonExistence(timeout: 5), "Jump must put the spoken text onscreen even when contentOffset is nonzero")
+        XCTAssertTrue(app.buttons["Play preview"].exists, "Following text must preserve paused playback")
+        app.swipeUp()
+        XCTAssertTrue(jump.waitForExistence(timeout: 5), "Scrolling away must restore the control")
+    }
+
+    @MainActor func testJumpToSpokenTextReturnsAfterFinishedPlaybackIsSeeked() throws {
+        let app = launchLongReader()
+        app.buttons["startListening"].tap()
+        XCTAssertTrue(app.buttons["expandPlayer"].waitForExistence(timeout: 5))
+        app.buttons["expandPlayer"].tap()
+        let status = app.staticTexts["playbackStatus"]
+        let position = app.sliders["playbackPosition"]
+        func seekAndPause() {
+            position.adjust(toNormalizedSliderPosition: 0.9)
+            XCTAssertTrue(app.buttons["Pause preview"].waitForExistence(timeout: 5))
+            app.buttons["playerPlayPause"].tap()
+            XCTAssertEqual(status.label, "Paused")
+            app.buttons["Done"].tap()
+        }
+        seekAndPause()
+        let jump = app.buttons["jumpToSpokenText"]
+        XCTAssertTrue(jump.waitForExistence(timeout: 5))
+        app.buttons["expandPlayer"].tap()
+        position.adjust(toNormalizedSliderPosition: 1)
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Finished"), object: status)], timeout: 10), .completed)
+        app.buttons["Done"].tap()
+        XCTAssertTrue(jump.waitForNonExistence(timeout: 5))
+        app.buttons["expandPlayer"].tap()
+        seekAndPause()
+        XCTAssertTrue(jump.waitForExistence(timeout: 5), "Finishing must not erase the cached offscreen direction needed after seeking")
+        jump.tap()
+        XCTAssertTrue(jump.waitForNonExistence(timeout: 5))
+    }
+
+    @MainActor private func launchLongReader() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--reset-ui-test-library", "--ui-testing-long-article"]
+        app.launch()
+        let article = app.staticTexts["An offline test article"]
+        XCTAssertTrue(article.waitForExistence(timeout: 15))
+        article.tap()
+        return app
+    }
+
     @MainActor func testSilentListeningPlayerAndParagraphAction() throws {
         let app = launchFreshApp()
         let article = app.staticTexts["An offline test article"]

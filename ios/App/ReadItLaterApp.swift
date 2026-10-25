@@ -84,6 +84,10 @@ private struct AccountReader: View {
                 if try testLibrary.articles().isEmpty {
                     let sample = try testLibrary.saveURL("https://example.com/offline")
                     try testLibrary.saveContent(id: sample.id, title: "An offline test article", text: "This text is already stored on this device. Read it without a network connection, add a note, and mark it read. This fixture belongs only to the UI test process.\n\nTap this second paragraph to start the silent listening preview from here. The player can prepare this section without waiting for the whole article.\n\nA final paragraph lets us test jumping, scrubbing, and moving between sections while keeping the original text intact.")
+                    if ProcessInfo.processInfo.arguments.contains("--ui-testing-long-article") {
+                        let paragraphs = (1...20).map { "Passage \($0). " + String(repeating: "Synthetic reader text keeps the spoken passage far from the current viewport. ", count: 4) }
+                        try testLibrary.saveContent(id: sample.id, title: "An offline test article", text: paragraphs.joined(separator: "\n\n"))
+                    }
                 }
                 library = testLibrary
                 available = true
