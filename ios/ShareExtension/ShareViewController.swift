@@ -32,6 +32,11 @@ import UniformTypeIdentifiers
         super.viewDidAppear(animated)
         guard !started else { return }
         started = true
+        let destination: ShareDestination
+        do {
+            guard let active = try ShareInbox.destination() else { throw NativeInboxError.signedOut }
+            destination = active
+        } catch { status.text = error.localizedDescription; return }
         let providers = (extensionContext?.inputItems as? [NSExtensionItem] ?? []).flatMap { $0.attachments ?? [] }
         guard let provider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.url.identifier) }) else {
             status.text = "No link found. Share a webpage from Safari."
@@ -49,7 +54,7 @@ import UniformTypeIdentifiers
                         self.status.text = message ?? "This item is not a webpage link."
                         return
                     }
-                    try ShareInbox.save(url)
+                    try ShareInbox.save(url, destination: destination)
                     self.status.text = "Link saved. Open Paper Drive to download the text."
                 } catch { self.status.text = "Could not save: \(error.localizedDescription)" }
             }

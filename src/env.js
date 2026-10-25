@@ -11,8 +11,8 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
-    AUTH_SECRET: z.string().min(1).default("dev-secret-change-me"),
-    AUTH_URL: z.string().url().default("http://localhost:3000"),
+    AUTH_SECRET: z.string().min(32),
+    AUTH_URL: z.string().url().default("http://localhost:4114"),
     DISCORD_CLIENT_ID: z
       .string()
       .min(1)

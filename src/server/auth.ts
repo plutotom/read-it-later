@@ -2,42 +2,48 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "~/server/db";
 import { env } from "~/env";
+import { nativeAuthOptions } from "./native-auth-options";
+import { nextCookies } from "better-auth/next-js";
 
 /**
  * Resolve the auth base URL so OAuth callbacks return to the CURRENT deployment.
  *
- * Priority:
- *  1. AUTH_URL — explicit override (set this in production).
- *  2. VERCEL_URL — unique per Vercel *preview* deployment (no scheme, so we add https://).
- *  3. localhost — local dev fallback.
- *
- * Without this, a preview build would use the production/localhost AUTH_URL and the
- * Discord OAuth callback would bounce to the wrong host, breaking sign-in on previews.
+ * Preview deployments always use their own VERCEL_URL. Else prefer explicit
+ * AUTH_URL, then VERCEL_URL, then the local development origin (:4114).
+ * This prevents a shared production AUTH_URL from capturing preview callbacks.
  */
 function resolveBaseURL(): string {
-  if (env.AUTH_URL && env.AUTH_URL !== "http://localhost:3000") {
+  // A legacy shared AUTH_URL must never bounce preview login into production.
+  if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  if (process.env.AUTH_URL) {
     return env.AUTH_URL;
   }
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
-  return env.AUTH_URL; // http://localhost:3000 default from env schema
+  return env.AUTH_URL;
 }
 
 const baseURL = resolveBaseURL();
 
 /**
- * Origins Better Auth will accept requests from. Preview deployments live on
- * unique *.vercel.app subdomains, so we trust that wildcard in addition to the
- * resolved base URL. Add your production custom domain here explicitly.
+ * Trust only this deployment's known origins, not unrelated Vercel tenants.
  */
-const trustedOrigins = [
-  baseURL,
-  "https://*.vercel.app",
-  // "https://your-production-domain.com",
-];
+const trustedOrigins = Array.from(
+  new Set([
+    new URL(baseURL).origin,
+    ...[process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL]
+      .filter((host): host is string => Boolean(host))
+      .map((host) => `https://${host}`),
+  ]),
+);
+const nativeOptions = nativeAuthOptions();
 
 export const auth = betterAuth({
+  ...nativeOptions,
+  plugins: [...nativeOptions.plugins, nextCookies()],
   baseURL,
   trustedOrigins,
   database: drizzleAdapter(db, {
@@ -48,14 +54,15 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 30, // 30 days
     updateAge: 60 * 60 * 24, // refresh every 24h of activity
   },
-  emailAndPassword: {
-    enabled: false,
-  },
   socialProviders: {
-    discord: {
-      clientId: env.DISCORD_CLIENT_ID,
-      clientSecret: env.DISCORD_CLIENT_SECRET,
-    },
+    ...(/^\d{15,25}$/.test(env.DISCORD_CLIENT_ID)
+      ? {
+          discord: {
+            clientId: env.DISCORD_CLIENT_ID,
+            clientSecret: env.DISCORD_CLIENT_SECRET,
+          },
+        }
+      : {}),
   },
   secret: env.AUTH_SECRET,
 });

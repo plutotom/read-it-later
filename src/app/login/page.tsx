@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 import {
   Card,
   CardContent,
@@ -16,6 +18,7 @@ import { authClient, useSession } from "~/lib/auth-client";
 import {
   getOAuthCallbackErrorMessage,
   getSignInErrorMessage,
+  safeAuthReturnPath,
 } from "~/lib/auth-errors";
 
 export default function LoginPage() {
@@ -23,11 +26,13 @@ export default function LoginPage() {
   const { data: session, isPending } = useSession();
   const [signInError, setSignInError] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   useEffect(() => {
     if (session?.user) {
       const from = new URLSearchParams(window.location.search).get("from");
-      router.push(from ?? "/");
+      router.push(safeAuthReturnPath(from, window.location.origin));
     }
   }, [session, router]);
 
@@ -104,6 +109,67 @@ export default function LoginPage() {
               "Sign in with Discord"
             )}
           </Button>
+          <div className="text-muted-foreground text-center text-sm">
+            or use your account password
+          </div>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setIsSigningIn(true);
+              setSignInError(null);
+              const submitted = password;
+              setPassword("");
+              void authClient.signIn
+                .email({ email, password: submitted })
+                .then((result) => {
+                  if (result.error)
+                    setSignInError("That email or password was not accepted.");
+                  else router.refresh();
+                })
+                .catch(() =>
+                  setSignInError(
+                    "Could not reach the sign-in server. Try again.",
+                  ),
+                )
+                .finally(() => setIsSigningIn(false));
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="username"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                maxLength={128}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isSigningIn || !email || !password}
+            >
+              Sign in with password
+            </Button>
+            <p className="text-muted-foreground text-xs">
+              Add a password to your existing account in Preferences after
+              signing in with Discord.
+            </p>
+          </form>
         </CardContent>
       </Card>
     </div>

@@ -46,10 +46,12 @@ import OSLog
     @ObservationIgnored private var recency: [SpeechRequest] = []
     @ObservationIgnored private var activeResponse: SpeechResponse?
     @ObservationIgnored private let automaticallyTick: Bool
+    @ObservationIgnored private let bookmarkNamespace: String
 
-    public init(service: any SpeechService = SimulatedSpeechService(), transport: any SpeechTransport = SimulatedSpeechTransport(), automaticallyTick: Bool = true) {
+    public init(service: any SpeechService = SimulatedSpeechService(), transport: any SpeechTransport = SimulatedSpeechTransport(), automaticallyTick: Bool = true, bookmarkNamespace: String = "") {
         precondition(!service.voices.isEmpty, "A speech service must offer at least one voice")
         self.service = service; self.transport = transport; self.automaticallyTick = automaticallyTick
+        self.bookmarkNamespace = bookmarkNamespace
         voice = service.voices[0]
         bindTransport()
     }
@@ -181,7 +183,7 @@ import OSLog
 
     private struct Bookmark: Codable { let fingerprint: String; let offset: Int; let rate: Double; let voice: String; let time: Double?; let chunkStart: Int?; let descriptor: SpeechDescriptor?; let configuration: String?; let finished: Bool? }
     private func contentFingerprint(_ text: String) -> String { SpeechDiskCache.key(SpeechRequest(text: text, voice: SpeechVoice(id: "content", name: "", language: ""), configurationID: "bookmark-content-v1")) }
-    private func bookmarkKey(_ id: String) -> String { "speech-bookmark-" + id }
+    private func bookmarkKey(_ id: String) -> String { "speech-bookmark-" + (bookmarkNamespace.isEmpty ? "" : bookmarkNamespace + ":") + id }
     private func saveBookmark() {
         guard automaticallyTick else { return }
         guard let document, let chunk = currentChunk else { return }

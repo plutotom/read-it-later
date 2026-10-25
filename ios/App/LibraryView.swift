@@ -13,6 +13,7 @@ struct LibraryExport: FileDocument {
 struct LibraryView: View {
     @Bindable var model: LibraryModel
     @Environment(ListeningPlayer.self) private var player
+    @Environment(AccountAuth.self) private var auth
     @State private var showingPlayer = false
     @Environment(\.scenePhase) private var phase
     @State private var search = ""
@@ -122,8 +123,16 @@ struct LibraryView: View {
         .sheet(isPresented: $settings) {
             NavigationStack {
                 Form {
+                    Section("Account") {
+                        if let session = auth.session {
+                            Text(session.user.name)
+                            Text(session.user.email).foregroundStyle(.secondary).accessibilityIdentifier("accountEmail")
+                        }
+                        if auth.offline { Text("Offline · downloaded articles are available.").foregroundStyle(.secondary) }
+                        Button("Sign out", role: .destructive) { Task { await auth.signOut() } }.accessibilityIdentifier("accountSignOut")
+                    }
                     Section("Version 0.2 · Native reader") {
-                        Text("Your library lives on this iPhone. No account or library sync. Downloads contact the original website directly.")
+                        Text("You are signed in. Your library is saved separately for this account on this iPhone; web library sync is coming next. Downloads contact the original website directly.")
                         Text("Deleting the app can remove your library. Export a backup before testing upgrades.")
                     }
                     SpeechSettings()

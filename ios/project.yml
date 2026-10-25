@@ -12,6 +12,7 @@ settings:
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: 3CVY7K9AJ6
     APP_GROUP: group.com.isaiahproctor.readitlater
+    AUTH_SERVER_URL: https://ril.plutotom.com
     GENERATE_INFOPLIST_FILE: YES
 packages:
   ReadingCore:
@@ -26,6 +27,7 @@ targets:
       properties:
         CFBundleDisplayName: Paper Drive
         ReadingAppGroup: $(APP_GROUP)
+        PaperDriveAPIBaseURL: $(AUTH_SERVER_URL)
         UILaunchScreen: {}
         UIBackgroundModes: [audio]
         NSAppTransportSecurity:

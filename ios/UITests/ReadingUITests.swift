@@ -1,6 +1,75 @@
 import XCTest
 
 final class ReadingUITests: XCTestCase {
+    @MainActor func testLivePasswordSessionRoundTrip() throws {
+        guard ProcessInfo.processInfo.environment["NATIVE_AUTH_LIVE_TEST"] == "1" else { throw XCTSkip("Requires the isolated local auth fixture server on port 4115") }
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--ui-testing-auth-live", "--reset-ui-test-library"]
+        app.launch()
+        XCTAssertTrue(app.textFields["authEmail"].waitForExistence(timeout: 15))
+        app.textFields["authEmail"].tap(); app.textFields["authEmail"].typeText("native-live@example.invalid")
+        app.secureTextFields["authPassword"].tap(); app.secureTextFields["authPassword"].typeText("isolated-fixture-password-123")
+        app.buttons["authSignIn"].tap()
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 20))
+        app.buttons["Settings"].tap()
+        XCTAssertTrue(app.staticTexts["accountEmail"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["accountEmail"].label, "native-live@example.invalid")
+        app.buttons["Done"].tap()
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--ui-testing-auth-live"]
+        app.launch()
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 20))
+        app.buttons["Settings"].tap()
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Real password session restored from Keychain"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        app.buttons["accountSignOut"].tap()
+        XCTAssertTrue(app.textFields["authEmail"].waitForExistence(timeout: 15))
+    }
+
+    @MainActor func testAccountLoginPersistenceOfflineAccessAndIsolation() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--ui-testing-auth", "--reset-ui-test-library"]
+        app.launch()
+        XCTAssertTrue(app.textFields["authEmail"].waitForExistence(timeout: 10))
+        func signIn(_ email: String, password: String = "fixture-password-123") {
+            let field = app.textFields["authEmail"]
+            field.tap(); field.press(forDuration: 1.1)
+            field.typeText(email)
+            app.secureTextFields["authPassword"].tap(); app.secureTextFields["authPassword"].typeText(password)
+            app.buttons["authSignIn"].tap()
+        }
+        signIn("alice@example.invalid", password: "wrong")
+        XCTAssertTrue(app.staticTexts["authError"].waitForExistence(timeout: 5))
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--ui-testing-auth"]
+        app.launch()
+        signIn("alice@example.invalid")
+        XCTAssertTrue(app.staticTexts["Alice’s private article"].waitForExistence(timeout: 10))
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--ui-testing-auth", "--ui-testing-auth-offline"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Alice’s private article"].waitForExistence(timeout: 10))
+        app.buttons["Settings"].tap()
+        XCTAssertTrue(app.staticTexts["accountEmail"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["accountEmail"].label, "alice@example.invalid")
+        app.buttons["accountSignOut"].tap()
+        XCTAssertTrue(app.textFields["authEmail"].waitForExistence(timeout: 5))
+        signIn("bob@example.invalid")
+        XCTAssertTrue(app.navigationBars["Paper Drive"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["Alice’s private article"].exists)
+        app.buttons["Settings"].tap(); app.buttons["accountSignOut"].tap()
+        XCTAssertTrue(app.textFields["authEmail"].waitForExistence(timeout: 5))
+        signIn("alice@example.invalid")
+        XCTAssertTrue(app.staticTexts["Alice’s private article"].waitForExistence(timeout: 10))
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--ui-testing-auth", "--ui-testing-auth-revoked"]
+        app.launch()
+        XCTAssertTrue(app.textFields["authEmail"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["Alice’s private article"].exists)
+    }
+
     @MainActor private func launchFreshApp(importSharedLinks: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing", "--reset-ui-test-library"]

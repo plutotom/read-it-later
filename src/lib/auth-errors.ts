@@ -71,3 +71,13 @@ export function getOAuthCallbackErrorMessage(
     }
   }
 }
+/** Only local paths can be used after either password or social sign-in. */
+export function safeAuthReturnPath(input: string | null, origin: string) {
+  if (!input?.startsWith("/")) return "/";
+  try {
+    const target = new URL(input, origin);
+    return target.origin === origin ? target.pathname + target.search : "/";
+  } catch {
+    return "/";
+  }
+}
