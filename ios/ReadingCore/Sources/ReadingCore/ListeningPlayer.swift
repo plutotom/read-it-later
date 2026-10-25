@@ -67,7 +67,7 @@ import OSLog
     }
 
     /// A later control, another article, or cache clearing invalidates delayed metadata work.
-    public func beginPreparation() -> UUID { pause(); return intentToken }
+    public func beginPreparation() -> UUID { pause(); invalidate(); return intentToken }
     public func cancelPreparation(_ expectedIntent: UUID) {
         if intentToken == expectedIntent { intentToken = UUID() }
     }
