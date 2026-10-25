@@ -2,7 +2,7 @@
  * Annotation service — highlights and notes. Shared by the tRPC annotation
  * router and `/api/v1` highlight/note endpoints. Scoped to `userId`.
  */
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { db as Db } from "~/server/db";
 import { articles, highlights, notes } from "~/server/db/schema";
 
@@ -103,6 +103,16 @@ export async function createHighlight(
       contextSuffix: input.contextSuffix,
       version: input.version ?? 1,
       anchorContentHash: input.anchorContentHash ?? null,
+      anchorSpace: "web-dom-v1",
+      sourceAnchor: {
+        space: "web-dom-v1",
+        text: input.text,
+        startOffset: input.startOffset,
+        endOffset: input.endOffset,
+        contextPrefix: input.contextPrefix,
+        contextSuffix: input.contextSuffix,
+        contentHash: input.anchorContentHash ?? "",
+      },
       tags: input.tags ?? [],
     })
     .returning();
@@ -145,9 +155,30 @@ export async function updateHighlight(
     });
   }
 
+  const relocating =
+    patch.startOffset !== undefined ||
+    patch.endOffset !== undefined ||
+    patch.anchorContentHash !== undefined;
   const [updated] = await db
     .update(highlights)
-    .set(updateData)
+    .set({
+      ...updateData,
+      ...(relocating
+        ? {
+            // PostgreSQL evaluates these against OLD row values in the same UPDATE.
+            // A first legacy relocation captures its original selector atomically;
+            // subsequent relocation/color/tag writes never replace that source.
+            sourceAnchor: sql`COALESCE(${highlights.sourceAnchor}, CASE
+          WHEN ${highlights.anchorSpace} = 'web-dom-v1' THEN jsonb_build_object(
+            'space', 'web-dom-v1', 'text', ${highlights.text},
+            'startOffset', ${highlights.startOffset}, 'endOffset', ${highlights.endOffset},
+            'contextPrefix', COALESCE(${highlights.contextPrefix}, ''),
+            'contextSuffix', COALESCE(${highlights.contextSuffix}, ''),
+            'contentHash', COALESCE(${highlights.anchorContentHash}, ''))
+          ELSE NULL END)`,
+          }
+        : {}),
+    })
     .where(and(eq(highlights.id, id), eq(highlights.userId, userId)))
     .returning();
 

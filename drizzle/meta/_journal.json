@@ -120,6 +120,13 @@
       "when": 1792800000001,
       "tag": "0016_annotation_ownership",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792800000002,
+      "tag": "0017_native_annotations",
+      "breakpoints": true
     }
   ]
 }

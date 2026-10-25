@@ -28,6 +28,7 @@ targets:
         CFBundleDisplayName: Paper Drive
         ReadingAppGroup: $(APP_GROUP)
         PaperDriveAPIBaseURL: $(AUTH_SERVER_URL)
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         UIBackgroundModes: [audio]
         NSAppTransportSecurity:

@@ -1,14 +1,14 @@
 # Paper Drive iOS: status and next steps
 
-Updated: October 24, 2026.
+Updated: October 25, 2026.
 
-Status: Password-first iOS authentication is ready in PR #22. The stacked `feature/ios-library-sync` branch implements article sync and the authenticated shared listening client; validation/review is in progress. The user authorized authentication work; separate iOS Vercel provisioning, production release and a new TestFlight upload remain deferred. Existing TestFlight installs do not receive branch changes automatically.
+Status: Password-first iOS authentication is ready in PR #22. The stacked `feature/ios-library-sync` branch implements article sync and the authenticated shared listening client. `feature/ios-annotation-sync` adds independent notes and safe highlight sync; validation/review is in progress. The user authorized authentication work; separate iOS Vercel provisioning, production release and a new TestFlight upload remain deferred. Existing TestFlight installs do not receive branch changes automatically.
 
 ## Current order
 
 1. Finish authentication validation: existing Discord users enroll a password on the web, then sign in on iOS as the same account. No separate iOS users or password signup. Apple/native Discord OAuth and recovery remain later work.
 2. Validate the shared canonical text, account library API and durable two-way article/flag/deletion sync now implemented on the stacked branch.
-3. Extend the durable queue and tombstones to multiple notes and web-compatible highlights; preserve existing local snapshots/quotes and reject ambiguous anchors.
+3. Validate the implemented protocol-2 durable queue, multiple notes and web-compatible highlights; preserve existing local snapshots/quotes and reject ambiguous anchors.
 4. Reuse the web Google speech provider through the common authenticated listening backend. Adapt the native client to the existing stream contract; retain replaceable provider adapters. Login, catalog and sync must never generate billable speech.
 5. Validate device behavior, account ownership and usage limits; review privacy disclosures, then prepare a separately authorized private TestFlight release.
 
@@ -114,7 +114,7 @@ including Astra's review corrections. Its key product decisions are:
   speech before enabling that milestone. Keep Google and Speechify audio variants
   separate; eventually sync listening progress through text anchors.
 
-Password sign-in and local account isolation are implemented. Article/flag/deletion sync is implemented on the stacked branch; annotation/progress sync remains future work.
+Password sign-in and local account isolation are implemented. Article/flag/deletion sync is implemented on the stacked branch; protocol-2 annotation sync is implemented on the next stacked layer. Shared reading/listening progress remains future work.
 Do not add a second set of iOS users or a separate authoritative article database.
 
 ## Verification before the next release

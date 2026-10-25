@@ -16,6 +16,8 @@ struct ReaderView: View {
     @State private var snapshots: [NativeLibraryTextSnapshot] = []
     @State private var editingNote = false
     @State private var note = ""
+    @State private var editingNoteID: String?
+    @State private var notes: [LibraryNote] = []
     @State private var noteError: String?
     @State private var highlights: [Highlight] = []
     @State private var showingHighlights = false
@@ -39,7 +41,7 @@ struct ReaderView: View {
                         Text(URL(string: article.url)?.host ?? "Article").font(.subheadline).foregroundStyle(.secondary)
                         Text(article.title).font(.largeTitle.bold())
                         HStack {
-                            Button { note = article.note; editingNote = true } label: {
+                            Button { beginNote(article: article) } label: {
                                 Label("Add a note", systemImage: "square.and.pencil")
                             }.buttonStyle(.bordered)
                             Button { model.mutate { try $0.toggleRead(id: id) } } label: {
@@ -87,7 +89,22 @@ struct ReaderView: View {
                                 if model.downloading.contains(id) { ProgressView() } else { Label("Download text", systemImage: "arrow.down.circle") }
                             }.buttonStyle(.borderedProminent).disabled(model.downloading.contains(id))
                         }
-                        if !article.note.isEmpty {
+                        if model.annotationSyncEnabled, !notes.isEmpty {
+                            Divider()
+                            Text("Your notes").font(.headline)
+                            ForEach(notes) { saved in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(saved.content).textSelection(.enabled)
+                                    HStack {
+                                        Button { editingNoteID = saved.id; note = saved.content; editingNote = true } label: { Text("Edit").frame(minWidth: 44, minHeight: 44) }.accessibilityIdentifier("editNote-\(saved.id)")
+                                        Button(role: .destructive) {
+                                            if !model.mutate({ try $0.deleteNote(id: saved.id) }) { noteError = model.error; model.error = nil }
+                                            loadAnnotations()
+                                        } label: { Text("Delete").frame(minWidth: 44, minHeight: 44) }.accessibilityIdentifier("deleteNote-\(saved.id)")
+                                    }.buttonStyle(.borderless)
+                                }.padding(.vertical, 6)
+                            }
+                        } else if !model.annotationSyncEnabled, !article.note.isEmpty {
                             Divider()
                             Text("Your note").font(.headline)
                             Text(article.note).textSelection(.enabled)
@@ -101,7 +118,7 @@ struct ReaderView: View {
                             Button(article.isRead ? "Mark unread" : "Mark read", systemImage: "checkmark.circle") { model.mutate { try $0.toggleRead(id: id) } }
                             Button(article.isFavorite ? "Remove favorite" : "Favorite", systemImage: "star") { model.mutate { try $0.toggleFavorite(id: id) } }
                             Button(article.isArchived ? "Move to Inbox" : "Archive", systemImage: "archivebox") { model.mutate { try $0.toggleArchived(id: id) } }
-                            Button("Edit note", systemImage: "square.and.pencil") { note = article.note; editingNote = true }
+                            Button(model.annotationSyncEnabled ? "Add a note" : "Edit note", systemImage: "square.and.pencil") { beginNote(article: article) }
                             if model.syncEnabled {
                                 Button("Saved text versions", systemImage: "clock.arrow.circlepath") { snapshots = model.textSnapshots(id); showingSnapshots = true }
                             }
@@ -139,6 +156,9 @@ struct ReaderView: View {
         .alert("Could not start listening", isPresented: Binding(get: { audioError != nil }, set: { if !$0 { audioError = nil } })) {
             Button("OK") { audioError = nil }
         } message: { Text(audioError ?? "") }
+        .alert("Could not update note", isPresented: Binding(get: { noteError != nil && !editingNote }, set: { if !$0 { noteError = nil } })) {
+            Button("OK") { noteError = nil }
+        } message: { Text(noteError ?? "") }
         .sheet(isPresented: $showingSnapshots) {
             NavigationStack {
                 List(Array(snapshots.enumerated()), id: \.offset) { _, snapshot in
@@ -151,7 +171,8 @@ struct ReaderView: View {
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showingSnapshots = false } } }
             }
         }
-        .task(id: id) { loadHighlights() }
+        .task(id: id) { loadAnnotations() }
+        .onChange(of: model.contentRevision) { _, _ in loadAnnotations() }
         .onDisappear { preparationTask?.cancel(); if let preparationID { player.cancelPreparation(preparationID) } }
         .sheet(isPresented: $showingHighlights) {
             NavigationStack {
@@ -195,7 +216,13 @@ struct ReaderView: View {
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) { Button("Cancel") { editingNote = false } }
                         ToolbarItem(placement: .confirmationAction) { Button("Save") {
-                            if model.mutate({ try $0.saveNote(id: id, text: note) }) {
+                            if model.mutate({ library in
+                                if model.annotationSyncEnabled {
+                                    if let editingNoteID { try library.updateNote(id: editingNoteID, content: note) }
+                                    else { _ = try library.createNote(articleId: id, content: note) }
+                                } else { try library.saveNote(id: id, text: note) }
+                            }) {
+                                loadAnnotations()
                                 editingNote = false
                             } else {
                                 noteError = model.error ?? "Could not save your note. Your draft is still here."
@@ -227,6 +254,18 @@ struct ReaderView: View {
             player.start(document, paragraph: paragraph, expectedIntent: intent)
         } catch is CancellationError { }
         catch { if player.intentToken == intent { audioError = error.localizedDescription } }
+    }
+
+    private func beginNote(article: Article) {
+        editingNoteID = nil
+        note = model.annotationSyncEnabled ? "" : article.note
+        editingNote = true
+    }
+
+    private func loadAnnotations() {
+        loadHighlights()
+        do { notes = try model.notes(articleId: id) }
+        catch { model.error = error.localizedDescription }
     }
 
     private func loadHighlights() {

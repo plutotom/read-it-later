@@ -5,6 +5,7 @@ const state = vi.hoisted(() => ({
   setPassword: vi.fn(),
   changePassword: vi.fn(),
   allow: vi.fn(),
+  hasPassword: vi.fn(),
 }));
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({ Origin: state.origin }),
@@ -24,6 +25,9 @@ vi.mock("~/server/auth", () => ({
 vi.mock("~/server/services/native-auth/rate-limit", () => ({
   allowAuthAttempt: state.allow,
 }));
+vi.mock("~/server/services/native-auth/password-status", () => ({
+  hasAccountPassword: state.hasPassword,
+}));
 import { saveNativePassword } from "./actions";
 
 beforeEach(() => {
@@ -37,6 +41,7 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ token: "must-not-return" });
   state.allow.mockReset().mockResolvedValue(true);
+  state.hasPassword.mockReset().mockResolvedValue(false);
 });
 
 it("requires a fresh authenticated identity and refuses cross-origin enrollment", async () => {
@@ -73,6 +78,7 @@ it("enrolls only the authenticated account and never accepts an input user ID", 
 });
 
 it("requires the old password when changing one and revokes other sessions", async () => {
+  state.hasPassword.mockResolvedValue(true);
   await expect(
     saveNativePassword({
       newPassword: "fixture-password-123",
@@ -87,6 +93,17 @@ it("requires the old password when changing one and revokes other sessions", asy
       revokeOtherSessions: true,
     },
   });
+});
+
+it("uses server password status instead of trusting the form to select enrollment", async () => {
+  state.hasPassword.mockResolvedValue(true);
+  const result = await saveNativePassword({
+    newPassword: "fixture-password-123",
+  });
+  expect(result.error).toContain("already has a password");
+  expect(state.hasPassword).toHaveBeenCalledWith("account-a");
+  expect(state.setPassword).not.toHaveBeenCalled();
+  expect(state.changePassword).not.toHaveBeenCalled();
 });
 
 it("rejects weak passwords and throttled enrollment without hashing", async () => {

@@ -153,6 +153,9 @@ export function ArticleReader({
       for (const item of items) {
         // Optimistic (unsaved) highlights can't be relocated server-side.
         if (item.id.startsWith("temp-")) continue;
+        const source = highlights.find((highlight) => highlight.id === item.id);
+        if (source?.anchorSpace && source.anchorSpace !== "web-dom-v1")
+          continue;
         updateHighlight({
           id: item.id,
           startOffset: item.startOffset,
@@ -161,7 +164,7 @@ export function ArticleReader({
         });
       }
     },
-    [updateHighlight],
+    [updateHighlight, highlights],
   );
   useHighlightPainter({
     contentRef,

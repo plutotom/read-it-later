@@ -9,7 +9,7 @@ import {
   NATIVE_LIBRARY_URL_BYTES,
   nativeLibraryMutationsSchema,
   type NativeLibraryChange,
-  type NativeLibraryMutation,
+  type NativeArticleMutation,
   type NativeLibraryMutationResult,
 } from "~/lib/native-library";
 import {
@@ -19,6 +19,10 @@ import {
 } from "~/lib/native-library-document";
 import { readNativeLibraryCursor, signNativeLibraryCursor } from "./cursor";
 import { NativeLibraryError } from "./errors";
+import {
+  applyNativeAnnotationMutation,
+  readNativeAnnotations,
+} from "../native-annotations/service";
 
 type Database = typeof db;
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -125,9 +129,17 @@ function changeFromRow(row: ArticleRow): NativeLibraryChange {
 
 export async function pullNativeLibrary(
   owner: string,
-  options: { cursor?: string; limit?: number; secret: string },
+  options: {
+    cursor?: string;
+    limit?: number;
+    secret: string;
+    protocolVersion?: 1 | 2;
+  },
   database: Database = db,
 ) {
+  const protocolVersion = options.protocolVersion ?? 1;
+  if (protocolVersion !== 1 && protocolVersion !== 2)
+    throw new NativeLibraryError("invalid_protocol", 400);
   const after = readNativeLibraryCursor(options.cursor, owner, options.secret);
   const limit = options.limit ?? 50;
   if (!Number.isInteger(limit) || limit < 1 || limit > 100)
@@ -165,6 +177,34 @@ export async function pullNativeLibrary(
       let bytes = 4096; // bounded envelope and signed cursor overhead
       for (const row of rows.slice(0, limit)) {
         const change = changeFromRow(row);
+        if (protocolVersion === 2 && !change.deleted) {
+          change.annotations = await readNativeAnnotations(
+            tx,
+            owner,
+            row.id,
+            change.article?.contentUnavailable ? null : row.content,
+            Buffer.byteLength(JSON.stringify(change)),
+          );
+          // The explicit unavailable envelope also counts against the per-change
+          // bound. Retain protocol-1's article representation whenever it fits.
+          if (
+            Buffer.byteLength(JSON.stringify(change)) >
+              NATIVE_LIBRARY_ARTICLE_BYTES &&
+            change.article
+          ) {
+            change.article.text = "";
+            change.article.contentHash = createHash("sha256")
+              .update("")
+              .digest("hex");
+            change.article.contentUnavailable = true;
+            if (change.annotations.complete) {
+              for (const highlight of change.annotations.highlights) {
+                highlight.canonicalAnchor = null;
+                highlight.resolution = "unresolved";
+              }
+            }
+          }
+        }
         const size = Buffer.byteLength(JSON.stringify(change));
         if (bytes + size > NATIVE_LIBRARY_PAGE_BYTES) break;
         changes.push(change);
@@ -173,7 +213,7 @@ export async function pullNativeLibrary(
       const hasMore = rows.length > changes.length;
       const revision = hasMore ? changes.at(-1)!.revision : highWater;
       return {
-        protocolVersion: 1 as const,
+        protocolVersion,
         changes,
         cursor: signNativeLibraryCursor(owner, revision, options.secret),
         hasMore,
@@ -204,7 +244,7 @@ async function tombstone(tx: Transaction, owner: string, articleId: string) {
 async function applyMutation(
   tx: Transaction,
   owner: string,
-  mutation: NativeLibraryMutation,
+  mutation: NativeArticleMutation,
 ): Promise<NativeLibraryMutationResult> {
   const [alias] = await tx.execute<{ article_id: string }>(sql`
     SELECT article_id FROM "read-it-later_native_library_alias"
@@ -340,7 +380,51 @@ export async function mutateNativeLibrary(
             results.push(prior.result);
             continue;
           }
-          const result = await applyMutation(tx, owner, mutation);
+          let result: NativeLibraryMutationResult;
+          if (
+            mutation.kind === "create" ||
+            mutation.kind === "update" ||
+            mutation.kind === "delete"
+          ) {
+            result = await applyMutation(tx, owner, mutation);
+          } else {
+            const [alias] = await tx.execute<{ article_id: string }>(sql`
+              SELECT article_id FROM "read-it-later_native_library_alias"
+              WHERE owner_id = ${owner} AND local_id = ${mutation.articleId}::uuid
+            `);
+            result = await applyNativeAnnotationMutation(
+              tx,
+              owner,
+              alias?.article_id ?? mutation.articleId,
+              mutation,
+            );
+            // Capture each annotation's post-effect owner revision while the
+            // same lock is held, before a later mutation in this batch runs.
+            // No-op/deleted results carry the current fence too. Receipt replay
+            // above returns the originally persisted fence without reading anew.
+            const [effect] = await tx.execute<{ revision: string }>(sql`
+              SELECT revision::text FROM "read-it-later_native_library_owner"
+              WHERE owner_id = ${owner}
+            `);
+            if (!effect) throw new Error("Missing annotation owner revision");
+            result.effectRevision = effect.revision;
+            if (result.status === "deleted") {
+              const table =
+                "noteId" in mutation
+                  ? sql`"read-it-later_note"`
+                  : sql`"read-it-later_highlight"`;
+              const annotationId =
+                "noteId" in mutation ? mutation.noteId : mutation.highlightId;
+              // Classify absence across this owner's parents, not merely the
+              // requested relationship. A moved live entity is not permanently
+              // deleted. The same owner lock protects this check and the fence.
+              const [live] = await tx.execute<{ present: boolean }>(sql`
+                SELECT true AS present FROM ${table}
+                WHERE id = ${annotationId}::uuid AND "userId" = ${owner}
+              `);
+              result.permanentDeletion = !live;
+            }
+          }
           await tx.execute(sql`
             INSERT INTO "read-it-later_native_library_mutation" (owner_id, mutation_id, input_hash, result)
             VALUES (${owner}, ${mutation.mutationId}::uuid, ${hash}, ${JSON.stringify(result)}::jsonb)
@@ -349,7 +433,7 @@ export async function mutateNativeLibrary(
         }
         // ACKs deliberately contain no cursor. Only atomic pull application on
         // the phone may advance its durable cursor.
-        return { protocolVersion: 1 as const, results };
+        return { protocolVersion: parsed.data.protocolVersion, results };
       });
     } catch (error) {
       const cause = error instanceof Error && error.cause ? error.cause : error;

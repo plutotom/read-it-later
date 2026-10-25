@@ -4,34 +4,47 @@ import { auth } from "~/server/auth";
 import { db } from "~/server/db";
 import { userPreferences } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
+import { hasAccountPassword } from "~/server/services/native-auth/password-status";
 
 // GET /api/preferences - Load user preferences
 export async function GET() {
   const session = await auth.api.getSession({
     headers: await headers(),
+    query: { disableCookieCache: true },
   });
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const prefs = await db.query.userPreferences.findFirst({
-    where: eq(userPreferences.userId, session.user.id),
-  });
+  const [prefs, hasPassword] = await Promise.all([
+    db.query.userPreferences.findFirst({
+      where: eq(userPreferences.userId, session.user.id),
+    }),
+    hasAccountPassword(session.user.id),
+  ]);
 
   if (!prefs) {
-    return NextResponse.json({
-      theme: "light",
-      ttsVoiceName: "en-US-Standard-A",
-      settings: {},
-    });
+    return NextResponse.json(
+      {
+        theme: "light",
+        ttsVoiceName: "en-US-Standard-A",
+        settings: {},
+        hasPassword,
+      },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   }
 
-  return NextResponse.json({
-    theme: prefs.theme,
-    ttsVoiceName: prefs.ttsVoiceName ?? "en-US-Standard-A",
-    settings: prefs.settings,
-  });
+  return NextResponse.json(
+    {
+      theme: prefs.theme,
+      ttsVoiceName: prefs.ttsVoiceName ?? "en-US-Standard-A",
+      settings: prefs.settings,
+      hasPassword,
+    },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }
 
 // POST /api/preferences - Save user preferences

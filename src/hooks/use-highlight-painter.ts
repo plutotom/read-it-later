@@ -15,7 +15,7 @@
  * caller can persist the new offsets or surface a "lost" state.
  */
 import { useEffect, type RefObject } from "react";
-import { resolveHighlight } from "~/lib/highlight-anchor";
+import { resolvePaintableHighlight } from "~/lib/native-highlight-paint";
 
 /** Registry name per color, e.g. "ril-hl-yellow". CSS targets `::highlight(...)`. */
 const REGISTRY_PREFIX = "ril-hl-";
@@ -29,6 +29,8 @@ type PaintableHighlight = {
   contextPrefix?: string | null;
   contextSuffix?: string | null;
   anchorContentHash?: string | null;
+  anchorSpace?: string | null;
+  webAnchor?: unknown;
 };
 
 export type RelocatedHighlight = {
@@ -87,7 +89,7 @@ export function useHighlightPainter({
     const lost: string[] = [];
 
     for (const h of highlights) {
-      const resolved = resolveHighlight(root, h);
+      const resolved = resolvePaintableHighlight(root, h);
       if (resolved.status === "lost") {
         lost.push(h.id);
         continue;

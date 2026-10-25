@@ -39,6 +39,23 @@ describe("normalizeWhitespace", () => {
 });
 
 describe("extractContext", () => {
+  it("never cuts an outer context boundary inside a surrogate pair", () => {
+    const before = "😀" + "a".repeat(31) + "quote";
+    const prefix = extractContext(before, 33, 38).contextPrefix;
+    expect(prefix).toBe("a".repeat(31));
+    const after = "quote" + "a".repeat(31) + "😀";
+    const suffix = extractContext(after, 0, 5).contextSuffix;
+    expect(suffix).toBe("a".repeat(31));
+    for (const context of [prefix, suffix])
+      expect(context).not.toMatch(/[\uD800-\uDFFF]/u);
+  });
+
+  it("retains a complete emoji when it fits within the context budget", () => {
+    const text = "😀" + "a".repeat(30) + "quote";
+    expect(extractContext(text, 32, 37).contextPrefix).toBe(
+      "😀" + "a".repeat(30),
+    );
+  });
   const text = "The quick brown fox jumps over the lazy dog";
   it("captures prefix and suffix around the range", () => {
     const start = text.indexOf("fox");
@@ -127,6 +144,48 @@ describe("findQuoteOffsets", () => {
         text: "",
         contextPrefix: "",
         contextSuffix: "",
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("conservative repeated-quote resolution", () => {
+  it("does not choose the first exact or normalized occurrence when context is indistinguishable", () => {
+    expect(
+      findQuoteOffsets("same quote / same quote", {
+        text: "quote",
+        contextPrefix: "same ",
+        contextSuffix: "",
+      }),
+    ).toBeNull();
+    expect(
+      findQuoteOffsets("quote / quote", {
+        text: "quote",
+        contextPrefix: "",
+        contextSuffix: "",
+      }),
+    ).toBeNull();
+    expect(
+      findQuoteOffsets("same  words / same\nwords", {
+        text: "same words",
+        contextPrefix: "",
+        contextSuffix: "",
+      }),
+    ).toBeNull();
+  });
+  it("compares the end of the prefix and requires a unique context score", () => {
+    const text = "left GOOD quote bad / left BAD quote good";
+    const match = findQuoteOffsets(text, {
+      text: "quote",
+      contextPrefix: "older text GOOD ",
+      contextSuffix: " bad",
+    });
+    expect(match?.start).toBe(text.indexOf("quote"));
+    expect(
+      findQuoteOffsets("AA quote BB / AA quote BB", {
+        text: "quote",
+        contextPrefix: "AA ",
+        contextSuffix: " BB",
       }),
     ).toBeNull();
   });
