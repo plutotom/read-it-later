@@ -17,7 +17,8 @@ A physical iPhone cannot reach the simulator’s `localhost` backend.
 
 ## Library and offline changes
 
-- Save an article on the web, then open the iOS app or use **Settings → Sync now**.
+- Save an article on the web, then open the iOS app or pull down on the library
+  to refresh. **Settings → Sync now** remains available as a fallback.
 - Read its downloaded text, favorite it, mark it read, and archive it on either
   client. Verify those assignments reach the other client.
 - Go offline, make several changes, quit and reopen the app, then reconnect.

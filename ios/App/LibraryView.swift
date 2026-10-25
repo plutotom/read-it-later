@@ -44,12 +44,12 @@ struct LibraryView: View {
                             .font(.subheadline).foregroundStyle(.secondary)
                     }.padding(.vertical, 8)
                     if model.syncEnabled {
-                        HStack(spacing: 6) {
-                            if model.syncing { ProgressView().controlSize(.small) }
-                            Text(model.syncing ? "Syncing…" : model.pendingChanges > 0 ? "\(model.pendingChanges) changes waiting to sync" : "Account library")
-                                .font(.caption).foregroundStyle(.secondary)
-                            Spacer()
-                            Button { Task { await model.synchronize() } } label: { Image(systemName: "arrow.triangle.2.circlepath") }.accessibilityLabel("Sync library").disabled(model.syncing)
+                        if model.pendingChanges > 0 {
+                            HStack(spacing: 6) {
+                                if model.syncing { ProgressView().controlSize(.small) }
+                                Text(model.syncing ? "Syncing…" : "\(model.pendingChanges) changes waiting to sync")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
                         }
                         if let message = model.syncError { Text(message).font(.caption).foregroundStyle(.orange) }
                     }
