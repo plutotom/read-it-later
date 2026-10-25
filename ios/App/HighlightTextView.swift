@@ -30,7 +30,15 @@ struct HighlightTextView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeUIView(context: Context) -> UITextView {
-        let view = UITextView()
+        let view = ReaderTextView()
+        context.coordinator.textView = view
+        view.onAttach = { [weak coordinator = context.coordinator] in
+            DispatchQueue.main.async {
+                guard let coordinator, let textView = coordinator.textView, textView.window != nil else { return }
+                coordinator.observeEnclosingScrollView(from: textView)
+                coordinator.publishVisibility()
+            }
+        }
         view.isEditable = false
         view.isSelectable = true
         view.isScrollEnabled = false
@@ -205,5 +213,14 @@ struct HighlightTextView: UIViewRepresentable {
             guard range.length > 0 else { return UIMenu(children: suggestedActions) }
             return UIMenu(children: actions(for: range, in: textView) + suggestedActions)
         }
+    }
+}
+
+/// A paused session will not tick again to refresh geometry after the reader is mounted.
+private final class ReaderTextView: UITextView {
+    var onAttach: (() -> Void)?
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil { onAttach?() }
     }
 }

@@ -6,6 +6,7 @@ struct ReaderView: View {
     @Environment(ListeningPlayer.self) private var player
     @Environment(SpeechSetup.self) private var speech
     let id: String
+    let expandPlayer: () -> Void
     @AppStorage("readerSize") private var readerSize = 19.0
     @State private var preparationTask: Task<Void, Never>?
     @State private var preparationID: UUID?
@@ -113,22 +114,24 @@ struct ReaderView: View {
             } else { ContentUnavailableView("Article not found", systemImage: "doc") }
         }
         .safeAreaInset(edge: .bottom, spacing: 8) {
-            if showSpokenFollowButton {
-                Button { followToken += 1 } label: {
-                    Label("Spoken text", systemImage: followVisibility == .visible(direction: .up) ? "arrow.up.to.line" : "arrow.down.to.line")
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(.regularMaterial, in: Capsule())
-                        .overlay(Capsule().stroke(.primary.opacity(0.08)))
+            VStack(spacing: 8) {
+                if showSpokenFollowButton {
+                    Button { followToken += 1 } label: {
+                        Label("Spoken text", systemImage: followVisibility == .visible(direction: .up) ? "arrow.up.to.line" : "arrow.down.to.line")
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(.regularMaterial, in: Capsule())
+                            .overlay(Capsule().stroke(.primary.opacity(0.08)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Show spoken text")
+                    .accessibilityHint("Scrolls to the words currently being spoken")
+                    .accessibilityIdentifier("jumpToSpokenText")
+                    .frame(maxWidth: .infinity)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Show spoken text")
-                .accessibilityHint("Scrolls to the words currently being spoken")
-                .accessibilityIdentifier("jumpToSpokenText")
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 2)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                if player.document != nil { MiniListeningPlayer(player: player, expand: expandPlayer) }
             }
         }
         .animation(.snappy, value: showSpokenFollowButton)
