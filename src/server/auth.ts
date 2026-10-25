@@ -4,6 +4,7 @@ import { db } from "~/server/db";
 import { env } from "~/env";
 import { nativeAuthOptions } from "./native-auth-options";
 import { nextCookies } from "better-auth/next-js";
+import { resolveAuthBaseURL } from "./auth-origin";
 
 /**
  * Resolve the auth base URL so OAuth callbacks return to the CURRENT deployment.
@@ -12,21 +13,11 @@ import { nextCookies } from "better-auth/next-js";
  * AUTH_URL, then VERCEL_URL, then the local development origin (:4114).
  * This prevents a shared production AUTH_URL from capturing preview callbacks.
  */
-function resolveBaseURL(): string {
-  // A legacy shared AUTH_URL must never bounce preview login into production.
-  if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  if (process.env.AUTH_URL) {
-    return env.AUTH_URL;
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  return env.AUTH_URL;
-}
-
-const baseURL = resolveBaseURL();
+const baseURL = resolveAuthBaseURL({
+  authURL: process.env.AUTH_URL,
+  vercelURL: process.env.VERCEL_URL,
+  vercelEnvironment: process.env.VERCEL_ENV,
+});
 
 /**
  * Trust only this deployment's known origins, not unrelated Vercel tenants.
