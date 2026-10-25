@@ -1,12 +1,11 @@
 name: ci
 
-# Validation backstop: every PR into main must be green before it can merge.
+# Validation backstop: every PR, including stacked feature branches, must be green.
 # This is what lets an AI agent push a branch and have its work checked
 # automatically, independent of whether the agent remembered to run anything.
 
 on:
   pull_request:
-    branches: [main]
   push:
     branches: [main]
 
