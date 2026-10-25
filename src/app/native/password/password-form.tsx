@@ -102,6 +102,7 @@ export function NativePasswordForm({
                       ...(changing ? { currentPassword: current } : {}),
                     })
                       .then((result) => {
+                        if (!result) return; // A successful server redirect has no action result.
                         setPassword("");
                         setConfirm("");
                         setCurrent("");
