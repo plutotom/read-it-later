@@ -8,7 +8,7 @@ settings:
     SWIFT_VERSION: '6.0'
     TARGETED_DEVICE_FAMILY: '1'
     MARKETING_VERSION: '0.2.0'
-    CURRENT_PROJECT_VERSION: '6'
+    CURRENT_PROJECT_VERSION: '7'
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: 3CVY7K9AJ6
     APP_GROUP: group.com.isaiahproctor.readitlater
@@ -28,6 +28,7 @@ targets:
         CFBundleDisplayName: Paper Drive
         ReadingAppGroup: $(APP_GROUP)
         PaperDriveAPIBaseURL: $(AUTH_SERVER_URL)
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         UIBackgroundModes: [audio]
         NSAppTransportSecurity:

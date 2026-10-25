@@ -104,7 +104,9 @@ import ReadingCore
     private func startEngine() throws {
         if !engine.isRunning {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.allowAirPlay, .allowBluetoothA2DP])
+            // Playback already supports AirPlay and A2DP. Their explicit options
+            // are for playAndRecord and can fail with paramErr (-50) on iPhone.
+            try session.setCategory(.playback, mode: .spokenAudio)
             try session.setActive(true)
             try engine.start()
         }
