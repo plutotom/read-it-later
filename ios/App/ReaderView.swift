@@ -19,7 +19,16 @@ struct ReaderView: View {
     @State private var highlights: [Highlight] = []
     @State private var showingHighlights = false
     @State private var highlightError: String?
+    @State private var followVisibility: SpokenTextFollowVisibility = .hidden
+    @State private var followToken = 0
     private var article: Article? { model.articles.first { $0.id == id } }
+    private var spokenAnchor: SpokenTextAnchor? { player.spokenTextAnchor(forArticleID: id) }
+    private var showSpokenFollowButton: Bool {
+        SpokenTextScroll.shouldShowButton(
+            sessionAllows: spokenAnchor != nil,
+            visibility: followVisibility
+        )
+    }
 
     var body: some View {
         Group {
@@ -56,6 +65,8 @@ struct ReaderView: View {
                             HighlightTextView(text: article.text, highlights: highlights, fontSize: readerSize,
                                               activeRange: player.document?.articleID == id ? player.currentChunk?.range : nil,
                                               wordRange: player.document?.articleID == id ? player.wordRange : nil,
+                                              followToken: followToken,
+                                              onFollowVisibilityChange: { followVisibility = $0 },
                                               play: { offset in
                                 preparationTask = Task { await listen(offset: offset) }
                             }) { range in
@@ -100,6 +111,29 @@ struct ReaderView: View {
                     }
                 }
             } else { ContentUnavailableView("Article not found", systemImage: "doc") }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 8) {
+            if showSpokenFollowButton {
+                Button { followToken += 1 } label: {
+                    Label("Spoken text", systemImage: followVisibility == .visible(direction: .up) ? "arrow.up.to.line" : "arrow.down.to.line")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(.regularMaterial, in: Capsule())
+                        .overlay(Capsule().stroke(.primary.opacity(0.08)))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Show spoken text")
+                .accessibilityHint("Scrolls to the words currently being spoken")
+                .accessibilityIdentifier("jumpToSpokenText")
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 2)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.snappy, value: showSpokenFollowButton)
+        .onChange(of: spokenAnchor) { _, anchor in
+            if anchor == nil { followVisibility = .hidden }
         }
         .navigationBarTitleDisplayMode(.inline)
         .alert("Could not start listening", isPresented: Binding(get: { audioError != nil }, set: { if !$0 { audioError = nil } })) {

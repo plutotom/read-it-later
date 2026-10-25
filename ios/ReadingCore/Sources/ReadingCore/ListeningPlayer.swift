@@ -24,6 +24,15 @@ import OSLog
         guard let chunks = document?.chunks, chunks.indices.contains(chunkIndex) else { return nil }
         return chunks[chunkIndex]
     }
+    /// Spoken word when timings exist; otherwise the current listening chunk. Nil when idle, finished, or another article.
+    public func spokenTextAnchor(forArticleID articleID: String) -> SpokenTextAnchor? {
+        guard document?.articleID == articleID else { return nil }
+        switch state {
+        case .idle, .finished: return nil
+        case .playing, .paused, .buffering, .failed:
+            return SpokenTextScroll.anchor(wordRange: wordRange, chunkRange: currentChunk?.range)
+        }
+    }
     public var elapsed: TimeInterval { (0..<chunkIndex).reduce(0) { $0 + duration(at: $1) } + chunkTime }
     public var total: TimeInterval { (document?.chunks.indices ?? 0..<0).reduce(0) { $0 + duration(at: $1) } }
     public var timelineIsEstimated: Bool { durations.count < (document?.chunks.count ?? 0) }

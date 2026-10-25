@@ -20,6 +20,8 @@ struct HighlightTextView: UIViewRepresentable {
     let fontSize: Double
     let activeRange: NSRange?
     let wordRange: NSRange?
+    var followToken: Int = 0
+    var onFollowVisibilityChange: (SpokenTextFollowVisibility) -> Void = { _ in }
     let play: (Int) -> Void
     let save: (NSRange) -> Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -50,6 +52,7 @@ struct HighlightTextView: UIViewRepresentable {
 
     func updateUIView(_ view: UITextView, context: Context) {
         context.coordinator.parent = self
+        context.coordinator.textView = view
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineSpacing = 7
         let font = UIFontMetrics(forTextStyle: .body).scaledFont(for: UIFont(name: "Georgia", size: fontSize) ?? .systemFont(ofSize: fontSize))
@@ -68,6 +71,12 @@ struct HighlightTextView: UIViewRepresentable {
             view.attributedText = attributed
             if selection.location <= attributed.length && selection.length <= attributed.length - selection.location { view.selectedRange = selection }
         }
+        context.coordinator.observeEnclosingScrollView(from: view)
+        context.coordinator.publishVisibility()
+        if context.coordinator.lastFollowToken != followToken {
+            context.coordinator.lastFollowToken = followToken
+            if followToken > 0 { context.coordinator.scrollSpokenTextIntoView() }
+        }
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
@@ -79,8 +88,88 @@ struct HighlightTextView: UIViewRepresentable {
         var parent: HighlightTextView
         weak var menu: UIEditMenuInteraction?
         weak var selectedView: UITextView?
+        weak var textView: UITextView?
         var paragraphSelection: NSRange?
+        var lastFollowToken = 0
+        private var lastVisibility: SpokenTextFollowVisibility?
+        private var scrollObservation: NSKeyValueObservation?
+        private weak var observedScroll: UIScrollView?
         init(_ parent: HighlightTextView) { self.parent = parent }
+        deinit { scrollObservation?.invalidate() }
+
+        func observeEnclosingScrollView(from view: UIView) {
+            guard let scroll = enclosingScrollView(from: view) else { return }
+            if observedScroll === scroll { return }
+            scrollObservation?.invalidate()
+            observedScroll = scroll
+            scrollObservation = scroll.observe(\.contentOffset, options: [.new]) { [weak self] _, _ in
+                DispatchQueue.main.async { self?.publishVisibility() }
+            }
+        }
+
+        func publishVisibility() {
+            guard let textView else { publish(.hidden); return }
+            textView.layoutIfNeeded()
+            guard let range = spokenRange() else { publish(.hidden); return }
+            guard let scroll = enclosingScrollView(from: textView),
+                  let rect = spokenRect(for: range, in: textView) else {
+                publish(.hidden)
+                return
+            }
+            let rectInScroll = textView.convert(rect, to: scroll)
+            let visible = scroll.bounds.inset(by: scroll.adjustedContentInset)
+            publish(SpokenTextScroll.visibility(spokenRectInVisibleBounds: rectInScroll, visibleBounds: visible))
+        }
+
+        func scrollSpokenTextIntoView() {
+            guard let textView, let range = spokenRange(),
+                  let scroll = enclosingScrollView(from: textView) else { return }
+            textView.layoutIfNeeded()
+            scroll.layoutIfNeeded()
+            guard let rect = spokenRect(for: range, in: textView) else { return }
+            let rectInScroll = textView.convert(rect, to: scroll)
+            let minOffset = -scroll.adjustedContentInset.top
+            let maxOffset = max(minOffset, scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
+            let target = SpokenTextScroll.targetOffsetY(
+                spokenMinYInVisibleBounds: rectInScroll.minY,
+                currentOffsetY: scroll.contentOffset.y,
+                topInset: scroll.adjustedContentInset.top,
+                minOffsetY: minOffset,
+                maxOffsetY: maxOffset
+            )
+            scroll.setContentOffset(CGPoint(x: scroll.contentOffset.x, y: target), animated: true)
+        }
+
+        private func spokenRange() -> NSRange? {
+            SpokenTextScroll.anchor(wordRange: parent.wordRange, chunkRange: parent.activeRange)?.range
+        }
+
+        private func spokenRect(for range: NSRange, in textView: UITextView) -> CGRect? {
+            let length = textView.attributedText?.length ?? 0
+            guard range.location >= 0, range.location <= length else { return nil }
+            let safeLength = min(max(range.length, 1), max(0, length - range.location))
+            guard let start = textView.position(from: textView.beginningOfDocument, offset: range.location),
+                  let end = textView.position(from: start, offset: safeLength),
+                  let textRange = textView.textRange(from: start, to: end) else { return nil }
+            let rect = textView.firstRect(for: textRange)
+            if rect.isNull || rect.isInfinite { return textView.caretRect(for: start) }
+            return rect
+        }
+
+        private func enclosingScrollView(from view: UIView) -> UIScrollView? {
+            var current = view.superview
+            while let candidate = current {
+                if let scroll = candidate as? UIScrollView, scroll !== view { return scroll }
+                current = candidate.superview
+            }
+            return nil
+        }
+
+        private func publish(_ visibility: SpokenTextFollowVisibility) {
+            guard visibility != lastVisibility else { return }
+            lastVisibility = visibility
+            DispatchQueue.main.async { [parent] in parent.onFollowVisibilityChange(visibility) }
+        }
 
         @objc func selectParagraph(_ gesture: UITapGestureRecognizer) {
             guard let view = gesture.view as? UITextView else { return }
