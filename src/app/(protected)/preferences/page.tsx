@@ -28,11 +28,18 @@ import { Layout } from "~/app/_components/layout";
 
 export default function PreferencesPage() {
   const { data: session } = useSession();
+  const userId = session?.user.id;
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [ttsVoiceName, setTtsVoiceName] = useState(DEFAULT_VOICE);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingVoice, setIsSavingVoice] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [passwordStatus, setPasswordStatus] = useState<{
+    userId: string;
+    hasPassword: boolean;
+  } | null>(null);
+  const hasPassword =
+    passwordStatus?.userId === userId ? passwordStatus?.hasPassword : undefined;
 
   // Load preferences on mount
   useEffect(() => {
@@ -43,12 +50,19 @@ export default function PreferencesPage() {
           const data = (await response.json()) as {
             theme?: "light" | "dark";
             ttsVoiceName?: string;
+            hasPassword?: boolean;
           };
           if (data.theme) {
             setTheme(data.theme);
           }
           if (data.ttsVoiceName) {
             setTtsVoiceName(data.ttsVoiceName);
+          }
+          if (userId && typeof data.hasPassword === "boolean") {
+            setPasswordStatus({
+              userId,
+              hasPassword: data.hasPassword,
+            });
           }
         }
       } catch (error) {
@@ -58,12 +72,12 @@ export default function PreferencesPage() {
       }
     };
 
-    if (session?.user) {
+    if (userId) {
       void loadPreferences();
     } else {
       setIsLoading(false);
     }
-  }, [session?.user]);
+  }, [userId]);
 
   const handleThemeChange = async (isDark: boolean) => {
     const newTheme = isDark ? "dark" : "light";
@@ -222,12 +236,26 @@ export default function PreferencesPage() {
             <CardDescription>Your account information.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Link
-              href="/native/password"
-              className="text-primary underline underline-offset-4"
-            >
-              Set up or change your iPhone sign-in password
-            </Link>
+            <div>
+              <Label className="text-white">Sign-in password</Label>
+              <p className="text-sm text-gray-400">
+                {hasPassword === true
+                  ? "Password is set. You can sign in to Paper Drive."
+                  : hasPassword === false
+                    ? "No password set. Add one to sign in to Paper Drive."
+                    : "Could not check password status."}
+              </p>
+              <Link
+                href="/native/password"
+                className="text-primary underline underline-offset-4"
+              >
+                {hasPassword === true
+                  ? "Change password"
+                  : hasPassword === false
+                    ? "Set up password"
+                    : "Manage password"}
+              </Link>
+            </div>
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-white">Email</Label>

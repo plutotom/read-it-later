@@ -16,11 +16,13 @@ import { saveNativePassword } from "./actions";
 
 export function NativePasswordForm({
   email,
+  hasPassword,
   discordAvailable,
   requiresReauthentication,
   saved,
 }: {
   email: string | null;
+  hasPassword: boolean;
   discordAvailable: boolean;
   requiresReauthentication: boolean;
   saved: boolean;
@@ -28,7 +30,6 @@ export function NativePasswordForm({
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [current, setCurrent] = useState("");
-  const [changing, setChanging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [reauthenticate, setReauthenticate] = useState(false);
@@ -55,13 +56,23 @@ export function NativePasswordForm({
     <main className="bg-background text-foreground flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Sign in on your iPhone</CardTitle>
+          <CardTitle>
+            {email && hasPassword
+              ? "Change your sign-in password"
+              : "Sign in on your iPhone"}
+          </CardTitle>
           <CardDescription>
-            Add a password to your existing Read It Later account, then use the
-            same email and password in Paper Drive.
+            {hasPassword
+              ? "Your account already has a password. Use it in Paper Drive, or change it here."
+              : "Add a password to your existing Read It Later account, then use the same email and password in Paper Drive."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
+          {email ? (
+            <p role="status" className="text-sm">
+              {hasPassword ? "Password is set." : "No password set."}
+            </p>
+          ) : null}
           {needsSignIn && !discordAvailable ? (
             <p>
               Discord sign-in is temporarily unavailable. If you already have a
@@ -92,10 +103,10 @@ export function NativePasswordForm({
               <p className="text-sm">
                 Account: <strong>{email}</strong>
               </p>
-              {saved ? (
+              {saved && hasPassword ? (
                 <p role="status">
-                  Password saved. Return to Paper Drive and sign in. Your
-                  library will stay on this iPhone until library sync is added.
+                  Password saved. Return to Paper Drive and sign in with your
+                  account email and password.
                 </p>
               ) : (
                 <form
@@ -110,7 +121,7 @@ export function NativePasswordForm({
                     setMessage("");
                     void saveNativePassword({
                       newPassword: password,
-                      ...(changing ? { currentPassword: current } : {}),
+                      ...(hasPassword ? { currentPassword: current } : {}),
                     })
                       .then((result) => {
                         setPassword("");
@@ -132,15 +143,7 @@ export function NativePasswordForm({
                       .finally(() => setBusy(false));
                   }}
                 >
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={changing}
-                      onChange={(e) => setChanging(e.target.checked)}
-                    />
-                    I already have a password
-                  </label>
-                  {changing ? (
+                  {hasPassword ? (
                     <div className="space-y-2">
                       <Label htmlFor="current">Current password</Label>
                       <Input
@@ -180,7 +183,11 @@ export function NativePasswordForm({
                     />
                   </div>
                   <Button className="w-full" disabled={busy} type="submit">
-                    {busy ? "Saving…" : "Save password"}
+                    {busy
+                      ? "Saving…"
+                      : hasPassword
+                        ? "Change password"
+                        : "Set up password"}
                   </Button>
                 </form>
               )}
