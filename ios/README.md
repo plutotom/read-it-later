@@ -1,11 +1,23 @@
 # Paper Drive — native 0.2 developer preview
 
-This is a **native reader with streaming speech support**. The library remains local to the iPhone; listening uses the separate native speech API. Account sync and public release remain later milestones.
+This is a **native reader with streaming speech support**. The library remains local to the iPhone; listening uses the separate native speech API. Sign-in uses the existing web account; article sync and public release remain later milestones.
 
-Backend provisioning is paused. See [iOS status and next steps](../docs/plans/native-ios-next-steps.md)
+The separate native speech deployment is still deferred. See [iOS status and next steps](../docs/plans/native-ios-next-steps.md)
 for the resume checklist and [the sign-in/sync plan](../docs/plans/native-ios-auth-sync.md)
 for the agreed required-account design. Native speech HTTP routes are disabled by default
 on shared web deployments; private testing must explicitly set `NATIVE_SPEECH_ENABLED=true`.
+
+## Account sign-in (development branch)
+
+1. Sign into the website with the existing Discord account.
+2. Open **Preferences → iPhone password** or `/native/password` and add a password (12–128 characters). A sign-in within the last ten minutes is required.
+3. Use that account’s email and password on the iPhone. Password sign-in also works on the web; public password signup and email recovery are not enabled.
+
+The auth origin comes from `AUTH_SERVER_URL` in `project.yml` (default `https://ril.plutotom.com`). The backend must deploy this branch before that origin supports password login. Debug builds expose a test-server field; only localhost can use HTTP. Release builds require HTTPS. No provider key or shared app password belongs in the phone.
+
+Sessions are stored in this device’s Keychain. A previously verified, unexpired session permits offline reading; foreground checks detect revocation. Logout locks immediately and retries server revocation when online. Text, annotations, bookmarks, listening settings and cached audio are partitioned by account **and backend origin**. They remain on the phone after logout for that account’s next sign-in. Audio limits apply to each account’s cache (200 MB default). The first signed-in account receives a backup of the legacy local library once, preserving IDs, notes and highlights; the original database is retained. A later account cannot import it.
+
+Safari sharing requires a current signed-in destination. The extension receives only an opaque account/environment namespace and expiry, never a token. Its pending links stay with that destination. This is account isolation, **not web article sync**: no articles or annotations are uploaded by sign-in. Apple sign-in and native Discord OAuth remain future work.
 
 ## Included
 
@@ -22,7 +34,7 @@ on shared web deployments; private testing must explicitly set `NATIVE_SPEECH_EN
 
 ## Deliberately not included
 
-Account login/sync, full HTML/images, web highlight synchronization, reading-position sync,
+Article sync, full HTML/images, web highlight synchronization, reading-position sync,
 folders, PDFs, widgets, background download guarantees, and JSON re-import. Text extraction is a
 simple heuristic, not Mozilla Readability, and may retain boilerplate or fail on
 JavaScript-heavy/login-required pages. HTTP sites may be blocked by App Transport
@@ -85,15 +97,14 @@ create another build with the appropriate export setting for those milestones.
 The beta icon reuses `public/favicon.svg`, rendered as an opaque 1024px asset; it is
 temporary artwork pending Paper Drive's own icon. Main-app privacy declarations cover
 app-only UserDefaults (settings/bookmarks) and user content sent for speech functionality,
-without tracking or account linkage. The extension saves links locally and makes no
-network requests. Review App Store privacy disclosures again when accounts or analytics
-are added; the manifest is separate from App Store Connect's privacy questionnaire.
+without tracking; authentication identity is declared as account-linked. The extension saves links locally and makes no
+network requests. Review App Store Connect privacy disclosures before distributing this account-enabled build; the manifest is separate from App Store Connect's privacy questionnaire.
 
 Live listening requires a reachable HTTPS speech server. The app starts in silent
 preview until one is configured. An iPhone cannot use the simulator's localhost server,
 and native requests cannot pass the current Vercel preview protection automatically.
 Configure beta backend access separately; never place provider keys or a deployment
-bypass secret in the app. The local reader and share extension do not require that server.
+bypass secret in the app. The reader requires an initial account sign-in, but does not require the speech server.
 
 ## Test checklist
 
@@ -102,7 +113,7 @@ invalid-link draft recovery, duplicate saves, and notes/read state/favorites/hig
 surviving app restarts. It also checks highlight color changes and removal. The
 checklist below still needs physical-device validation before distribution.
 
-- [ ] First launch with no account presents an empty library.
+- [ ] First launch without an account presents sign-in; wrong credentials show a recoverable error.
 - [ ] Paste a public HTTPS article; URL survives a failed download.
 - [ ] Download text, enable airplane mode, force quit, reopen, and read it.
 - [ ] Favorite/mark read; save a note; restart and verify each survives.
@@ -111,7 +122,7 @@ checklist below still needs physical-device validation before distribution.
 - [ ] Search title, URL, body text, and notes.
 - [ ] Share from Safari while the app is closed; open the app and see the link.
 - [ ] Share the same URL twice; confirm one article and no erased notes.
-- [ ] Share before first main-app launch and verify later import.
+- [ ] Share while signed out and verify guidance to open the app and sign in.
 - [ ] Try a PDF/404/login-required page; see an honest error and retry option.
 - [ ] Export JSON to Files and inspect the saved content/notes.
 - [ ] Test VoiceOver, large Dynamic Type, dark mode, and offline launch.
@@ -174,7 +185,7 @@ local content. No analytics is added. Original websites see normal download requ
 1. Verify this build on physical hardware and fix capture/reader issues.
 2. Implement rich reader snapshots/assets and web-compatible highlights.
 3. Harden backend extraction and introduce tested account-scoped sync protocol.
-4. Add Apple/Discord account linking, resumable guest import, recovery and deletion.
+4. Add Apple/native Discord sign-in, account recovery and deletion.
 5. Finish release accessibility/privacy/icon/signing work; then TestFlight.
 6. Validate live voices, latency, sleep, interruptions, and output routes on physical hardware.
 
@@ -230,8 +241,7 @@ For a separate speech-only database run `pnpm db:migrate:speech`. It applies the
 `0012_native_speech_cache.sql` through Drizzle with a separate migration ledger and advisory lock.
 It requires `NATIVE_SPEECH_DATABASE_URL` and never migrates the web database. Shared deployments
 that intentionally use the web DB use the standard migration chain (`pnpm db:migrate`).
-The existing chain currently has a fresh-database duplicate-column issue in migration 0009;
-the speech-only command avoids running unrelated legacy migrations against the isolated database.
+The full standard migration chain has also been verified on a fresh isolated auth database.
 
 The API is intentionally unrestricted for private prototyping, as requested. The replaceable
 access policy currently returns a prototype namespace for generation/read/delete. Before public

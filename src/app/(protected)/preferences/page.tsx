@@ -222,6 +222,12 @@ export default function PreferencesPage() {
             <CardDescription>Your account information.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <Link
+              href="/native/password"
+              className="text-primary underline underline-offset-4"
+            >
+              Set up or change your iPhone sign-in password
+            </Link>
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-white">Email</Label>

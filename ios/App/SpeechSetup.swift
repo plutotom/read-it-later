@@ -2,7 +2,7 @@ import SwiftUI
 import ReadingCore
 
 @MainActor @Observable final class SpeechSetup {
-    var address = UserDefaults.standard.string(forKey: "speech-server") ?? ""
+    var address: String
     var status = "Choose an HTTPS speech server to enable audio."
     var connecting = false
     var cacheBytes = 0
@@ -13,11 +13,12 @@ import ReadingCore
     private let defaults: UserDefaults
     let cache: SpeechDiskCache
     private var controls: SystemPlaybackControls?
-    init() {
+    init(namespace: String? = nil) {
         var directoryName = "SpeechAudio"
-        var storageDefaults = UserDefaults.standard
+        var storageDefaults = namespace.flatMap { UserDefaults(suiteName: "PaperDriveSpeech." + $0) } ?? .standard
+        if let namespace { directoryName += "/" + namespace }
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing"), !ProcessInfo.processInfo.arguments.contains("--ui-testing-auth"), !ProcessInfo.processInfo.arguments.contains("--ui-testing-auth-live") {
             directoryName = "SpeechAudioUITests"
             storageDefaults = UserDefaults(suiteName: "PaperDriveStorageUITests")!
             if ProcessInfo.processInfo.arguments.contains("--reset-ui-test-library") {
@@ -26,6 +27,7 @@ import ReadingCore
         }
         #endif
         defaults = storageDefaults
+        address = storageDefaults.string(forKey: "speech-server") ?? ""
         let selectedLimit = (storageDefaults.object(forKey: "audio-cache-limit") as? Int).flatMap(CacheLimit.init(rawValue:)) ?? .mb200
         cacheLimit = selectedLimit
         let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent(directoryName, isDirectory: true)
@@ -48,7 +50,7 @@ import ReadingCore
         }
         #endif
         if let base = URL(string: address), (try? SpeechCatalog.validate(base)) != nil,
-           let data = UserDefaults.standard.data(forKey: "speech-catalog"), let catalog = try? JSONDecoder().decode(SpeechCatalog.self, from: data), !catalog.voices.isEmpty {
+           let data = defaults.data(forKey: "speech-catalog"), let catalog = try? JSONDecoder().decode(SpeechCatalog.self, from: data), !catalog.voices.isEmpty {
             player.configure(service: BackendSpeechService(base: base, voices: catalog.voices.map(\.voice), cache: cache), transport: PCMPlaybackTransport(), address: address)
             status = "Connected · saved voices available offline"
         }
@@ -62,14 +64,14 @@ import ReadingCore
             let catalog = try await SpeechCatalog.fetch(from: base)
             guard !catalog.voices.isEmpty else { throw SpeechError.backend("The server has no configured speech providers yet.") }
             player.configure(service: BackendSpeechService(base: base, voices: catalog.voices.map(\.voice), cache: cache), transport: PCMPlaybackTransport(), address: clean)
-            UserDefaults.standard.set(clean, forKey: "speech-server")
-            UserDefaults.standard.set(try JSONEncoder().encode(catalog), forKey: "speech-catalog")
+            defaults.set(clean, forKey: "speech-server")
+            defaults.set(try JSONEncoder().encode(catalog), forKey: "speech-catalog")
             status = "Connected · \(catalog.voices.count) voices available"
         } catch { status = error.localizedDescription }
     }
     func preview(_ player: ListeningPlayer) {
         player.configure(service: SimulatedSpeechService(), transport: SimulatedSpeechTransport())
-        UserDefaults.standard.removeObject(forKey: "speech-server"); UserDefaults.standard.removeObject(forKey: "speech-catalog")
+        defaults.removeObject(forKey: "speech-server"); defaults.removeObject(forKey: "speech-catalog")
         status = "Silent preview enabled"
     }
     func refreshStats() async {

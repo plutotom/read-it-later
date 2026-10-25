@@ -1,10 +1,18 @@
 # Paper Drive iOS: status and next steps
 
-Updated: October 21, 2026.
+Updated: October 24, 2026.
 
-Status: Pause backend provisioning and feature implementation after integrating
-the existing native app into main. Resume from this document when iOS work starts
-again. This is a roadmap, not authorization to provision or release anything.
+Status: Password-first iOS authentication is implemented on the development branch. The user authorized authentication work; separate iOS Vercel provisioning, production release and a new TestFlight upload remain deferred. Existing TestFlight installs do not receive branch changes automatically.
+
+## Current order
+
+1. Finish authentication validation: existing Discord users enroll a password on the web, then sign in on iOS as the same account. No separate iOS users or password signup. Apple/native Discord OAuth and recovery remain later work.
+2. Define shared canonical article text and account-authenticated library APIs; load the existing web library on iOS before building two-way sync.
+3. Add a durable per-account offline mutation queue, revisions and deletion tombstones; cover favorites/read state, notes and highlights without losing existing local annotations.
+4. Reuse the web Google speech provider through the common authenticated listening backend. Adapt the native client to the existing stream contract; retain replaceable provider adapters. Login, catalog and sync must never generate billable speech.
+5. Validate device behavior, account ownership and usage limits; review privacy disclosures, then prepare a separately authorized private TestFlight release.
+
+The current auth branch uses an empty isolated database on the existing nonproduction Neon host for preview verification, with a separate session secret and speech disabled. It does not create the proposed iOS Vercel project or move production data. Account and library databases must be shared between web and iOS within each environment.
 
 ## What exists
 
@@ -59,7 +67,7 @@ and production iOS share production accounts and library data. The speech cache
 database is not a second iOS article library. The phone accesses shared data
 through authenticated APIs, never by receiving database credentials.
 
-## Resume 1: finish the beta speech deployment
+## Deferred: beta speech deployment
 
 1. Recheck main, current resources, credentials, and the app's actual TestFlight
    build before changing infrastructure. Prior PR preview resources are not a
@@ -86,7 +94,7 @@ through authenticated APIs, never by receiving database credentials.
 8. Upload a new internal TestFlight build only under Apple team `3CVY7K9AJ6`,
    preserving bundle IDs, App Group, and existing local library data.
 
-## Resume 2: required sign-in and cross-platform sync
+## Remaining: cross-platform sync and sign-in providers
 
 The agreed design is in [the sign-in and sync plan](native-ios-auth-sync.md),
 including Astra's review corrections. Its key product decisions are:
@@ -106,7 +114,7 @@ including Astra's review corrections. Its key product decisions are:
   speech before enabling that milestone. Keep Google and Speechify audio variants
   separate; eventually sync listening progress through text anchors.
 
-This milestone is not implemented by merging the prototype or writing the plan.
+Password sign-in and local account isolation are implemented; cross-platform sync is not.
 Do not add a second set of iOS users or a separate authoritative article database.
 
 ## Verification before the next release

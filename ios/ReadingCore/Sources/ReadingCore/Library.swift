@@ -96,6 +96,11 @@ public enum ArticleURL {
         try database.read { try Article.fetchAll($0, sql: "SELECT * FROM article ORDER BY createdAt DESC, id") }
     }
 
+    public func backup(to path: String) throws {
+        let destination = try DatabaseQueue(path: path)
+        try database.backup(to: destination)
+    }
+
     @discardableResult public func saveURL(_ input: String) throws -> Article {
         let url = try ArticleURL.parse(input)
         return try database.write { db in

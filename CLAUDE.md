@@ -56,7 +56,9 @@ API-key scopes are defined in `src/lib/paraConstants.ts`: `ril:read`, `ril:write
 
 ### Auth
 
-BetterAuth with **Discord OAuth only** — email/password is disabled (`src/server/auth.ts`). Sessions last 30 days. Page-level auth gating is done by the **`src/app/(protected)/` route group layout**, which checks the session server-side and redirects to `/login`. New authenticated pages belong under `(protected)/`.
+BetterAuth with Discord OAuth and password sign-in for existing accounts (`src/server/auth.ts`). Password signup is disabled: sign in with Discord, then open `/native/password` (also linked in Preferences) to enroll a 12–128 character password after a fresh sign-in. Changing an existing password requires the current password and revokes other sessions. There is no email recovery flow yet. `AUTH_SECRET` must have at least 32 characters. Sessions last 30 days.
+
+Native clients use Better Auth's **signed** `set-auth-token` response header as Bearer credentials, never the raw JSON token. `GET /api/native/auth/session` validates against the session store and returns only account identity and expiry; native logout revokes its own session. Browser cookies and native Bearer sessions share the same user IDs. `/api/v1` personal API keys remain a separate authentication path. Password attempts use atomic per-minute counters in the existing verification table (5 per email, 30 per trusted client IP); password setup requires a trusted Origin, fresh session, and a separate limit. Preview auth resolves its own deployment host and trusts exact configured origins; never test against production data or inherit production secrets. Page-level auth gating is done by the **`src/app/(protected)/` route group layout**, which checks the session server-side and redirects to `/login`. New authenticated pages belong under `(protected)/`.
 
 ### Services layer
 

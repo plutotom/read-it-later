@@ -1,16 +1,10 @@
 # Paper Drive sign-in and library sync plan
 
-Updated: October 21, 2026.
+Updated: October 24, 2026.
 
-Status: Product decisions agreed; implementation pending. This document records
-the required-sign-in revision after Astra's architecture review. Creating this
-plan does not implement authentication, provision infrastructure, or authorize a
-production release.
+Status: Password-first authentication implemented on the development branch; sync remains planned. Existing Discord accounts can enroll a password through the website, then sign in on iOS using the same user ID. Public password signup is disabled. Apple/native Discord sign-in and email recovery remain later work. This revision follows the user's approval to start with password login.
 
-Backend provisioning and implementation are currently paused. See
-[iOS status and next steps](native-ios-next-steps.md) for the immediate resume point.
-Native speech routes now require an explicit deployment opt-in; that switch is
-separate from the future account authorization described here.
+The native app now gates the library, stores revocable signed sessions in Keychain, partitions local libraries/bookmarks/audio/inboxes by account and environment, supports offline access within the session lifetime, and imports the legacy library only into the first account. No article sync is implied by login. Separate native speech Vercel provisioning remains deferred. See [current next steps](native-ios-next-steps.md).
 
 ## Goal
 
@@ -19,8 +13,7 @@ Keep offline reading and editing on iOS. Speech providers may differ between
 clients without creating separate accounts or libraries.
 
 The next release is for private TestFlight testers. This is a future account and
-sync milestone; the current native build remains a local library with a separate
-speech API.
+sync milestone; the native library remains local even after signing in, with a separate speech API.
 
 ## Agreed product decisions
 
@@ -47,15 +40,14 @@ speech API.
 
 ## Current implementation and gaps
 
-- Web uses Better Auth, pinned to 1.4.5 in the lockfile, with Discord OAuth only.
+- Web uses Better Auth, pinned to 1.4.5 in the lockfile, with Discord OAuth plus password login for enrolled existing accounts.
   Existing web sessions and user IDs remain the identity foundation.
 - Web REST endpoints currently accept personal API keys. Native session
   credentials are not automatically accepted by that authentication path.
 - Web articles and annotations are account-owned server records. iOS uses a
-  local GRDB/SQLite library without account ownership, a mutation queue, server
+  local account-scoped GRDB/SQLite library without a mutation queue, server
   revisions, or deletion tombstones.
-- The current Share Extension writes an unattributed URL to an App Group inbox.
-  It needs account and environment attribution before account-based use.
+- The Share Extension now attributes each URL to an account/environment namespace and refuses signed-out or expired destinations.
 - Web extracts HTML using Readability; iOS extracts plain text using SwiftSoup.
   These independently produced documents cannot safely share raw offsets.
 - Web highlights use cyrb53 fingerprints; iOS uses SHA-256 over UTF-8. Existing
