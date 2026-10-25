@@ -5,6 +5,7 @@ import type { db as Db } from "~/server/db";
 import { highlights, notes } from "~/server/db/schema";
 import {
   createHighlight,
+  updateHighlight,
   createNote,
   updateNote,
   type CreateHighlightInput,
@@ -89,19 +90,23 @@ function fixture() {
       },
     }),
   }));
+  const writes: Row[] = [];
   const update = vi.fn((table: PgTable) => ({
-    set: (values: Row) => ({
-      where: (where: SQL) => ({
-        returning: async () => {
-          const row = rows[getTableName(table)]!.find((candidate) =>
-            matches(candidate, where),
-          );
-          if (!row) return [];
-          Object.assign(row, values);
-          return [row];
-        },
-      }),
-    }),
+    set: (values: Row) => {
+      writes.push(values);
+      return {
+        where: (where: SQL) => ({
+          returning: async () => {
+            const row = rows[getTableName(table)]!.find((candidate) =>
+              matches(candidate, where),
+            );
+            if (!row) return [];
+            Object.assign(row, values);
+            return [row];
+          },
+        }),
+      };
+    },
   }));
   const mock = {
     query: {
@@ -112,7 +117,7 @@ function fixture() {
     insert,
     update,
   };
-  return { db: mock as unknown as typeof Db, mock, rows };
+  return { db: mock as unknown as typeof Db, mock, rows, writes };
 }
 
 const highlightInput: CreateHighlightInput = {
@@ -284,5 +289,88 @@ describe("annotation parent authorization", () => {
       updateNote(db, "alice", "note-b", {}),
     ).resolves.toBeUndefined();
     expect(mock.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("web highlight original source preservation", () => {
+  it("captures the exact creation selector independently of mutable web offsets", async () => {
+    const { db } = fixture();
+    const input = { ...highlightInput, anchorContentHash: "123456789abcde" };
+    const created = await createHighlight(db, "alice", input);
+    expect(created.anchorSpace).toBe("web-dom-v1");
+    expect(created.sourceAnchor).toEqual({
+      space: "web-dom-v1",
+      text: input.text,
+      startOffset: input.startOffset,
+      endOffset: input.endOffset,
+      contextPrefix: input.contextPrefix,
+      contextSuffix: input.contextSuffix,
+      contentHash: input.anchorContentHash,
+    });
+  });
+  it("captures pre-relocation columns in one owner-scoped SQL assignment", async () => {
+    const { db, mock, rows, writes } = fixture();
+    Object.assign(rows["read-it-later_highlight"]![0]!, {
+      text: "a   b",
+      startOffset: 0,
+      endOffset: 5,
+      anchorContentHash: "123456789abcde",
+      sourceAnchor: null,
+      anchorSpace: "web-dom-v1",
+    });
+    const updated = await updateHighlight(db, "alice", "highlight-a", {
+      startOffset: 2,
+      endOffset: 5,
+      anchorContentHash: "fedcba98765432",
+    });
+    expect(updated).toMatchObject({
+      text: "a   b",
+      startOffset: 2,
+      endOffset: 5,
+    });
+    expect(mock.query.highlights.findFirst).not.toHaveBeenCalled();
+    const capture = new PgDialect().sqlToQuery(writes[0]!.sourceAnchor as SQL);
+    expect(capture.sql).toContain(
+      'COALESCE("read-it-later_highlight"."sourceAnchor", CASE',
+    );
+    for (const field of [
+      "anchorSpace",
+      "text",
+      "startOffset",
+      "endOffset",
+      "contextPrefix",
+      "contextSuffix",
+      "anchorContentHash",
+    ])
+      expect(capture.sql).toContain(`"read-it-later_highlight"."${field}"`);
+    expect(capture.params).toEqual([]);
+    await expect(
+      updateHighlight(db, "bob", "highlight-a", { startOffset: 99 }),
+    ).resolves.toBeUndefined();
+  });
+  it("keeps original source and positions out of color/tag-only assignments", async () => {
+    const { db, rows, writes } = fixture();
+    const original = {
+      space: "local-text-v1",
+      text: "Saved quote",
+      startOffset: 4,
+      endOffset: 15,
+      contentHash: "a".repeat(64),
+      contextPrefix: "",
+      contextSuffix: "",
+    };
+    Object.assign(rows["read-it-later_highlight"]![0]!, {
+      sourceAnchor: original,
+      anchorSpace: "local-text-v1",
+      startOffset: 4,
+      endOffset: 15,
+    });
+    const changed = await updateHighlight(db, "alice", "highlight-a", {
+      color: "blue",
+      tags: ["retained-source"],
+    });
+    expect(changed?.sourceAnchor).toBe(original);
+    expect(writes[0]).toEqual({ color: "blue", tags: ["retained-source"] });
+    expect(changed).toMatchObject({ startOffset: 4, endOffset: 15 });
   });
 });

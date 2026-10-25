@@ -109,9 +109,20 @@ export function extractContext(
   end: number,
   len = CONTEXT_LENGTH,
 ): { contextPrefix: string; contextSuffix: string } {
+  const splitsSurrogatePair = (offset: number) =>
+    offset > 0 &&
+    offset < fullText.length &&
+    /[\uD800-\uDBFF]/u.test(fullText[offset - 1]!) &&
+    /[\uDC00-\uDFFF]/u.test(fullText[offset]!);
+  let prefixStart = Math.max(0, start - len);
+  let suffixEnd = Math.min(fullText.length, end + len);
+  // Context is stored as JSON/UTF-8. Shorten its outer boundaries rather than
+  // retaining half an emoji when the UTF-16 budget lands inside a pair.
+  if (splitsSurrogatePair(prefixStart)) prefixStart += 1;
+  if (splitsSurrogatePair(suffixEnd)) suffixEnd -= 1;
   return {
-    contextPrefix: fullText.slice(Math.max(0, start - len), start),
-    contextSuffix: fullText.slice(end, end + len),
+    contextPrefix: fullText.slice(prefixStart, start),
+    contextSuffix: fullText.slice(end, suffixEnd),
   };
 }
 
@@ -121,7 +132,7 @@ function suffixMatchLength(before: string, context: string): number {
   while (
     n < before.length &&
     n < context.length &&
-    before[before.length - 1 - n] === context[n]
+    before[before.length - 1 - n] === context[context.length - 1 - n]
   ) {
     n++;
   }
@@ -168,11 +179,12 @@ export function findQuoteOffsets(
   // 1. Exact match including surrounding context.
   if (contextPrefix || contextSuffix) {
     const withContext = contextPrefix + text + contextSuffix;
-    const idx = fullText.indexOf(withContext);
-    if (idx !== -1) {
-      const start = idx + contextPrefix.length;
+    const matches = allIndexesOf(fullText, withContext);
+    if (matches.length === 1) {
+      const start = matches[0]! + contextPrefix.length;
       return { start, end: start + text.length };
     }
+    if (matches.length > 1) return null;
   }
 
   // 2. Exact match of the text, using context to choose among duplicates.
@@ -182,36 +194,57 @@ export function findQuoteOffsets(
     return { start, end: start + text.length };
   }
   if (occurrences.length > 1) {
-    let best = occurrences[0]!;
-    let bestScore = -1;
+    let best: number | undefined;
+    let bestScore = 0;
+    let tied = false;
     for (const start of occurrences) {
-      const before = fullText.slice(0, start);
-      const after = fullText.slice(start + text.length);
+      const before = fullText.slice(
+        Math.max(0, start - contextPrefix.length),
+        start,
+      );
+      const after = fullText.slice(
+        start + text.length,
+        start + text.length + contextSuffix.length,
+      );
       const score =
         suffixMatchLength(before, contextPrefix) +
         prefixMatchLength(after, contextSuffix);
       if (score > bestScore) {
         bestScore = score;
         best = start;
+        tied = false;
+      } else if (score === bestScore) {
+        tied = true;
       }
     }
-    return { start: best, end: best + text.length };
+    return best !== undefined && !tied
+      ? { start: best, end: best + text.length }
+      : null;
   }
 
   // 3. Whitespace-normalized fallback, mapped back to raw offsets.
   const { normalized, map } = normalizeWhitespace(fullText);
   const normText = normalizeWhitespace(text).normalized;
   if (normText) {
-    const nIdx = normalized.indexOf(normText);
-    if (nIdx !== -1) {
-      const rawStart = map[nIdx];
-      // End maps from the last matched normalized char back to its raw index,
-      // then +1 to become an exclusive end offset.
-      const lastNorm = nIdx + normText.length - 1;
-      const rawLast = map[lastNorm];
-      if (rawStart !== undefined && rawLast !== undefined) {
+    const normalizedQuote = {
+      text: normText,
+      contextPrefix: normalizeWhitespace(contextPrefix).normalized,
+      contextSuffix: normalizeWhitespace(contextSuffix).normalized,
+    };
+    // Exact candidates in normalized space must also be unique or uniquely
+    // disambiguated; never choose the first whitespace-normalized occurrence.
+    const occurrences = allIndexesOf(normalized, normText);
+    let selected: number | undefined;
+    if (occurrences.length === 1) selected = occurrences[0];
+    else if (occurrences.length > 1) {
+      const resolved = findQuoteOffsets(normalized, normalizedQuote);
+      selected = resolved?.start;
+    }
+    if (selected !== undefined) {
+      const rawStart = map[selected];
+      const rawLast = map[selected + normText.length - 1];
+      if (rawStart !== undefined && rawLast !== undefined)
         return { start: rawStart, end: rawLast + 1 };
-      }
     }
   }
 

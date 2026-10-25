@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  nativeAnnotationMutationSchemas,
+  type NativeAnnotationSnapshot,
+} from "./native-annotations";
 
 export const NATIVE_LIBRARY_PROTOCOL = 1 as const;
 export const NATIVE_LIBRARY_REQUEST_BYTES = 1_048_576;
@@ -75,13 +79,36 @@ const remove = z.strictObject({
   kind: z.literal("delete"),
   articleId: id,
 });
-export const nativeLibraryMutationsSchema = z.strictObject({
+const nativeLibraryV1MutationsSchema = z.strictObject({
   protocolVersion: z.literal(NATIVE_LIBRARY_PROTOCOL),
   mutations: z
     .array(z.discriminatedUnion("kind", [create, update, remove]))
     .min(1)
     .max(25),
 });
+export const nativeLibraryMutationsSchema = z.discriminatedUnion(
+  "protocolVersion",
+  [
+    nativeLibraryV1MutationsSchema,
+    z.strictObject({
+      protocolVersion: z.literal(2),
+      mutations: z
+        .array(
+          z.discriminatedUnion("kind", [
+            create,
+            update,
+            remove,
+            ...nativeAnnotationMutationSchemas,
+          ]),
+        )
+        .min(1)
+        .max(25),
+    }),
+  ],
+);
+export type NativeArticleMutation = z.infer<
+  typeof nativeLibraryV1MutationsSchema
+>["mutations"][number];
 export type NativeLibraryMutation = z.infer<
   typeof nativeLibraryMutationsSchema
 >["mutations"][number];
@@ -105,9 +132,15 @@ export interface NativeLibraryChange {
   id: string;
   deleted: boolean;
   article: NativeArticle | null;
+  annotations?: NativeAnnotationSnapshot;
 }
 export interface NativeLibraryMutationResult {
   mutationId: string;
   status: "applied" | "deleted";
   articleId: string;
+  annotationId?: string;
+  /** Owner counter after this annotation effect; a receipt fence, never a pull cursor. */
+  effectRevision?: string;
+  /** Deleted annotation ACK only: no physical entity with this ID remains for the owner. */
+  permanentDeletion?: boolean;
 }

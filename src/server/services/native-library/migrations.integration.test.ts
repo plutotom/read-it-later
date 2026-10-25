@@ -37,6 +37,25 @@ it.skipIf(!url)(
     const id = randomUUID();
     await connection`INSERT INTO "read-it-later_user" (id,name,email,"emailVerified") VALUES ('migration-fixture','Migration fixture','migration@example.invalid',true)`;
     await connection`INSERT INTO "read-it-later_article" (id,"userId",url,title,content,"isFavorite") VALUES (${id},'migration-fixture','https://example.com/migration','Keep this fixture','<p>Preserve text and flags.</p>',true)`;
+    const highlightId = randomUUID();
+    await connection`INSERT INTO "read-it-later_highlight" (id,"articleId","userId",text,"startOffset","endOffset",version,"anchorContentHash",anchor_status) VALUES (${highlightId},${id},'migration-fixture','Preserve',0,8,1,'legacy-hash','anchored')`;
+    await connection`INSERT INTO "read-it-later_note" ("articleId","userId","highlightId",content) VALUES (${id},'migration-fixture',${highlightId},'Keep this independent note')`;
+    const [highlight] =
+      await connection`SELECT version,"anchorContentHash",anchor_status,"anchorSpace","sourceAnchor","webAnchor" FROM "read-it-later_highlight" WHERE id=${highlightId}`;
+    expect(highlight).toEqual({
+      version: 1,
+      anchorContentHash: "legacy-hash",
+      anchor_status: "anchored",
+      anchorSpace: "web-dom-v1",
+      sourceAnchor: null,
+      webAnchor: null,
+    });
+    const identities =
+      await connection`SELECT kind,deleted FROM "read-it-later_native_annotation" WHERE owner_id='migration-fixture' AND article_id=${id} ORDER BY kind`;
+    expect(identities).toEqual([
+      { kind: "highlight", deleted: false },
+      { kind: "note", deleted: false },
+    ]);
     await migrate(drizzle(connection), options);
     const [article] =
       await connection`SELECT title,content,"isFavorite" FROM "read-it-later_article" WHERE id=${id}`;
@@ -51,6 +70,26 @@ it.skipIf(!url)(
     const [count] =
       await connection`SELECT count(*)::int AS count FROM drizzle.__drizzle_migrations`;
     expect(count?.count).toBe(readMigrationFiles(options).length);
+    await connection`DELETE FROM "read-it-later_highlight" WHERE id=${highlightId}`;
+    const [attached] =
+      await connection`SELECT count(*)::int AS count FROM "read-it-later_note" WHERE "highlightId"=${highlightId}`;
+    expect(attached?.count).toBe(0);
+    const childTombstones =
+      await connection`SELECT kind,deleted FROM "read-it-later_native_annotation" WHERE owner_id='migration-fixture' AND article_id=${id} ORDER BY kind`;
+    expect(childTombstones).toEqual([
+      { kind: "highlight", deleted: true },
+      { kind: "note", deleted: true },
+    ]);
+    const nextHighlight = randomUUID();
+    await connection`INSERT INTO "read-it-later_highlight" (id,"articleId","userId",text,"startOffset","endOffset") VALUES (${nextHighlight},${id},'migration-fixture','text',9,13)`;
+    await connection`INSERT INTO "read-it-later_note" ("articleId","userId",content) VALUES (${id},'migration-fixture','Standalone note')`;
+    await connection`DELETE FROM "read-it-later_article" WHERE id=${id}`;
+    const [children] =
+      await connection`SELECT (SELECT count(*) FROM "read-it-later_highlight" WHERE "articleId"=${id})::int + (SELECT count(*) FROM "read-it-later_note" WHERE "articleId"=${id})::int AS count`;
+    expect(children?.count).toBe(0);
+    const [deleted] =
+      await connection`SELECT deleted FROM "read-it-later_native_library_change" WHERE owner_id='migration-fixture' AND article_id=${id}`;
+    expect(deleted?.deleted).toBe(true);
   },
   30_000,
 );
