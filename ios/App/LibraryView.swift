@@ -29,6 +29,7 @@ struct LibraryView: View {
     private var filtered: [Article] {
         model.articles.filter {
             (filter != "Unread" || !$0.isRead) && (filter != "Favorites" || $0.isFavorite) &&
+            (filter == "Archived" ? $0.isArchived : !$0.isArchived) &&
             (search.isEmpty || "\($0.title) \($0.url) \($0.text) \($0.note)".localizedCaseInsensitiveContains(search))
         }
     }
@@ -42,8 +43,18 @@ struct LibraryView: View {
                         Text("\(model.articles.filter(\.isDownloaded).count) saved offline · On this iPhone")
                             .font(.subheadline).foregroundStyle(.secondary)
                     }.padding(.vertical, 8)
+                    if model.syncEnabled {
+                        HStack(spacing: 6) {
+                            if model.syncing { ProgressView().controlSize(.small) }
+                            Text(model.syncing ? "Syncing…" : model.pendingChanges > 0 ? "\(model.pendingChanges) changes waiting to sync" : "Account library")
+                                .font(.caption).foregroundStyle(.secondary)
+                            Spacer()
+                            Button { Task { await model.synchronize() } } label: { Image(systemName: "arrow.triangle.2.circlepath") }.accessibilityLabel("Sync library").disabled(model.syncing)
+                        }
+                        if let message = model.syncError { Text(message).font(.caption).foregroundStyle(.orange) }
+                    }
                     Picker("Library filter", selection: $filter) {
-                        ForEach(["All", "Unread", "Favorites"], id: \.self) { Text($0) }
+                        ForEach(["All", "Unread", "Favorites", "Archived"], id: \.self) { Text($0) }
                     }.pickerStyle(.segmented)
                 }
                 if filtered.isEmpty {
@@ -131,8 +142,17 @@ struct LibraryView: View {
                         if auth.offline { Text("Offline · downloaded articles are available.").foregroundStyle(.secondary) }
                         Button("Sign out", role: .destructive) { Task { await auth.signOut() } }.accessibilityIdentifier("accountSignOut")
                     }
-                    Section("Version 0.2 · Native reader") {
-                        Text("You are signed in. Your library is saved separately for this account on this iPhone; web library sync is coming next. Downloads contact the original website directly.")
+                    if model.syncEnabled {
+                        Section("Library sync") {
+                            LabeledContent("Waiting changes", value: String(model.pendingChanges)).accessibilityIdentifier("syncPending")
+                            if let date = model.lastSync { LabeledContent("Last synced") { Text(date, style: .relative) } }
+                            if let message = model.syncError { Text(message).foregroundStyle(.orange) }
+                            Button(model.syncing ? "Syncing…" : "Sync now") { Task { await model.synchronize() } }.disabled(model.syncing).accessibilityIdentifier("syncNow")
+                            Text("Articles, read/favorite/archive state and deletions sync with your web account. Offline edits stay queued for this account. Notes and highlights remain on this iPhone during this stage.").font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+                    Section("Native reader") {
+                        Text("Your account library is available offline. Downloads contact the original website directly. Web sync requires the matching backend release.")
                         Text("Deleting the app can remove your library. Export a backup before testing upgrades.")
                     }
                     SpeechSettings()
@@ -150,7 +170,7 @@ struct LibraryView: View {
                             }
                         }
                     }
-                    Section("Coming later") { Text("Account sync, rich HTML/images, folders, and PDFs are coming later. Configure your speech server in Listening to enable audio.") }
+                    Section("Coming later") { Text("Annotation sync, rich HTML/images, folders, and PDFs are coming later. Account listening uses the voices configured on your backend.") }
                 }.navigationTitle("Settings")
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { settings = false } } }
             }
@@ -161,7 +181,7 @@ struct LibraryView: View {
         .alert("Something needs attention", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
-        .confirmationDialog("Delete article and its note from this iPhone?", isPresented: Binding(get: { deleteTarget != nil }, set: { if !$0 { deleteTarget = nil } }), titleVisibility: .visible) {
+        .confirmationDialog(model.syncEnabled ? "Delete this article from your account?" : "Delete article and its note from this iPhone?", isPresented: Binding(get: { deleteTarget != nil }, set: { if !$0 { deleteTarget = nil } }), titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 if let article = deleteTarget, model.mutate({ try $0.delete(id: article.id) }), player.document?.articleID == article.id { player.close() }
                 deleteTarget = nil

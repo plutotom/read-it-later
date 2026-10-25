@@ -81,9 +81,7 @@ export class ArticleExtractor {
     // Create DOM from HTML
     const dom = new JSDOM(html, {
       url: url,
-      // Disable scripts and external resources for security
-      runScripts: "dangerously",
-      resources: "usable",
+      // JSDOM defaults keep scripts inert and external resources disabled.
     });
 
     const document = dom.window.document;

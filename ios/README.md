@@ -1,6 +1,6 @@
 # Paper Drive — native 0.2 developer preview
 
-This is a **native reader with streaming speech support**. The library remains local to the iPhone; listening uses the separate native speech API. Sign-in uses the existing web account; article sync and public release remain later milestones.
+This is a **native reader with streaming speech support**. The library remains local to the iPhone; listening uses the separate native speech API. Sign-in and article sync use the existing web account. Public release remains a later milestone.
 
 The separate native speech deployment is still deferred. See [iOS status and next steps](../docs/plans/native-ios-next-steps.md)
 for the resume checklist and [the sign-in/sync plan](../docs/plans/native-ios-auth-sync.md)
@@ -17,7 +17,15 @@ The auth origin comes from `AUTH_SERVER_URL` in `project.yml` (default `https://
 
 Sessions are stored in this device’s Keychain. A previously verified, unexpired session permits offline reading; foreground checks detect revocation. Logout locks immediately and retries server revocation when online. Text, annotations, bookmarks, listening settings and cached audio are partitioned by account **and backend origin**. They remain on the phone after logout for that account’s next sign-in. Audio limits apply to each account’s cache (200 MB default). The first signed-in account receives a backup of the legacy local library once, preserving IDs, notes and highlights; the original database is retained. A later account cannot import it.
 
-Safari sharing requires a current signed-in destination. The extension receives only an opaque account/environment namespace and expiry, never a token. Its pending links stay with that destination. This is account isolation, **not web article sync**: no articles or annotations are uploaded by sign-in. Apple sign-in and native Discord OAuth remain future work.
+Safari sharing requires a current signed-in destination. The extension receives only an opaque account/environment namespace and expiry, never a token. Its pending links stay with that destination. After sign-in, articles and read/favorite/archive flags sync through the account library API. Notes and highlights stay local in this first sync slice; the UI says so. Apple sign-in and native Discord OAuth remain future work.
+
+## Shared library (development branch)
+
+The matching backend release and migrations 0015/0016 are required. The iOS app pulls web articles and readable text, queues offline saves/read/favorite/archive changes and deletions, and retries after a restart or temporary outage. Safari shares enter the same durable queue. Deleting a synced article deletes it from the account; removing downloaded text only changes this device’s storage. Repeated saves deduplicate conservatively without erasing existing web content or annotations. Existing duplicate web URLs retain distinct server identities.
+
+Settings shows pending changes, last successful sync, errors and **Sync now**. Oversized content does not block the rest of the library: unsupported remote text keeps a link/flags record, and oversized local uploads remain recoverable until removed or reduced. Stale edits cannot resurrect deleted IDs. Original local text and annotation quotes survive canonical text replacement; **Reading options → Saved text versions** exposes preserved versions. These recovery snapshots and queued uploads remain when clearing ordinary downloads.
+
+The player can use the same authenticated Google listening API as the web. Account voices load without provider keys on the phone; synthesis starts only after Listen or Play from paragraph. A server manifest supplies exact segments, so changing providers retains the player controls. Complete audio and saved manifests can replay offline within the signed-in account’s session lifetime. Google currently provides paragraph timing rather than word timing. Live voice/provider quality still needs a separately authorized test against the configured backend; development tests use synthetic PCM.
 
 ## Included
 
@@ -34,7 +42,7 @@ Safari sharing requires a current signed-in destination. The extension receives 
 
 ## Deliberately not included
 
-Article sync, full HTML/images, web highlight synchronization, reading-position sync,
+Annotation sync, full HTML/images, web highlight synchronization, reading-position sync,
 folders, PDFs, widgets, background download guarantees, and JSON re-import. Text extraction is a
 simple heuristic, not Mozilla Readability, and may retain boilerplate or fail on
 JavaScript-heavy/login-required pages. HTTP sites may be blocked by App Transport
@@ -182,9 +190,9 @@ local content. No analytics is added. Original websites see normal download requ
 
 ## Next milestones
 
-1. Verify this build on physical hardware and fix capture/reader issues.
+1. Review the article-sync build against isolated fixtures; then validate physical-device behavior.
 2. Implement rich reader snapshots/assets and web-compatible highlights.
-3. Harden backend extraction and introduce tested account-scoped sync protocol.
+3. Extend the article sync protocol to notes, highlights and shared progress with explicit anchor mappings.
 4. Add Apple/native Discord sign-in, account recovery and deletion.
 5. Finish release accessibility/privacy/icon/signing work; then TestFlight.
 6. Validate live voices, latency, sleep, interruptions, and output routes on physical hardware.

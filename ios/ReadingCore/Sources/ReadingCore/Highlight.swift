@@ -43,4 +43,5 @@ public struct LibraryBackup: Codable, Sendable {
     public let formatVersion: Int
     public let articles: [Article]
     public let highlights: [Highlight]
+    public var textSnapshots: [NativeLibraryTextSnapshot]? = nil
 }

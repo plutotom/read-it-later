@@ -218,7 +218,11 @@ import OSLog
     }
     private func request(at index: Int) -> SpeechRequest? {
         guard let chunks = document?.chunks, chunks.indices.contains(index) else { return nil }
-        return SpeechRequest(text: chunks[index].text, voice: voice, configurationID: service.configurationID)
+        let identity: SpeechSegmentIdentity?
+        if let articleId = document?.serverArticleID, let revision = document?.serverRevision {
+            identity = SpeechSegmentIdentity(articleId: articleId, revision: revision, segment: chunks[index].id)
+        } else { identity = nil }
+        return SpeechRequest(text: chunks[index].text, voice: voice, configurationID: service.configurationID, segment: identity)
     }
     private func invalidate() {
         generation = UUID()

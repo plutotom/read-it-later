@@ -97,7 +97,7 @@ struct ManageStorageView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Offline reading and listening will need new downloads. Your saved links, notes, and highlights will stay. Playback will stop.")
+            Text("Offline reading and listening will need new downloads. Saved links, notes, highlights, pending sync payloads and saved text versions stay for recovery. Playback will stop.")
         }
         .task {
             // Refresh while visible, including when a speech download finishes in the background.

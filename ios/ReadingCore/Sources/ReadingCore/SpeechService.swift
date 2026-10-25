@@ -10,13 +10,21 @@ public struct SpeechVoice: Identifiable, Hashable, Codable, Sendable {
     }
 }
 
+public struct SpeechSegmentIdentity: Codable, Hashable, Sendable {
+    public let articleId: String
+    public let revision: String
+    public let segment: Int
+    public init(articleId: String, revision: String, segment: Int) { self.articleId = articleId; self.revision = revision; self.segment = segment }
+}
+
 public struct SpeechRequest: Hashable, Sendable {
     public let text: String
     public let voice: SpeechVoice
     /// Must change when provider/model/output settings change, to invalidate cached audio.
     public let configurationID: String
-    public init(text: String, voice: SpeechVoice, configurationID: String) {
-        self.text = text; self.voice = voice; self.configurationID = configurationID
+    public let segment: SpeechSegmentIdentity?
+    public init(text: String, voice: SpeechVoice, configurationID: String, segment: SpeechSegmentIdentity? = nil) {
+        self.text = text; self.voice = voice; self.configurationID = configurationID; self.segment = segment
     }
 }
 

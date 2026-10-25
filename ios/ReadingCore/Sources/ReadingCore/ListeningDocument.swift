@@ -17,8 +17,11 @@ public struct ListeningDocument: Equatable, Sendable {
     public let text: String
     public let chunks: [Chunk]
     public let paragraphs: [NSRange]
+    public let serverArticleID: String?
+    public let serverRevision: String?
 
     public init(articleID: String, title: String, text: String) {
+        self.serverArticleID = nil; self.serverRevision = nil
         self.articleID = articleID
         self.title = title
         self.text = text
@@ -68,6 +71,14 @@ public struct ListeningDocument: Equatable, Sendable {
         }
         self.paragraphs = paragraphs
         self.chunks = chunks
+    }
+
+    public init(manifest: AccountListeningManifest, localArticleID: String) throws {
+        try manifest.validate()
+        articleID = localArticleID; title = manifest.title; text = manifest.text
+        serverArticleID = manifest.articleId; serverRevision = manifest.revision
+        paragraphs = manifest.paragraphs.map { NSRange(location: $0.start, length: $0.end - $0.start) }
+        chunks = manifest.segments.map { Chunk(id: $0.index, paragraph: $0.paragraph, range: NSRange(location: $0.start, length: $0.end - $0.start), text: $0.text) }
     }
 
     public func chunk(atUTF16Offset offset: Int) -> Int? {

@@ -24,6 +24,8 @@ import ReadingCore
         model = LibraryModel(account: session)
         player = ListeningPlayer(bookmarkNamespace: session.namespace)
         speech = SpeechSetup(namespace: auth.bypassForReaderTests ? nil : session.namespace)
+        speech.updateAccount(session)
+        model.onUnauthorized = { [weak auth] in await auth?.checkSession() }
     }
 }
 
@@ -43,7 +45,7 @@ private struct AccountReader: View {
             context = value
             auth.onLock = { [weak value] in value?.model.deactivate(); value?.player.close() }
             await value.speech.bootstrap(value.player)
-        }
+        }.onChange(of: session) { _, value in context?.model.updateAccount(value); context?.speech.updateAccount(value) }
     }
 }
 
@@ -56,8 +58,18 @@ private struct AccountReader: View {
     private var downloadGeneration = UUID()
     var removingDownloads = false
     private let accountNamespace: String
+    private var account: NativeAuthSession
+    private var scheduledSync: Task<Void, Never>?
+    private var needsSync = false
+    private(set) var syncEnabled = false
+    private(set) var syncing = false
+    private(set) var pendingChanges = 0
+    private(set) var lastSync: Date?
+    private(set) var syncError: String?
+    var onUnauthorized: (@MainActor () async -> Void)?
 
     init(account: NativeAuthSession) {
+        self.account = account
         accountNamespace = account.namespace
         do {
             let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
@@ -97,17 +109,29 @@ private struct AccountReader: View {
                 }
             }
             #endif
+            var enable = true
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-testing"), !ProcessInfo.processInfo.arguments.contains("--ui-testing-sync-live") { enable = false }
+            #endif
+            if enable { try library?.enableSync(session: account); syncEnabled = true }
             available = true
             refresh()
         } catch { self.error = error.localizedDescription }
     }
 
     func deactivate() {
+        scheduledSync?.cancel(); scheduledSync = nil
+        library?.cancelSync()
         downloadGeneration = UUID(); downloading.removeAll(); articles = []; available = false; library = nil
     }
 
     func refresh() {
-        do { articles = try library?.articles() ?? [] }
+        do {
+            articles = try library?.articles() ?? []
+            if syncEnabled, let state = try library?.syncState() {
+                pendingChanges = state.pendingCount; lastSync = state.lastSuccess
+            }
+        }
         catch { self.error = error.localizedDescription }
     }
 
@@ -115,7 +139,7 @@ private struct AccountReader: View {
         do {
             guard let library else { return nil }
             let article = try library.saveURL(input)
-            refresh()
+            refresh(); scheduleSync()
             return article
         } catch { self.error = error.localizedDescription; return nil }
     }
@@ -130,6 +154,7 @@ private struct AccountReader: View {
             let result = try await ArticleDownloader.download(url: url)
             guard generation == downloadGeneration else { return }
             try library.saveContent(id: article.id, title: result.title, text: result.text)
+            scheduleSync()
         } catch {
             guard generation == downloadGeneration else { return }
             do { try library.saveError(id: article.id, message: error.localizedDescription) }
@@ -145,6 +170,7 @@ private struct AccountReader: View {
             if Task.isCancelled || generation != downloadGeneration { break }
             await download(article)
         }
+        await synchronize()
     }
 
     func removeDownloads() -> Bool {
@@ -165,9 +191,55 @@ private struct AccountReader: View {
 
     @discardableResult func mutate(_ operation: (Library) throws -> Void) -> Bool {
         guard let library else { return false }
-        do { try operation(library); refresh(); return true }
+        do { try operation(library); refresh(); scheduleSync(); return true }
         catch { self.error = error.localizedDescription; return false }
     }
+
+    func updateAccount(_ value: NativeAuthSession) {
+        guard value.namespace == accountNamespace else { return }
+        account = value
+    }
+
+    private func scheduleSync() {
+        guard syncEnabled else { return }
+        needsSync = true
+        scheduledSync?.cancel()
+        scheduledSync = Task { [weak self] in
+            do { try await Task.sleep(for: .milliseconds(500)); try Task.checkCancellation() }
+            catch { return }
+            guard let self else { return }
+            self.scheduledSync = nil
+            await self.synchronize()
+        }
+    }
+
+    func synchronize() async {
+        guard syncEnabled, let library, available else { return }
+        if syncing { needsSync = true; return }
+        syncing = true
+        defer { syncing = false; refresh() }
+        do {
+            repeat {
+                needsSync = false
+                var local = false
+                #if DEBUG
+                local = true
+                #endif
+                try await library.sync(session: account, client: NativeLibraryClient(allowLocalhost: local))
+                guard available else { return }
+                syncError = nil
+            } while needsSync && !Task.isCancelled
+        } catch is CancellationError { }
+        catch {
+            guard available else { return }
+            syncError = (error as? NativeLibraryError)?.errorDescription ?? "Could not sync. Changes remain on this iPhone."
+            if let failure = error as? NativeLibraryError, failure == .unauthorized || failure == .invalidSession { await onUnauthorized?() }
+        }
+    }
+
+    func serverArticleID(_ id: String) -> String? { try? library?.articleServerID(id) }
+    func textSnapshots(_ id: String) -> [NativeLibraryTextSnapshot] { (try? library?.textSnapshots(articleID: id)) ?? [] }
+    func canonicalSnapshot(_ id: String) -> NativeLibraryTextSnapshot? { try? library?.canonicalTextSnapshot(articleID: id) }
 
     func export() -> Data? {
         do { return try library?.exportJSON() }
