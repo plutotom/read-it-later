@@ -17,10 +17,12 @@ import { saveNativePassword } from "./actions";
 export function NativePasswordForm({
   email,
   discordAvailable,
+  requiresReauthentication,
   saved,
 }: {
   email: string | null;
   discordAvailable: boolean;
+  requiresReauthentication: boolean;
   saved: boolean;
 }) {
   const [password, setPassword] = useState("");
@@ -30,6 +32,7 @@ export function NativePasswordForm({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [reauthenticate, setReauthenticate] = useState(false);
+  const needsSignIn = !email || requiresReauthentication || reauthenticate;
 
   async function signIn() {
     setBusy(true);
@@ -59,7 +62,7 @@ export function NativePasswordForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          {(!email || reauthenticate) && !discordAvailable ? (
+          {needsSignIn && !discordAvailable ? (
             <p>
               Discord sign-in is temporarily unavailable. If you already have a
               password,{" "}
@@ -68,14 +71,22 @@ export function NativePasswordForm({
               </a>
               .
             </p>
-          ) : !email || reauthenticate ? (
-            <Button
-              className="w-full"
-              disabled={busy}
-              onClick={() => void signIn()}
-            >
-              Continue with Discord
-            </Button>
+          ) : needsSignIn ? (
+            <>
+              {email ? (
+                <p className="text-sm">
+                  Confirm your identity with Discord before entering a new
+                  password.
+                </p>
+              ) : null}
+              <Button
+                className="w-full"
+                disabled={busy}
+                onClick={() => void signIn()}
+              >
+                Continue with Discord
+              </Button>
+            </>
           ) : (
             <>
               <p className="text-sm">

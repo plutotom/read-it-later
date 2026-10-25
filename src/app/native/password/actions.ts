@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { auth } from "~/server/auth";
 import { allowAuthAttempt } from "~/server/services/native-auth/rate-limit";
+import { isPasswordSetupSessionFresh } from "~/server/services/native-auth/password-session";
 
 const inputSchema = z.object({
   newPassword: z.string().min(12).max(128),
@@ -25,7 +26,7 @@ export async function saveNativePassword(input: unknown) {
   });
   if (!session) return { error: "Sign in with Discord first." };
   // Password enrollment must prove a recent social sign-in, not just a long-lived cookie.
-  if (Date.now() - session.session.createdAt.getTime() > 10 * 60_000) {
+  if (!isPasswordSetupSessionFresh(session.session.createdAt)) {
     return {
       error: "Sign in with Discord again before changing your password.",
       reauthenticate: true,
