@@ -101,24 +101,26 @@ cancel an upload already in progress.
    Xcode 26+ / the iOS 26 SDK since 2026-04-28.
 3. Runs `swift test` in `ios/ReadingCore` and stops if tests fail.
 4. Generates `ReadItLater.xcodeproj` from `project.yml` with XcodeGen.
-5. Archives an **unsigned** device build. The iOS 26 SDK rejects ad-hoc device
-   signing (`CODE_SIGN_IDENTITY=-`), and disabling signing skips entitlement
-   packaging, so the job then writes `archived-expanded-entitlements.xcent`
-   (App Group `group.com.isaiahproctor.readitlater`) into the app and Share
-   Extension before export. Marketing version stays `MARKETING_VERSION` in
-   `project.yml` (currently 0.2.0). The build number is
-   `TESTFLIGHT_BUILD_OFFSET + github.run_number`, passed only to `xcodebuild` —
-   nothing is committed back.
-6. Fails the job if `group.com.isaiahproctor.readitlater` is missing from either
-   target’s Info.plist or expanded entitlements.
-7. Cloud-signs the app and Share Extension at export with the API key
-   (`-allowProvisioningUpdates` plus `-authenticationKeyPath` / `-authenticationKeyID`
-   / `-authenticationKeyIssuerID`) and uploads. The `.p8` is written under
-   `$RUNNER_TEMP` and deleted; secrets are never echoed.
+5. Archives an **unsigned** device build (iOS 26’s `xcodebuild` rejects ad-hoc
+   device signing). The job then ad-hoc-signs the app and Share Extension with
+   `codesign --generate-entitlement-der` so the binary carries
+   `group.com.isaiahproctor.readitlater`, and writes xcent. Marketing version
+   stays `MARKETING_VERSION` in `project.yml` (currently 0.2.0). The build
+   number is `TESTFLIGHT_BUILD_OFFSET + github.run_number`, passed only to
+   `xcodebuild` — nothing is committed back.
+6. Cloud-signs a **local IPA**, then fails the job unless that IPA’s code
+   signature **and** distribution profile both contain
+   `group.com.isaiahproctor.readitlater` on the app and the Share Extension.
+   Build 11 only checked the unsigned archive sidecar, so TestFlight shipped
+   without the App Group.
+7. Uploads the verified IPA with `xcrun altool`. The `.p8` is written under
+   `$RUNNER_TEMP` (and `~/.appstoreconnect/private_keys` for altool) and
+   deleted; secrets are never echoed.
 
-Unsigned archive plus stamped xcent is required on iOS 26: ad-hoc device signing
-is rejected by the SDK, and a missing xcent makes cloud signing mint a profile
-without application-groups (first launch shows “App Group is unavailable”).
+Unsigned archive plus a sidecar xcent is not enough on iOS 26: cloud signing
+reads the code signature, and an unsigned binary makes a profile without
+application-groups (Safari share fails on device). `codesign --sign -` still
+works after the archive; `xcodebuild`’s ad-hoc build phase does not.
 Automatic Apple Development signing at archive time would mint a new certificate
 on every ephemeral runner (team cert cap) and needs a registered device.
 Distribution profiles created at export still come from Xcode 13+ cloud-managed
