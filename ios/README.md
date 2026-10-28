@@ -101,21 +101,27 @@ cancel an upload already in progress.
    Xcode 26+ / the iOS 26 SDK since 2026-04-28.
 3. Runs `swift test` in `ios/ReadingCore` and stops if tests fail.
 4. Generates `ReadItLater.xcodeproj` from `project.yml` with XcodeGen.
-5. Archives an unsigned device build. Marketing version stays `MARKETING_VERSION`
-   in `project.yml` (currently 0.2.0). The build number is
-   `TESTFLIGHT_BUILD_OFFSET + github.run_number` (offset **8**, the last committed
-   `CURRENT_PROJECT_VERSION`), passed only to `xcodebuild` — nothing is committed
-   back. First workflow run is build 9.
-6. Cloud-signs the app and Share Extension at export with the API key
+5. Archives an **ad-hoc** device build (`CODE_SIGN_IDENTITY=-`) so App Group
+   entitlements are written into the app and Share Extension. Marketing version
+   stays `MARKETING_VERSION` in `project.yml` (currently 0.2.0). The build number
+   is `TESTFLIGHT_BUILD_OFFSET + github.run_number` (offset **8**, the last
+   committed `CURRENT_PROJECT_VERSION`), passed only to `xcodebuild` — nothing is
+   committed back. First workflow run is build 9.
+6. Fails the job if `group.com.isaiahproctor.readitlater` is missing from either
+   target’s Info.plist or expanded entitlements.
+7. Cloud-signs the app and Share Extension at export with the API key
    (`-allowProvisioningUpdates` plus `-authenticationKeyPath` / `-authenticationKeyID`
    / `-authenticationKeyIssuerID`) and uploads. The `.p8` is written under
    `$RUNNER_TEMP` and deleted; secrets are never echoed.
 
-Archive is unsigned on purpose: automatic signing at archive time would mint a new
-Apple Development certificate on every ephemeral runner (team cert cap) and needs a
-registered device for a development profile. Distribution profiles created at export
-do not. Xcode 13+ cloud-managed Apple Distribution certificates handle signing, so
-this workflow does **not** import a `.p12` or provisioning profiles.
+Archive uses the ad-hoc identity on purpose: disabling signing skips entitlement
+packaging, and TestFlight then ships a build that cannot open the App Group
+(first launch shows “App Group is unavailable”). Automatic Apple Development
+signing at archive time would mint a new certificate on every ephemeral runner
+(team cert cap) and needs a registered device. Ad-hoc does neither. Distribution
+profiles created at export still come from Xcode 13+ cloud-managed Apple
+Distribution certificates, so this workflow does **not** import a `.p12` or
+provisioning profiles.
 
 If a later manual Xcode upload uses a higher build number, raise
 `TESTFLIGHT_BUILD_OFFSET` in the workflow so CI stays above it. Do not bump

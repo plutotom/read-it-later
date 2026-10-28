@@ -1,15 +1,20 @@
 # Archive Paper Drive and upload it to TestFlight for internal testing.
 #
-# Signing: archive unsigned, then let xcodebuild -exportArchive cloud-sign both
-# the app and Share Extension with an App Store Connect API key
+# Signing: archive with the ad-hoc identity (-) so App Group entitlements are
+# actually written into the .app / .appex, then let xcodebuild -exportArchive
+# cloud-sign both targets with an App Store Connect API key
 # (-allowProvisioningUpdates + -authenticationKey*). That uses Xcode's
 # cloud-managed Apple Distribution certificate, so this workflow does not
 # import a .p12 or provisioning profiles.
 #
-# Archive is unsigned on purpose: automatic signing at archive time mints a new
-# Apple Development certificate on every ephemeral runner (hits the team cert
-# cap) and needs a registered device for a development profile. Distribution
-# profiles created at export do not.
+# Do not archive with CODE_SIGNING_ALLOWED=NO: Process Product Packaging never
+# runs, archived-expanded-entitlements.xcent is missing, and cloud signing
+# then mints a distribution profile without application-groups. TestFlight
+# builds of that shape cannot open the App Group and the share inbox fails.
+#
+# Ad-hoc archive does not mint Apple Development certificates or need a
+# registered device. Automatic Apple Development signing at archive time
+# would; distribution profiles created at export do not.
 #
 # Required repository secrets (Settings → Secrets and variables → Actions):
 #   ASC_KEY_ID      App Store Connect API Key ID
@@ -145,7 +150,7 @@ jobs:
           echo "BUILD_NUMBER=${build_number}" >> "${GITHUB_ENV}"
           echo "CURRENT_PROJECT_VERSION=${build_number} (offset ${TESTFLIGHT_BUILD_OFFSET} + run ${GITHUB_RUN_NUMBER}). Marketing version stays MARKETING_VERSION from ios/project.yml."
 
-      - name: Archive unsigned device build
+      - name: Archive ad-hoc device build
         working-directory: ios
         run: |
           set -euo pipefail
@@ -157,9 +162,77 @@ jobs:
             -archivePath "${RUNNER_TEMP}/PaperDrive.xcarchive" \
             -derivedDataPath "${RUNNER_TEMP}/DerivedData" \
             CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY=- \
+            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Require App Group entitlements in the archive
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import plistlib
+          import subprocess
+          import sys
+
+          expected = "group.com.isaiahproctor.readitlater"
+          archive = pathlib.Path(os.environ["RUNNER_TEMP"]) / "PaperDrive.xcarchive"
+          apps = list((archive / "Products" / "Applications").glob("*.app"))
+          if len(apps) != 1:
+              sys.stderr.write(f"Expected one .app in the archive, found {apps!r}\n")
+              sys.exit(1)
+          app = apps[0]
+          appexes = list((app / "PlugIns").glob("*.appex")) if (app / "PlugIns").is_dir() else []
+          if not appexes:
+              sys.stderr.write(f"No Share Extension .appex under {app / 'PlugIns'}\n")
+              sys.exit(1)
+
+          def fail(message: str) -> None:
+              sys.stderr.write(message + "\n")
+              sys.exit(1)
+
+          def info_group(bundle: pathlib.Path) -> str:
+              info = plistlib.loads((bundle / "Info.plist").read_bytes())
+              value = info.get("ReadingAppGroup")
+              if not isinstance(value, str) or not value or value.startswith("$("):
+                  fail(f"{bundle.name} Info.plist ReadingAppGroup is {value!r}")
+              return value
+
+          def entitlement_groups(bundle: pathlib.Path) -> list[str]:
+              xcent = bundle / "archived-expanded-entitlements.xcent"
+              raw = xcent.read_bytes() if xcent.is_file() else None
+              if raw is None:
+                  dumped = subprocess.run(
+                      ["codesign", "-d", "--entitlements", ":-", str(bundle)],
+                      check=False,
+                      capture_output=True,
+                  )
+                  raw = dumped.stdout or dumped.stderr
+              if not raw:
+                  fail(f"{bundle.name} has no expanded entitlements")
+              try:
+                  entitlements = plistlib.loads(raw)
+              except Exception:
+                  start = raw.find(b"<?xml")
+                  if start < 0:
+                      fail(f"{bundle.name} entitlements are not a plist")
+                  entitlements = plistlib.loads(raw[start:])
+              groups = entitlements.get("com.apple.security.application-groups") or []
+              if not isinstance(groups, list):
+                  fail(f"{bundle.name} application-groups is {groups!r}")
+              return [item for item in groups if isinstance(item, str)]
+
+          for bundle in [app, *appexes]:
+              group = info_group(bundle)
+              if group != expected:
+                  fail(f"{bundle.name} ReadingAppGroup is {group!r}, expected {expected}")
+              groups = entitlement_groups(bundle)
+              if expected not in groups:
+                  fail(f"{bundle.name} entitlements missing {expected}: {groups!r}")
+              print(f"{bundle.name}: App Group {expected} present")
+          PY
 
       - name: Export, cloud-sign, and upload to TestFlight
         env:

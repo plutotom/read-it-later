@@ -6,11 +6,19 @@ struct ShareDestination: Codable, Equatable, Sendable {
     let expiresAt: Date
 }
 
+enum ShareInboxError: LocalizedError, Equatable {
+    case unavailable
+    var errorDescription: String? {
+        "Safari sharing isn’t available in this install. You can still save links in Paper Drive."
+    }
+}
+
 enum ShareInbox {
     private static func root() throws -> URL {
-        guard let group = Bundle.main.object(forInfoDictionaryKey: "ReadingAppGroup") as? String,
+        guard let group = Bundle.main.object(forInfoDictionaryKey: "ReadingAppGroup") as? String, !group.isEmpty,
+              !group.hasPrefix("$("),
               let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) else {
-            throw NSError(domain: "ReadItLater", code: 1, userInfo: [NSLocalizedDescriptionKey: "App Group is unavailable. Enable the same App Group for the app and Share Extension in Xcode."])
+            throw ShareInboxError.unavailable
         }
         return container
     }
