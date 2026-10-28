@@ -35,14 +35,22 @@ public struct NativeAnnotationSourceAnchor: Codable, Sendable, Equatable {
         self.contextPrefix = contextPrefix; self.contextSuffix = contextSuffix; self.contentHash = contentHash
     }
     var isValid: Bool {
-        ["web-dom-v1", "paper-drive-text-v1", "local-text-v1"].contains(space) &&
-        startOffset >= 0 && endOffset > startOffset && endOffset <= 2_147_483_647 && endOffset - startOffset == text.utf16.count &&
-        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && text.utf16.count <= 200_000 &&
-        contextPrefix.utf16.count <= 2048 && contextSuffix.utf16.count <= 2048 &&
-        ![text, contextPrefix, contextSuffix].contains(where: { $0.contains("\0") }) &&
-        !contentHash.isEmpty && contentHash.utf8.count <= 128 &&
-        (space == "web-dom-v1" ? contentHash.utf8.count == 14 && contentHash.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) } : NativeAnnotationCanonicalAnchor.validHash(contentHash))
+        // Split for Xcode 26.6: a single chained expression times out the type checker.
+        guard Self.allowedSpaces.contains(space) else { return false }
+        guard startOffset >= 0, endOffset > startOffset, endOffset <= 2_147_483_647 else { return false }
+        let quoteLength = text.utf16.count
+        guard quoteLength <= 200_000, endOffset - startOffset == quoteLength else { return false }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        guard contextPrefix.utf16.count <= 2048, contextSuffix.utf16.count <= 2048 else { return false }
+        guard !text.contains("\0"), !contextPrefix.contains("\0"), !contextSuffix.contains("\0") else { return false }
+        guard !contentHash.isEmpty, contentHash.utf8.count <= 128 else { return false }
+        if space == "web-dom-v1" {
+            return contentHash.utf8.count == 14 && NativeAnnotationCanonicalAnchor.isLowercaseHex(contentHash)
+        }
+        return NativeAnnotationCanonicalAnchor.validHash(contentHash)
     }
+
+    private static let allowedSpaces: Set<String> = ["web-dom-v1", "paper-drive-text-v1", "local-text-v1"]
 
     /// Historical web rows are response data, not selectors authorized for upload or painting.
     /// Preserve malformed ranges, whitespace quotes, and unknown hashes verbatim for recovery.
@@ -66,8 +74,14 @@ public struct NativeAnnotationCanonicalAnchor: Codable, Sendable, Equatable {
     public init(text: String, startOffset: Int, endOffset: Int, contentHash: String) {
         self.text = text; self.startOffset = startOffset; self.endOffset = endOffset; self.contentHash = contentHash
     }
+    static func isLowercaseHex(_ value: String) -> Bool {
+        value.utf8.allSatisfy { byte in
+            (48...57).contains(byte) || (97...102).contains(byte)
+        }
+    }
+
     static func validHash(_ value: String) -> Bool {
-        value.utf8.count == 64 && value.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) }
+        value.utf8.count == 64 && isLowercaseHex(value)
     }
     public func range(in content: String) -> NSRange? {
         guard contentHash == Highlight.contentHash(content), startOffset >= 0, endOffset > startOffset,
