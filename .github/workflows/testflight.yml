@@ -1,20 +1,20 @@
 # Archive Paper Drive and upload it to TestFlight for internal testing.
 #
-# Signing: archive with the ad-hoc identity (-) so App Group entitlements are
-# actually written into the .app / .appex, then let xcodebuild -exportArchive
-# cloud-sign both targets with an App Store Connect API key
-# (-allowProvisioningUpdates + -authenticationKey*). That uses Xcode's
+# Signing: archive unsigned (iOS 26 SDK rejects ad-hoc device signing), write
+# App Group entitlements into archived-expanded-entitlements.xcent, then let
+# xcodebuild -exportArchive cloud-sign both targets with an App Store Connect
+# API key (-allowProvisioningUpdates + -authenticationKey*). That uses Xcode's
 # cloud-managed Apple Distribution certificate, so this workflow does not
 # import a .p12 or provisioning profiles.
 #
-# Do not archive with CODE_SIGNING_ALLOWED=NO: Process Product Packaging never
-# runs, archived-expanded-entitlements.xcent is missing, and cloud signing
-# then mints a distribution profile without application-groups. TestFlight
-# builds of that shape cannot open the App Group and the share inbox fails.
+# Unsigned archives skip Process Product Packaging, so xcent is missing unless
+# we stamp it. Without xcent, cloud signing mints a distribution profile
+# without application-groups and TestFlight cannot open the App Group.
+# Ad-hoc (CODE_SIGN_IDENTITY=-) is not allowed with the iOS 26 device SDK.
 #
-# Ad-hoc archive does not mint Apple Development certificates or need a
-# registered device. Automatic Apple Development signing at archive time
-# would; distribution profiles created at export do not.
+# Automatic Apple Development signing at archive time would mint a new
+# certificate on every ephemeral runner (team cert cap) and needs a registered
+# device. Distribution profiles created at export do not.
 #
 # Required repository secrets (Settings → Secrets and variables → Actions):
 #   ASC_KEY_ID      App Store Connect API Key ID
@@ -31,6 +31,7 @@ on:
     paths:
       - "ios/**"
       - ".github/workflows/testflight.yml"
+      - "!ios/**/*.md"
   workflow_dispatch:
 
 concurrency:
@@ -46,9 +47,10 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 60
     env:
-      # Last committed CURRENT_PROJECT_VERSION in ios/project.yml. CI build
-      # numbers are offset + github.run_number and are not committed back.
-      TESTFLIGHT_BUILD_OFFSET: "8"
+      # Last committed CURRENT_PROJECT_VERSION in ios/project.yml was 8.
+      # Run 3 computed build 11 but failed before upload, so offset is 7
+      # until the next successful run (run 4 → CFBundleVersion 11).
+      TESTFLIGHT_BUILD_OFFSET: "7"
 
     steps:
       - uses: actions/checkout@v4
@@ -90,6 +92,17 @@ jobs:
           echo "Selected ${candidate}"
           xcodebuild -version
           swift --version
+
+      - name: Cache ReadingCore Swift packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ios/ReadingCore/.build
+            ~/Library/Caches/org.swift.swiftpm
+            ~/Library/org.swift.swiftpm
+          key: readingcore-${{ runner.os }}-${{ hashFiles('ios/ReadingCore/Package.resolved') }}
+          restore-keys: |
+            readingcore-${{ runner.os }}-
 
       - name: Test ReadingCore
         working-directory: ios/ReadingCore
@@ -150,7 +163,7 @@ jobs:
           echo "BUILD_NUMBER=${build_number}" >> "${GITHUB_ENV}"
           echo "CURRENT_PROJECT_VERSION=${build_number} (offset ${TESTFLIGHT_BUILD_OFFSET} + run ${GITHUB_RUN_NUMBER}). Marketing version stays MARKETING_VERSION from ios/project.yml."
 
-      - name: Archive ad-hoc device build
+      - name: Archive unsigned device build
         working-directory: ios
         run: |
           set -euo pipefail
@@ -162,10 +175,57 @@ jobs:
             -archivePath "${RUNNER_TEMP}/PaperDrive.xcarchive" \
             -derivedDataPath "${RUNNER_TEMP}/DerivedData" \
             CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY=- \
-            CODE_SIGNING_ALLOWED=YES \
-            CODE_SIGNING_REQUIRED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Stamp App Group entitlements into the archive
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import plistlib
+          import sys
+
+          team = "3CVY7K9AJ6"
+          expected_group = "group.com.isaiahproctor.readitlater"
+          archive = pathlib.Path(os.environ["RUNNER_TEMP"]) / "PaperDrive.xcarchive"
+          apps = list((archive / "Products" / "Applications").glob("*.app"))
+          if len(apps) != 1:
+              sys.stderr.write(f"Expected one .app in the archive, found {apps!r}\n")
+              sys.exit(1)
+          app = apps[0]
+          appexes = list((app / "PlugIns").glob("*.appex")) if (app / "PlugIns").is_dir() else []
+          if not appexes:
+              sys.stderr.write(f"No Share Extension .appex under {app / 'PlugIns'}\n")
+              sys.exit(1)
+
+          def stamp(bundle: pathlib.Path) -> None:
+              info_path = bundle / "Info.plist"
+              info = plistlib.loads(info_path.read_bytes())
+              bundle_id = info.get("CFBundleIdentifier")
+              if not isinstance(bundle_id, str) or not bundle_id or bundle_id.startswith("$("):
+                  sys.stderr.write(
+                      f"{bundle.name} CFBundleIdentifier is {bundle_id!r}\n"
+                  )
+                  sys.exit(1)
+              info["ReadingAppGroup"] = expected_group
+              info_path.write_bytes(plistlib.dumps(info, fmt=plistlib.FMT_BINARY))
+
+              entitlements = {
+                  "application-identifier": f"{team}.{bundle_id}",
+                  "com.apple.developer.team-identifier": team,
+                  "com.apple.security.application-groups": [expected_group],
+                  "get-task-allow": False,
+              }
+              xcent = bundle / "archived-expanded-entitlements.xcent"
+              xcent.write_bytes(plistlib.dumps(entitlements, fmt=plistlib.FMT_XML))
+              print(f"{bundle.name}: stamped {expected_group} for {bundle_id}")
+
+          for bundle in [app, *appexes]:
+              stamp(bundle)
+          PY
 
       - name: Require App Group entitlements in the archive
         run: |
