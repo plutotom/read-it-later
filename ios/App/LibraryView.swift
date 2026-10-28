@@ -28,8 +28,7 @@ struct LibraryView: View {
 
     private var filtered: [Article] {
         model.articles.filter {
-            (filter != "Unread" || !$0.isRead) && (filter != "Favorites" || $0.isFavorite) &&
-            (filter == "Archived" ? $0.isArchived : !$0.isArchived) &&
+            (ArticleLibraryFilter(rawValue: filter) ?? .all).includes($0) &&
             (search.isEmpty || "\($0.title) \($0.url) \($0.text) \(model.annotationSyncEnabled ? model.noteSearchText[$0.id] ?? "" : $0.note)".localizedCaseInsensitiveContains(search))
         }
     }
@@ -54,7 +53,7 @@ struct LibraryView: View {
                         if let message = model.syncError { Text(message).font(.caption).foregroundStyle(.orange) }
                     }
                     Picker("Library filter", selection: $filter) {
-                        ForEach(["All", "Unread", "Favorites", "Archived"], id: \.self) { Text($0) }
+                        ForEach(ArticleLibraryFilter.allCases, id: \.rawValue) { Text($0.rawValue).tag($0.rawValue) }
                     }.pickerStyle(.segmented)
                 }
                 if filtered.isEmpty {
@@ -77,11 +76,14 @@ struct LibraryView: View {
                             if article.error != nil { Text("Download needs attention").font(.caption).foregroundStyle(.orange) }
                         }.padding(.vertical, 7)
                     }
-                    .swipeActions(edge: .leading) {
-                        Button { model.mutate { try $0.toggleFavorite(id: article.id) } } label: { Label("Favorite", systemImage: "star") }.tint(.orange)
+                    // First button on each edge is the full-swipe action (read / archive).
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        articleSwipeButton(ArticleSwipeAction.read(for: article), article: article)
+                        articleSwipeButton(ArticleSwipeAction.favorite(for: article), article: article)
                     }
-                    .swipeActions {
-                        Button(role: .destructive) { deleteTarget = article } label: { Label("Delete", systemImage: "trash") }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        articleSwipeButton(ArticleSwipeAction.archive(for: article), article: article)
+                        articleSwipeButton(ArticleSwipeAction.delete, article: article)
                     }
                 }
             }
@@ -186,6 +188,33 @@ struct LibraryView: View {
                 if let article = deleteTarget, model.mutate({ try $0.delete(id: article.id) }), player.document?.articleID == article.id { player.close() }
                 deleteTarget = nil
             }
+        }
+    }
+
+    @ViewBuilder
+    private func articleSwipeButton(_ action: ArticleSwipeAction, article: Article) -> some View {
+        Button(role: action.isDestructive ? .destructive : nil) {
+            switch action.kind {
+            case .read: model.mutate { try $0.toggleRead(id: article.id) }
+            case .favorite: model.mutate { try $0.toggleFavorite(id: article.id) }
+            case .archive: model.mutate { try $0.toggleArchived(id: article.id) }
+            case .delete: deleteTarget = article
+            }
+        } label: {
+            Label(action.title, systemImage: action.systemImage)
+        }
+        .tint(action.tint.color)
+        .accessibilityLabel(action.accessibilityLabel)
+    }
+}
+
+private extension ArticleSwipeAction.Tint {
+    var color: Color {
+        switch self {
+        case .blue: .blue
+        case .orange: .orange
+        case .gray: .gray
+        case .red: .red
         }
     }
 }
