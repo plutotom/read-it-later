@@ -35,7 +35,7 @@ final class ArticleSwipeActionsTests: XCTestCase {
 
         let read = ArticleSwipeAction.read(for: article(read: true))
         XCTAssertEqual(read.title, "Mark unread")
-        XCTAssertEqual(read.systemImage, "envelope.badge")
+        XCTAssertEqual(read.systemImage, "checkmark.circle")
         XCTAssertEqual(read.accessibilityLabel, "Mark as unread")
     }
 
@@ -48,7 +48,7 @@ final class ArticleSwipeActionsTests: XCTestCase {
 
         let remove = ArticleSwipeAction.favorite(for: article(favorite: true))
         XCTAssertEqual(remove.title, "Remove favorite")
-        XCTAssertEqual(remove.systemImage, "star.fill")
+        XCTAssertEqual(remove.systemImage, "star")
         XCTAssertEqual(remove.accessibilityLabel, "Remove from favorites")
     }
 
@@ -57,11 +57,11 @@ final class ArticleSwipeActionsTests: XCTestCase {
         XCTAssertEqual(archive.title, "Archive")
         XCTAssertEqual(archive.systemImage, "archivebox")
         XCTAssertEqual(archive.accessibilityLabel, "Archive")
-        XCTAssertEqual(archive.tint, .gray)
+        XCTAssertEqual(archive.tint, .indigo)
 
         let inbox = ArticleSwipeAction.archive(for: article(archived: true))
         XCTAssertEqual(inbox.title, "Move to Inbox")
-        XCTAssertEqual(inbox.systemImage, "tray")
+        XCTAssertEqual(inbox.systemImage, "archivebox")
         XCTAssertEqual(inbox.accessibilityLabel, "Move to Inbox")
     }
 
@@ -69,7 +69,7 @@ final class ArticleSwipeActionsTests: XCTestCase {
         XCTAssertEqual(ArticleSwipeAction.delete.title, "Delete")
         XCTAssertEqual(ArticleSwipeAction.delete.systemImage, "trash")
         XCTAssertEqual(ArticleSwipeAction.delete.accessibilityLabel, "Delete article")
-        XCTAssertEqual(ArticleSwipeAction.delete.tint, .red)
+        XCTAssertNil(ArticleSwipeAction.delete.tint)
         XCTAssertTrue(ArticleSwipeAction.delete.isDestructive)
         XCTAssertFalse(ArticleSwipeAction.read(for: article()).isDestructive)
         XCTAssertFalse(ArticleSwipeAction.archive(for: article()).isDestructive)

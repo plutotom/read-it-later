@@ -77,13 +77,14 @@ struct LibraryView: View {
                         }.padding(.vertical, 7)
                     }
                     // First button on each edge is the full-swipe action (read / archive).
+                    // Constructed like the original Favorite/Delete swipe: Label + systemImage, .tint on the button, destructive role without an extra tint.
                     .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                        articleSwipeButton(ArticleSwipeAction.read(for: article), article: article)
-                        articleSwipeButton(ArticleSwipeAction.favorite(for: article), article: article)
+                        Button { model.mutate { try $0.toggleRead(id: article.id) } } label: { Label(ArticleSwipeAction.read(for: article).title, systemImage: ArticleSwipeAction.read(for: article).systemImage) }.tint(.blue).accessibilityLabel(ArticleSwipeAction.read(for: article).accessibilityLabel)
+                        Button { model.mutate { try $0.toggleFavorite(id: article.id) } } label: { Label(ArticleSwipeAction.favorite(for: article).title, systemImage: ArticleSwipeAction.favorite(for: article).systemImage) }.tint(.orange).accessibilityLabel(ArticleSwipeAction.favorite(for: article).accessibilityLabel)
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        articleSwipeButton(ArticleSwipeAction.archive(for: article), article: article)
-                        articleSwipeButton(ArticleSwipeAction.delete, article: article)
+                        Button { model.mutate { try $0.toggleArchived(id: article.id) } } label: { Label(ArticleSwipeAction.archive(for: article).title, systemImage: ArticleSwipeAction.archive(for: article).systemImage) }.tint(.indigo).accessibilityLabel(ArticleSwipeAction.archive(for: article).accessibilityLabel)
+                        Button(role: .destructive) { deleteTarget = article } label: { Label(ArticleSwipeAction.delete.title, systemImage: ArticleSwipeAction.delete.systemImage) }.accessibilityLabel(ArticleSwipeAction.delete.accessibilityLabel)
                     }
                 }
             }
@@ -188,33 +189,6 @@ struct LibraryView: View {
                 if let article = deleteTarget, model.mutate({ try $0.delete(id: article.id) }), player.document?.articleID == article.id { player.close() }
                 deleteTarget = nil
             }
-        }
-    }
-
-    @ViewBuilder
-    private func articleSwipeButton(_ action: ArticleSwipeAction, article: Article) -> some View {
-        Button(role: action.isDestructive ? .destructive : nil) {
-            switch action.kind {
-            case .read: model.mutate { try $0.toggleRead(id: article.id) }
-            case .favorite: model.mutate { try $0.toggleFavorite(id: article.id) }
-            case .archive: model.mutate { try $0.toggleArchived(id: article.id) }
-            case .delete: deleteTarget = article
-            }
-        } label: {
-            Label(action.title, systemImage: action.systemImage)
-        }
-        .tint(action.tint.color)
-        .accessibilityLabel(action.accessibilityLabel)
-    }
-}
-
-private extension ArticleSwipeAction.Tint {
-    var color: Color {
-        switch self {
-        case .blue: .blue
-        case .orange: .orange
-        case .gray: .gray
-        case .red: .red
         }
     }
 }
