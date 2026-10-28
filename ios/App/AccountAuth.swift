@@ -72,7 +72,7 @@ import ReadingCore
         if bypass {
             session = NativeAuthSession(user: NativeAuthUser(id: "reader-fixture", name: "Reader test", email: "reader@example.invalid"), token: "fixture", expiresAt: .distantFuture, server: URL(string: "https://example.invalid")!)
             restoring = false
-            try? publishDestination()
+            publishDestination()
         }
     }
 
@@ -105,7 +105,7 @@ import ReadingCore
                     session = saved; offline = true
                 }
             }
-            if epoch == generation { try publishDestination() }
+            if epoch == generation { publishDestination() }
         } catch { self.error = "Could not securely restore sign-in. Unlock this iPhone and try again." }
         await retryRevocations()
     }
@@ -131,7 +131,7 @@ import ReadingCore
             defaults.set(server.absoluteString, forKey: "auth-server")
             #endif
             session = value; offline = false
-            try publishDestination()
+            publishDestination()
         } catch {
             if let admitted { try? await api(admitted.server).signOut(admitted) }
             guard epoch == generation else { return }
@@ -161,9 +161,9 @@ import ReadingCore
         await restore()
     }
 
-    private func publishDestination() throws {
+    private func publishDestination() {
         let value = session.map { ShareDestination(namespace: $0.namespace, generation: generation.uuidString, expiresAt: $0.expiresAt) }
-        try ShareInbox.setDestination(value)
+        try? ShareInbox.setDestination(value)
     }
 
     private func retryRevocations() async {
