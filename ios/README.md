@@ -80,14 +80,86 @@ belongs only to **isaiah proctor — 3CVY7K9AJ6**. The main app and extension ar
 to `group.com.isaiahproctor.readitlater`. Display names use Paper Drive; bundle IDs,
 App Group, and on-device storage remain unchanged so existing libraries survive updates.
 
+### Automated upload (GitHub Actions)
+
+`.github/workflows/testflight.yml` archives on a `macos-26` runner and uploads with
+`ios/ExportOptions-TestFlight.plist` (`destination: upload`, internal-testing-only).
+You do not need to archive from Xcode on a Mac for internal TestFlight.
+
+**Triggers**
+
+- Push to `main` that touches `ios/**` or the workflow file.
+- **Actions → TestFlight → Run workflow** (`workflow_dispatch`) on any branch.
+
+A single `testflight-upload` concurrency group queues overlapping runs and does not
+cancel an upload already in progress.
+
+**What the job does**
+
+1. Fails immediately if the App Store Connect API secrets below are missing.
+2. Selects Xcode 26.6 (or the newest installed 26.x). App Store Connect has required
+   Xcode 26+ / the iOS 26 SDK since 2026-04-28.
+3. Runs `swift test` in `ios/ReadingCore` and stops if tests fail.
+4. Generates `ReadItLater.xcodeproj` from `project.yml` with XcodeGen.
+5. Archives an unsigned device build. Marketing version stays `MARKETING_VERSION`
+   in `project.yml` (currently 0.2.0). The build number is
+   `TESTFLIGHT_BUILD_OFFSET + github.run_number` (offset **8**, the last committed
+   `CURRENT_PROJECT_VERSION`), passed only to `xcodebuild` — nothing is committed
+   back. First workflow run is build 9.
+6. Cloud-signs the app and Share Extension at export with the API key
+   (`-allowProvisioningUpdates` plus `-authenticationKeyPath` / `-authenticationKeyID`
+   / `-authenticationKeyIssuerID`) and uploads. The `.p8` is written under
+   `$RUNNER_TEMP` and deleted; secrets are never echoed.
+
+Archive is unsigned on purpose: automatic signing at archive time would mint a new
+Apple Development certificate on every ephemeral runner (team cert cap) and needs a
+registered device for a development profile. Distribution profiles created at export
+do not. Xcode 13+ cloud-managed Apple Distribution certificates handle signing, so
+this workflow does **not** import a `.p12` or provisioning profiles.
+
+If a later manual Xcode upload uses a higher build number, raise
+`TESTFLIGHT_BUILD_OFFSET` in the workflow so CI stays above it. Do not bump
+`CURRENT_PROJECT_VERSION` in `project.yml` for CI uploads.
+
+**Secrets** (repository **Settings → Secrets and variables → Actions**). Add these
+yourself; the workflow only references the names:
+
+| Secret | Value |
+| --- | --- |
+| `ASC_KEY_ID` | Key ID shown next to the API key |
+| `ASC_ISSUER_ID` | Issuer ID at the top of the App Store Connect API page |
+| `ASC_KEY_P8` | Contents of the downloaded `AuthKey_*.p8` (PEM), or that file base64-encoded |
+
+**Create the API key**
+
+1. App Store Connect → **Users and Access → Integrations → App Store Connect API**.
+2. Generate a **team** key. Apple documents **App Manager** as enough to upload
+   builds. Cloud-managed distribution signing (no local certificate) often requires
+   **Admin**; if export fails with a cloud signing permission error, recreate the
+   key as Admin (or grant the key access to cloud-managed distribution certificates).
+3. Download the `.p8` when it is shown — Apple will not show it again.
+4. Paste Key ID, Issuer ID, and the `.p8` (or `base64 < AuthKey_….p8`) into the
+   three GitHub secrets above.
+
+The key is scoped to team **3CVY7K9AJ6** and app record **6823970694**. After
+processing, answer export-compliance questions in App Store Connect if prompted,
+add the build to an internal testing group, and install it from TestFlight.
+
+These builds cannot later be used for external testing or App Store release;
+create another build with the appropriate export setting for those milestones.
+
+### Manual archive from Xcode (fallback)
+
 1. Sign into Xcode → Settings → Accounts using the account for that team.
 2. Generate/open the project as above. Select the ReadItLater scheme and **Any iOS Device**.
 3. Choose **Product → Archive**, then **Distribute App → App Store Connect** in Organizer.
 4. After processing, resolve the build's export-compliance questions in App Store Connect.
 5. Add the build to an internal testing group and install it through TestFlight.
 
-Use an Xcode/SDK release currently accepted by App Store Connect. The current version
-is 0.2.0 (8); increment `CURRENT_PROJECT_VERSION` in `project.yml` for each new upload.
+Use an Xcode/SDK release currently accepted by App Store Connect. If you upload
+manually, pick a `CURRENT_PROJECT_VERSION` higher than the last CI build and raise
+`TESTFLIGHT_BUILD_OFFSET` so the next Actions run does not collide.
+
 Equivalent commands from the repository root (no credentials in command arguments):
 
 ```sh
@@ -101,8 +173,7 @@ xcodebuild -exportArchive -archivePath /private/tmp/PaperDrive.xcarchive \
 ```
 
 The supplied export settings pin the same team and upload an **internal-testing-only**
-build. These builds cannot later be used for external testing or App Store release;
-create another build with the appropriate export setting for those milestones.
+build.
 
 The beta icon reuses `public/favicon.svg`, rendered as an opaque 1024px asset; it is
 temporary artwork pending Paper Drive's own icon. Main-app privacy declarations cover
