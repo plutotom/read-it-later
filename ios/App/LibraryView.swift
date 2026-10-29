@@ -14,14 +14,15 @@ struct LibraryView: View {
     @Bindable var model: LibraryModel
     @Environment(ListeningPlayer.self) private var player
     @Environment(AccountAuth.self) private var auth
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showingPlayer = false
     @Environment(\.scenePhase) private var phase
     @State private var search = ""
     @State private var filter = "All"
     @State private var adding = false
     @State private var settings = false
-    @State private var input = ""
-    @State private var addError: String?
+    @State private var savedFeedback: SavedArticleFeedback?
+    @State private var pendingSavedFeedback: SavedArticleFeedback?
     @State private var deleteTarget: Article?
     @State private var exportDocument = LibraryExport(data: Data())
     @State private var exporting = false
@@ -88,6 +89,16 @@ struct LibraryView: View {
                     }
                 }
             }
+            .safeAreaInset(edge: .top) {
+                if let feedback = savedFeedback,
+                   let article = model.articles.first(where: { $0.id == feedback.articleID }) {
+                    SavedArticleNotice(article: article, wasAlreadySaved: feedback.wasAlreadySaved,
+                                       isDownloading: model.downloading.contains(article.id)) {
+                        withAnimation(saveFeedbackAnimation) { savedFeedback = nil }
+                    }
+                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+                }
+            }
             .safeAreaInset(edge: .bottom) {
                 if player.document != nil { MiniListeningPlayer(player: player) { showingPlayer = true } }
             }
@@ -99,40 +110,19 @@ struct LibraryView: View {
             }
             .refreshable { await model.resume() }
         }
+        .sensoryFeedback(.success, trigger: savedFeedback?.id) { _, value in value != nil }
         .fullScreenCover(isPresented: $showingPlayer) { ListeningPlayerView(player: player) }
         .task { await model.resume() }
         .onChange(of: phase) { _, value in
             if value == .active { Task { await model.resume() } }
         }
-        .sheet(isPresented: $adding) {
-            NavigationStack {
-                Form {
-                    TextField("Article URL", text: $input, prompt: Text(verbatim: "e.g. https://example.com/article").foregroundStyle(.secondary))
-                        .foregroundStyle(.primary)
-                        .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .accessibilityIdentifier("articleURLInput")
-                    Text("The link is saved first. Downloading text requires internet. Images and PDFs are not downloaded. Audio is prepared when you listen.")
-                        .font(.footnote).foregroundStyle(.secondary)
-                }.navigationTitle("Save a link")
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) { Button("Cancel") { adding = false } }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Save") {
-                                if let article = model.add(input) {
-                                    input = ""; adding = false
-                                    Task { await model.download(article) }
-                                } else {
-                                    addError = model.error ?? "Could not save your link. Please try again."
-                                    model.error = nil
-                                }
-                            }.disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        }
-                    }
+        .sheet(isPresented: $adding, onDismiss: showSavedFeedback) {
+            SaveArticleSheet(model: model) { article, wasAlreadySaved in
+                search = ""
+                filter = article.isArchived ? "Archived" : "All"
+                pendingSavedFeedback = SavedArticleFeedback(articleID: article.id, wasAlreadySaved: wasAlreadySaved)
+                Task { await model.download(article) }
             }
-            .alert("Could not save link", isPresented: Binding(get: { addError != nil }, set: { if !$0 { addError = nil } })) {
-                Button("OK") { addError = nil }
-            } message: { Text(addError ?? "") }
-            .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $settings) {
             NavigationStack {
@@ -191,4 +181,20 @@ struct LibraryView: View {
             }
         }
     }
+
+    private var saveFeedbackAnimation: Animation? {
+        reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.85)
+    }
+
+    private func showSavedFeedback() {
+        guard let feedback = pendingSavedFeedback else { return }
+        pendingSavedFeedback = nil
+        withAnimation(saveFeedbackAnimation) { savedFeedback = feedback }
+    }
+}
+
+private struct SavedArticleFeedback {
+    let id = UUID()
+    let articleID: String
+    let wasAlreadySaved: Bool
 }
