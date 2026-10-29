@@ -17,11 +17,12 @@ public enum ArticleLibraryFilter: String, CaseIterable, Sendable {
     }
 }
 
-/// Gmail-style row actions: two leading, two trailing. The first on each edge is the full swipe.
+/// Mail-style row actions with compact labels for the system's rounded swipe buttons.
+/// The first action on each edge is the full swipe.
 public struct ArticleSwipeAction: Equatable, Sendable {
     public enum Kind: String, Sendable { case read, favorite, archive, delete }
     public enum Edge: String, Sendable { case leading, trailing }
-    public enum Tint: String, Sendable { case blue, orange, indigo }
+    public enum Tint: String, Sendable { case blue, orange, gray }
 
     public let kind: Kind
     public let edge: Edge
@@ -47,8 +48,8 @@ public struct ArticleSwipeAction: Equatable, Sendable {
         ArticleSwipeAction(
             kind: .read,
             edge: .leading,
-            title: article.isRead ? "Mark unread" : "Mark read",
-            systemImage: "checkmark.circle",
+            title: article.isRead ? "Unread" : "Read",
+            systemImage: article.isRead ? "envelope.badge.fill" : "envelope.open.fill",
             accessibilityLabel: article.isRead ? "Mark as unread" : "Mark as read",
             tint: .blue,
             isDestructive: false
@@ -59,8 +60,8 @@ public struct ArticleSwipeAction: Equatable, Sendable {
         ArticleSwipeAction(
             kind: .favorite,
             edge: .leading,
-            title: article.isFavorite ? "Remove favorite" : "Favorite",
-            systemImage: "star",
+            title: article.isFavorite ? "Unfavorite" : "Favorite",
+            systemImage: article.isFavorite ? "star.slash.fill" : "star.fill",
             accessibilityLabel: article.isFavorite ? "Remove from favorites" : "Add to favorites",
             tint: .orange,
             isDestructive: false
@@ -71,10 +72,10 @@ public struct ArticleSwipeAction: Equatable, Sendable {
         ArticleSwipeAction(
             kind: .archive,
             edge: .trailing,
-            title: article.isArchived ? "Move to Inbox" : "Archive",
-            systemImage: "archivebox",
+            title: article.isArchived ? "Inbox" : "Archive",
+            systemImage: article.isArchived ? "tray.fill" : "archivebox.fill",
             accessibilityLabel: article.isArchived ? "Move to Inbox" : "Archive",
-            tint: .indigo,
+            tint: .gray,
             isDestructive: false
         )
     }
@@ -83,7 +84,7 @@ public struct ArticleSwipeAction: Equatable, Sendable {
         kind: .delete,
         edge: .trailing,
         title: "Delete",
-        systemImage: "trash",
+        systemImage: "trash.fill",
         accessibilityLabel: "Delete article",
         tint: nil,
         isDestructive: true

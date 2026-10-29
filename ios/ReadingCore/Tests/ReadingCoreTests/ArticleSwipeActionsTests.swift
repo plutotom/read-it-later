@@ -28,46 +28,46 @@ final class ArticleSwipeActionsTests: XCTestCase {
 
     func testReadToggleUpdatesLabelIconAndAccessibility() {
         let unread = ArticleSwipeAction.read(for: article())
-        XCTAssertEqual(unread.title, "Mark read")
-        XCTAssertEqual(unread.systemImage, "checkmark.circle")
+        XCTAssertEqual(unread.title, "Read")
+        XCTAssertEqual(unread.systemImage, "envelope.open.fill")
         XCTAssertEqual(unread.accessibilityLabel, "Mark as read")
         XCTAssertEqual(unread.tint, .blue)
 
         let read = ArticleSwipeAction.read(for: article(read: true))
-        XCTAssertEqual(read.title, "Mark unread")
-        XCTAssertEqual(read.systemImage, "checkmark.circle")
+        XCTAssertEqual(read.title, "Unread")
+        XCTAssertEqual(read.systemImage, "envelope.badge.fill")
         XCTAssertEqual(read.accessibilityLabel, "Mark as unread")
     }
 
     func testFavoriteToggleUpdatesLabelIconAndAccessibility() {
         let add = ArticleSwipeAction.favorite(for: article())
         XCTAssertEqual(add.title, "Favorite")
-        XCTAssertEqual(add.systemImage, "star")
+        XCTAssertEqual(add.systemImage, "star.fill")
         XCTAssertEqual(add.accessibilityLabel, "Add to favorites")
         XCTAssertEqual(add.tint, .orange)
 
         let remove = ArticleSwipeAction.favorite(for: article(favorite: true))
-        XCTAssertEqual(remove.title, "Remove favorite")
-        XCTAssertEqual(remove.systemImage, "star")
+        XCTAssertEqual(remove.title, "Unfavorite")
+        XCTAssertEqual(remove.systemImage, "star.slash.fill")
         XCTAssertEqual(remove.accessibilityLabel, "Remove from favorites")
     }
 
     func testArchiveToggleUpdatesLabelIconAndAccessibility() {
         let archive = ArticleSwipeAction.archive(for: article())
         XCTAssertEqual(archive.title, "Archive")
-        XCTAssertEqual(archive.systemImage, "archivebox")
+        XCTAssertEqual(archive.systemImage, "archivebox.fill")
         XCTAssertEqual(archive.accessibilityLabel, "Archive")
-        XCTAssertEqual(archive.tint, .indigo)
+        XCTAssertEqual(archive.tint, .gray)
 
         let inbox = ArticleSwipeAction.archive(for: article(archived: true))
-        XCTAssertEqual(inbox.title, "Move to Inbox")
-        XCTAssertEqual(inbox.systemImage, "archivebox")
+        XCTAssertEqual(inbox.title, "Inbox")
+        XCTAssertEqual(inbox.systemImage, "tray.fill")
         XCTAssertEqual(inbox.accessibilityLabel, "Move to Inbox")
     }
 
     func testDeleteStaysDestructiveWithAccessibilityLabel() {
         XCTAssertEqual(ArticleSwipeAction.delete.title, "Delete")
-        XCTAssertEqual(ArticleSwipeAction.delete.systemImage, "trash")
+        XCTAssertEqual(ArticleSwipeAction.delete.systemImage, "trash.fill")
         XCTAssertEqual(ArticleSwipeAction.delete.accessibilityLabel, "Delete article")
         XCTAssertNil(ArticleSwipeAction.delete.tint)
         XCTAssertTrue(ArticleSwipeAction.delete.isDestructive)
@@ -107,18 +107,18 @@ final class ArticleSwipeActionsTests: XCTestCase {
         try library.toggleRead(id: saved.id)
         row = try XCTUnwrap(library.articles().first)
         XCTAssertTrue(row.isRead)
-        XCTAssertEqual(ArticleSwipeAction.read(for: row).title, "Mark unread")
+        XCTAssertEqual(ArticleSwipeAction.read(for: row).title, "Unread")
         XCTAssertFalse(ArticleLibraryFilter.unread.includes(row))
 
         try library.toggleRead(id: saved.id)
         row = try XCTUnwrap(library.articles().first)
         XCTAssertFalse(row.isRead)
-        XCTAssertEqual(ArticleSwipeAction.read(for: row).title, "Mark read")
+        XCTAssertEqual(ArticleSwipeAction.read(for: row).title, "Read")
 
         try library.toggleFavorite(id: saved.id)
         row = try XCTUnwrap(library.articles().first)
         XCTAssertTrue(row.isFavorite)
-        XCTAssertEqual(ArticleSwipeAction.favorite(for: row).title, "Remove favorite")
+        XCTAssertEqual(ArticleSwipeAction.favorite(for: row).title, "Unfavorite")
         XCTAssertTrue(ArticleLibraryFilter.favorites.includes(row))
 
         try library.toggleFavorite(id: saved.id)
@@ -128,7 +128,7 @@ final class ArticleSwipeActionsTests: XCTestCase {
         try library.toggleArchived(id: saved.id)
         row = try XCTUnwrap(library.articles().first)
         XCTAssertTrue(row.isArchived)
-        XCTAssertEqual(ArticleSwipeAction.archive(for: row).title, "Move to Inbox")
+        XCTAssertEqual(ArticleSwipeAction.archive(for: row).title, "Inbox")
         XCTAssertFalse(ArticleLibraryFilter.all.includes(row))
         XCTAssertTrue(ArticleLibraryFilter.archived.includes(row))
 
