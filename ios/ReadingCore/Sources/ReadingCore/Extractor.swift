@@ -13,18 +13,52 @@ public enum Extractor {
         try doc.select("script, style, nav, header, footer, aside, form, iframe, noscript, svg").remove()
         let root = try doc.select("article").first() ?? doc.select("main").first() ?? doc.body()
         guard let root else { throw LibraryError.noContent }
-        let blocks = try root.select("h1, h2, h3, p, li, pre, blockquote").array()
-        var paragraphs: [String] = []
-        for block in blocks {
-            // Avoid duplicating nested block text (e.g. a paragraph in a blockquote).
-            if try !block.select("p, li, pre, blockquote").array().filter({ $0 !== block }).isEmpty { continue }
-            let text = try block.text().trimmingCharacters(in: .whitespacesAndNewlines)
-            if !text.isEmpty { paragraphs.append(text) }
-        }
-        let text = paragraphs.isEmpty ? try root.text() : paragraphs.joined(separator: "\n\n")
+        let visitor = ArticleTextVisitor()
+        try NodeTraversor(visitor).traverse(root)
+        let text = visitor.finish()
         guard text.count >= 80 else { throw LibraryError.noContent }
         let title = try doc.title()
         return ExtractedArticle(title: title.isEmpty ? String(text.prefix(70)) : title, text: text)
+    }
+}
+
+/// Visit every text node once, including legacy font/table text surrounding semantic blocks.
+private final class ArticleTextVisitor: NodeVisitor {
+    private var paragraphs: [String] = []
+    private var fragments: [String] = []
+    private var preformattedDepth = 0
+
+    func head(_ node: Node, _ depth: Int) throws {
+        if let text = node as? TextNode {
+            fragments.append(text.getWholeText())
+        } else if let element = node as? Element {
+            if element.tagName() == "br", preformattedDepth > 0 {
+                fragments.append("\n")
+                return
+            }
+            if element.isBlock() || element.tagName() == "br" { flush() }
+            if element.tagName() == "pre" { preformattedDepth += 1 }
+        }
+    }
+
+    func tail(_ node: Node, _ depth: Int) throws {
+        guard let element = node as? Element else { return }
+        if element.isBlock() { flush() }
+        if element.tagName() == "pre" { preformattedDepth -= 1 }
+    }
+
+    func finish() -> String {
+        flush()
+        return paragraphs.joined(separator: "\n\n")
+    }
+
+    private func flush() {
+        let raw = fragments.joined()
+        let text = preformattedDepth > 0
+            ? raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            : raw.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        if !text.isEmpty { paragraphs.append(text) }
+        fragments.removeAll(keepingCapacity: true)
     }
 }
 

@@ -14,22 +14,22 @@ struct LibraryView: View {
     @Bindable var model: LibraryModel
     @Environment(ListeningPlayer.self) private var player
     @Environment(AccountAuth.self) private var auth
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showingPlayer = false
     @Environment(\.scenePhase) private var phase
     @State private var search = ""
     @State private var filter = "All"
     @State private var adding = false
     @State private var settings = false
-    @State private var input = ""
-    @State private var addError: String?
+    @State private var savedFeedback: SavedArticleFeedback?
+    @State private var pendingSavedFeedback: SavedArticleFeedback?
     @State private var deleteTarget: Article?
     @State private var exportDocument = LibraryExport(data: Data())
     @State private var exporting = false
 
     private var filtered: [Article] {
         model.articles.filter {
-            (filter != "Unread" || !$0.isRead) && (filter != "Favorites" || $0.isFavorite) &&
-            (filter == "Archived" ? $0.isArchived : !$0.isArchived) &&
+            (ArticleLibraryFilter(rawValue: filter) ?? .all).includes($0) &&
             (search.isEmpty || "\($0.title) \($0.url) \($0.text) \(model.annotationSyncEnabled ? model.noteSearchText[$0.id] ?? "" : $0.note)".localizedCaseInsensitiveContains(search))
         }
     }
@@ -54,7 +54,7 @@ struct LibraryView: View {
                         if let message = model.syncError { Text(message).font(.caption).foregroundStyle(.orange) }
                     }
                     Picker("Library filter", selection: $filter) {
-                        ForEach(["All", "Unread", "Favorites", "Archived"], id: \.self) { Text($0) }
+                        ForEach(ArticleLibraryFilter.allCases, id: \.rawValue) { Text($0.rawValue).tag($0.rawValue) }
                     }.pickerStyle(.segmented)
                 }
                 if filtered.isEmpty {
@@ -77,12 +77,26 @@ struct LibraryView: View {
                             if article.error != nil { Text("Download needs attention").font(.caption).foregroundStyle(.orange) }
                         }.padding(.vertical, 7)
                     }
-                    .swipeActions(edge: .leading) {
-                        Button { model.mutate { try $0.toggleFavorite(id: article.id) } } label: { Label("Favorite", systemImage: "star") }.tint(.orange)
+                    // First button on each edge is the full-swipe action (read / archive).
+                    // Native Label buttons adopt Mail's rounded icon-and-title presentation on iOS 26.
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        Button { model.mutate { try $0.toggleRead(id: article.id) } } label: { Label(ArticleSwipeAction.read(for: article).title, systemImage: ArticleSwipeAction.read(for: article).systemImage) }.tint(.blue).accessibilityLabel(ArticleSwipeAction.read(for: article).accessibilityLabel)
+                        Button { model.mutate { try $0.toggleFavorite(id: article.id) } } label: { Label(ArticleSwipeAction.favorite(for: article).title, systemImage: ArticleSwipeAction.favorite(for: article).systemImage) }.tint(.orange).accessibilityLabel(ArticleSwipeAction.favorite(for: article).accessibilityLabel)
                     }
-                    .swipeActions {
-                        Button(role: .destructive) { deleteTarget = article } label: { Label("Delete", systemImage: "trash") }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button { model.mutate { try $0.toggleArchived(id: article.id) } } label: { Label(ArticleSwipeAction.archive(for: article).title, systemImage: ArticleSwipeAction.archive(for: article).systemImage) }.tint(.gray).accessibilityLabel(ArticleSwipeAction.archive(for: article).accessibilityLabel)
+                        Button(role: .destructive) { deleteTarget = article } label: { Label(ArticleSwipeAction.delete.title, systemImage: ArticleSwipeAction.delete.systemImage) }.accessibilityLabel(ArticleSwipeAction.delete.accessibilityLabel)
                     }
+                }
+            }
+            .safeAreaInset(edge: .top) {
+                if let feedback = savedFeedback,
+                   let article = model.articles.first(where: { $0.id == feedback.articleID }) {
+                    SavedArticleNotice(article: article, wasAlreadySaved: feedback.wasAlreadySaved,
+                                       isDownloading: model.downloading.contains(article.id)) {
+                        withAnimation(saveFeedbackAnimation) { savedFeedback = nil }
+                    }
+                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -96,40 +110,20 @@ struct LibraryView: View {
             }
             .refreshable { await model.resume() }
         }
+        .sensoryFeedback(.success, trigger: savedFeedback?.id) { _, value in value != nil }
         .fullScreenCover(isPresented: $showingPlayer) { ListeningPlayerView(player: player) }
         .task { await model.resume() }
         .onChange(of: phase) { _, value in
             if value == .active { Task { await model.resume() } }
         }
-        .sheet(isPresented: $adding) {
-            NavigationStack {
-                Form {
-                    TextField("Article URL", text: $input, prompt: Text(verbatim: "e.g. https://example.com/article").foregroundStyle(.secondary))
-                        .foregroundStyle(.primary)
-                        .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .accessibilityIdentifier("articleURLInput")
-                    Text("The link is saved first. Downloading text requires internet. Images and PDFs are not downloaded. Audio is prepared when you listen.")
-                        .font(.footnote).foregroundStyle(.secondary)
-                }.navigationTitle("Save a link")
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) { Button("Cancel") { adding = false } }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Save") {
-                                if let article = model.add(input) {
-                                    input = ""; adding = false
-                                    Task { await model.download(article) }
-                                } else {
-                                    addError = model.error ?? "Could not save your link. Please try again."
-                                    model.error = nil
-                                }
-                            }.disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        }
-                    }
+        .onChange(of: model.inboxFeedback?.id) { _, _ in
+            if let feedback = model.inboxFeedback { presentSavedFeedback(feedback) }
+        }
+        .sheet(isPresented: $adding, onDismiss: showSavedFeedback) {
+            SaveArticleSheet(model: model) { article, wasAlreadySaved in
+                pendingSavedFeedback = SavedArticleFeedback(articleID: article.id, wasAlreadySaved: wasAlreadySaved)
+                Task { await model.download(article) }
             }
-            .alert("Could not save link", isPresented: Binding(get: { addError != nil }, set: { if !$0 { addError = nil } })) {
-                Button("OK") { addError = nil }
-            } message: { Text(addError ?? "") }
-            .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $settings) {
             NavigationStack {
@@ -187,5 +181,22 @@ struct LibraryView: View {
                 deleteTarget = nil
             }
         }
+    }
+
+    private var saveFeedbackAnimation: Animation? {
+        reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.85)
+    }
+
+    private func showSavedFeedback() {
+        guard let feedback = pendingSavedFeedback else { return }
+        pendingSavedFeedback = nil
+        presentSavedFeedback(feedback)
+    }
+
+    private func presentSavedFeedback(_ feedback: SavedArticleFeedback) {
+        guard let article = model.articles.first(where: { $0.id == feedback.articleID }) else { return }
+        search = ""
+        filter = article.isArchived ? "Archived" : "All"
+        withAnimation(saveFeedbackAnimation) { savedFeedback = feedback }
     }
 }

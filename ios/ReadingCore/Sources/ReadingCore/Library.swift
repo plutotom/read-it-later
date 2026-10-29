@@ -122,14 +122,15 @@ public enum ArticleURL {
     }
 
     /// Keep failed inbox files for recovery, but do not let one block other shared links.
-    public func importInbox(at directory: URL) throws {
+    public func importInbox(at directory: URL, onImported: ((Article) -> Void)? = nil) throws {
         let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
         var firstError: (any Error)?
         for file in files.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) where file.pathExtension == "json" {
             do {
                 let input = try JSONDecoder().decode(String.self, from: Data(contentsOf: file))
-                try saveURL(input)
+                let article = try saveURL(input)
                 try FileManager.default.removeItem(at: file) // Remove only after durable DB commit.
+                onImported?(article)
             } catch {
                 if firstError == nil { firstError = error }
             }
