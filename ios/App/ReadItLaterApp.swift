@@ -107,7 +107,10 @@ private struct AccountReader: View {
             #endif
             library = try AccountLibrary.open(root: accountRoot, namespace: account.namespace)
             if accountRoot == root, try String(contentsOf: root.appendingPathComponent("legacy-account-owner"), encoding: .utf8) == account.namespace {
-                try ShareInbox.adoptLegacy(namespace: account.namespace)
+                do { try ShareInbox.adoptLegacy(namespace: account.namespace) }
+                catch is ShareInboxError {
+                    // Sharing inbox is optional; keep the library usable.
+                }
             }
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--ui-testing-auth"), account.user.id == "alice@example.invalid", try library?.articles().isEmpty == true {
@@ -200,6 +203,8 @@ private struct AccountReader: View {
         #endif
         do {
             try library?.importInbox(at: ShareInbox.directory(namespace: accountNamespace))
+        } catch is ShareInboxError {
+            // App Group missing in this install; the library still opens.
         } catch { self.error = error.localizedDescription }
         refresh()
     }
