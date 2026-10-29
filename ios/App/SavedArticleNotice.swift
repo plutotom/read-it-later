@@ -1,6 +1,12 @@
 import SwiftUI
 import ReadingCore
 
+struct SavedArticleFeedback {
+    let id = UUID()
+    let articleID: String
+    let wasAlreadySaved: Bool
+}
+
 struct SavedArticleNotice: View {
     let article: Article
     let wasAlreadySaved: Bool

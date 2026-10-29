@@ -23,18 +23,19 @@ struct SaveArticleSheet: View {
                     HStack {
                         PasteButton(payloadType: PastedArticleLink.self) { links in
                             guard let link = links.first else { return }
-                            input = link.value.trimmingCharacters(in: .whitespacesAndNewlines)
+                            save(link.value)
                         }
                         .buttonBorderShape(.capsule)
                         .labelStyle(.titleAndIcon)
-                        .accessibilityLabel("Paste article link")
+                        .accessibilityLabel("Paste and save article link")
+                        .accessibilityHint("Saves the copied link immediately.")
                         .accessibilityIdentifier("pasteArticleLink")
                         Spacer()
                     }
                 } header: {
                     Text("Article link")
                 } footer: {
-                    Text("Paste a copied link or type one above, then tap Save.")
+                    Text("Tap Paste to save your copied link immediately, or type a link and tap Save.")
                 }
                 Section {
                     Label("Save now, read offline later", systemImage: "arrow.down.circle")
@@ -60,7 +61,12 @@ struct SaveArticleSheet: View {
     }
 
     private func save() {
-        guard !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        save(input)
+    }
+
+    private func save(_ value: String) {
+        input = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty else { return }
         let existingIDs = Set(model.articles.map(\.id))
         if let article = model.add(input) {
             onSaved(article, existingIDs.contains(article.id))

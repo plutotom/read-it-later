@@ -65,6 +65,7 @@ private struct AccountReader: View {
     private(set) var syncEnabled = false
     private(set) var annotationSyncEnabled = false
     private(set) var contentRevision = 0
+    private(set) var inboxFeedback: SavedArticleFeedback?
     private(set) var syncing = false
     private(set) var pendingChanges = 0
     private(set) var lastSync: Date?
@@ -135,7 +136,7 @@ private struct AccountReader: View {
     func deactivate() {
         scheduledSync?.cancel(); scheduledSync = nil
         library?.cancelSync()
-        downloadGeneration = UUID(); downloading.removeAll(); articles = []; noteSearchText = [:]; available = false; library = nil
+        downloadGeneration = UUID(); downloading.removeAll(); articles = []; noteSearchText = [:]; inboxFeedback = nil; available = false; library = nil
     }
 
     func refresh() {
@@ -181,10 +182,10 @@ private struct AccountReader: View {
     }
 
     func resume() async {
-        importInbox()
+        let importedIDs = Set(importInbox().map(\.id))
         let generation = downloadGeneration
-        // Sequential, bounded requests. Failed pages retry only on an explicit user action.
-        for article in articles where !article.isDownloaded && article.error == nil && !article.downloadSuppressed {
+        // Re-sharing is an explicit retry; ordinary resumes still leave failed/suppressed downloads alone.
+        for article in articles where importedIDs.contains(article.id) || (!article.isDownloaded && article.error == nil && !article.downloadSuppressed) {
             if Task.isCancelled || generation != downloadGeneration { break }
             await download(article)
         }
@@ -196,17 +197,24 @@ private struct AccountReader: View {
         return mutate { try $0.removeDownloads() }
     }
 
-    func importInbox() {
+    @discardableResult func importInbox() -> [Article] {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing"),
-           !ProcessInfo.processInfo.arguments.contains("--ui-testing-import-inbox") { return }
+           !ProcessInfo.processInfo.arguments.contains("--ui-testing-import-inbox") { return [] }
         #endif
+        let existingIDs = Set(articles.map(\.id))
+        var imported: [Article] = []
         do {
-            try library?.importInbox(at: ShareInbox.directory(namespace: accountNamespace))
+            try library?.importInbox(at: ShareInbox.directory(namespace: accountNamespace)) { imported.append($0) }
         } catch is ShareInboxError {
             // App Group missing in this install; the library still opens.
         } catch { self.error = error.localizedDescription }
         refresh()
+        if let article = imported.last {
+            inboxFeedback = SavedArticleFeedback(articleID: article.id, wasAlreadySaved: existingIDs.contains(article.id))
+            scheduleSync()
+        }
+        return imported
     }
 
     @discardableResult func mutate(_ operation: (Library) throws -> Void) -> Bool {

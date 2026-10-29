@@ -116,10 +116,11 @@ struct LibraryView: View {
         .onChange(of: phase) { _, value in
             if value == .active { Task { await model.resume() } }
         }
+        .onChange(of: model.inboxFeedback?.id) { _, _ in
+            if let feedback = model.inboxFeedback { presentSavedFeedback(feedback) }
+        }
         .sheet(isPresented: $adding, onDismiss: showSavedFeedback) {
             SaveArticleSheet(model: model) { article, wasAlreadySaved in
-                search = ""
-                filter = article.isArchived ? "Archived" : "All"
                 pendingSavedFeedback = SavedArticleFeedback(articleID: article.id, wasAlreadySaved: wasAlreadySaved)
                 Task { await model.download(article) }
             }
@@ -189,12 +190,13 @@ struct LibraryView: View {
     private func showSavedFeedback() {
         guard let feedback = pendingSavedFeedback else { return }
         pendingSavedFeedback = nil
+        presentSavedFeedback(feedback)
+    }
+
+    private func presentSavedFeedback(_ feedback: SavedArticleFeedback) {
+        guard let article = model.articles.first(where: { $0.id == feedback.articleID }) else { return }
+        search = ""
+        filter = article.isArchived ? "Archived" : "All"
         withAnimation(saveFeedbackAnimation) { savedFeedback = feedback }
     }
-}
-
-private struct SavedArticleFeedback {
-    let id = UUID()
-    let articleID: String
-    let wasAlreadySaved: Bool
 }

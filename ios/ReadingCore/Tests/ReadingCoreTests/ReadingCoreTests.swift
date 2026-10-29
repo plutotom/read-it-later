@@ -18,7 +18,12 @@ final class ReadingCoreTests: XCTestCase {
         try Data("{broken".utf8).write(to: bad)
         try JSONEncoder().encode("https://example.com/saved#section").write(to: duplicate)
         try JSONEncoder().encode("https://example.com/new").write(to: fresh)
-        XCTAssertThrowsError(try library.importInbox(at: root))
+        var imported: [Article] = []
+        XCTAssertThrowsError(try library.importInbox(at: root) { imported.append($0) })
+        XCTAssertEqual(imported.count, 2)
+        XCTAssertEqual(imported.first?.id, existing.id)
+        XCTAssertEqual(imported.last?.url, "https://example.com/new")
+        XCTAssertEqual(Set(imported.map(\.id)), Set(try Library(path: path).articles().map(\.id)))
         XCTAssertEqual(try library.articles().count, 2)
         XCTAssertEqual(try Library(path: path).articles().count, 2)
         XCTAssertTrue(FileManager.default.fileExists(atPath: bad.path))
