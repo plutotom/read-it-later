@@ -46,9 +46,9 @@ jobs:
     timeout-minutes: 60
     env:
       # Last committed CURRENT_PROJECT_VERSION in ios/project.yml was 8.
-      # Run 4 uploaded build 11 without App Groups in the signed IPA, so the
-      # next run is CFBundleVersion 12 (offset 7 + run 5).
-      TESTFLIGHT_BUILD_OFFSET: "7"
+      # Run 5 computed build 12 but failed the entitlements dump before
+      # upload, so offset is 6 until the next successful run (run 6 → 12).
+      TESTFLIGHT_BUILD_OFFSET: "6"
       APP_GROUP: group.com.isaiahproctor.readitlater
       APPLE_TEAM_ID: 3CVY7K9AJ6
 
@@ -393,6 +393,7 @@ jobs:
           import plistlib
           import subprocess
           import sys
+          import tempfile
 
           expected = os.environ["APP_GROUP"]
           archive = pathlib.Path(os.environ["RUNNER_TEMP"]) / "PaperDrive.xcarchive"
@@ -405,21 +406,28 @@ jobs:
               sys.exit(1)
 
           def groups_from_codesign(bundle: pathlib.Path) -> list[str]:
-              dumped = subprocess.run(
-                  ["codesign", "-d", "--entitlements", "-", str(bundle)],
-                  check=False,
-                  capture_output=True,
-              )
-              raw = dumped.stdout or dumped.stderr
-              if not raw:
-                  fail(f"{bundle.name} codesign printed no entitlements")
+              # Xcode 26 `codesign -d --entitlements -` writes a [Dict] text dump,
+              # not a plist. --xml writes a real property list.
+              with tempfile.NamedTemporaryFile(suffix=".plist", delete=False) as handle:
+                  path = pathlib.Path(handle.name)
               try:
-                  entitlements = plistlib.loads(raw)
-              except Exception:
-                  start = raw.find(b"<?xml")
-                  if start < 0:
-                      fail(f"{bundle.name} codesign entitlements are not a plist")
-                  entitlements = plistlib.loads(raw[start:])
+                  dumped = subprocess.run(
+                      [
+                          "codesign",
+                          "-d",
+                          "--entitlements",
+                          str(path),
+                          "--xml",
+                          str(bundle),
+                      ],
+                      check=False,
+                      capture_output=True,
+                  )
+                  if dumped.returncode != 0 or not path.is_file() or path.stat().st_size == 0:
+                      fail(f"{bundle.name} codesign printed no entitlements")
+                  entitlements = plistlib.loads(path.read_bytes())
+              finally:
+                  path.unlink(missing_ok=True)
               groups = entitlements.get("com.apple.security.application-groups") or []
               if not isinstance(groups, list):
                   fail(f"{bundle.name} application-groups is {groups!r}")
@@ -503,15 +511,26 @@ jobs:
                       return plistlib.loads(raw[start:])
 
               def codesign_groups(bundle: pathlib.Path) -> list[str]:
-                  dumped = subprocess.run(
-                      ["codesign", "-d", "--entitlements", "-", str(bundle)],
-                      check=False,
-                      capture_output=True,
-                  )
-                  raw = dumped.stdout or dumped.stderr
-                  if not raw:
-                      fail(f"{bundle.name} IPA codesign printed no entitlements")
-                  entitlements = load_plist(raw)
+                  with tempfile.NamedTemporaryFile(suffix=".plist", delete=False) as handle:
+                      path = pathlib.Path(handle.name)
+                  try:
+                      dumped = subprocess.run(
+                          [
+                              "codesign",
+                              "-d",
+                              "--entitlements",
+                              str(path),
+                              "--xml",
+                              str(bundle),
+                          ],
+                          check=False,
+                          capture_output=True,
+                      )
+                      if dumped.returncode != 0 or not path.is_file() or path.stat().st_size == 0:
+                          fail(f"{bundle.name} IPA codesign printed no entitlements")
+                      entitlements = load_plist(path.read_bytes())
+                  finally:
+                      path.unlink(missing_ok=True)
                   groups = entitlements.get("com.apple.security.application-groups") or []
                   if not isinstance(groups, list):
                       fail(f"{bundle.name} IPA application-groups is {groups!r}")
