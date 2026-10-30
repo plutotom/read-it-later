@@ -44,13 +44,7 @@ public struct ArticleContextAction: Equatable, Sendable {
     )
 
     public static func shareURL(for article: Article) -> URL? {
-        guard let url = URL(string: article.url),
-              let scheme = url.scheme?.lowercased(),
-              ["http", "https"].contains(scheme),
-              let host = url.host, !host.isEmpty,
-              url.user == nil, url.password == nil
-        else { return nil }
-        return url
+        ArticleWebURL.parse(article.url)
     }
 
     public static func copyLinkValue(for article: Article) -> String {
