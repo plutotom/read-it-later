@@ -87,6 +87,8 @@ struct LibraryView: View {
                         Button { model.mutate { try $0.toggleArchived(id: article.id) } } label: { Label(ArticleSwipeAction.archive(for: article).title, systemImage: ArticleSwipeAction.archive(for: article).systemImage) }.tint(.gray).accessibilityLabel(ArticleSwipeAction.archive(for: article).accessibilityLabel)
                         Button(role: .destructive) { deleteTarget = article } label: { Label(ArticleSwipeAction.delete.title, systemImage: ArticleSwipeAction.delete.systemImage) }.accessibilityLabel(ArticleSwipeAction.delete.accessibilityLabel)
                     }
+                    // Press-and-hold: Share, Copy link, Delete. Delete uses the same confirmation as swipe.
+                    .articleContextMenu(article: article) { deleteTarget = article }
                 }
             }
             .safeAreaInset(edge: .top) {
