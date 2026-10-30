@@ -21,15 +21,15 @@ extension View {
                 }
                 .accessibilityLabel(ArticleContextAction.share.accessibilityLabel)
                 .accessibilityIdentifier("articleContextShare")
+                Button {
+                    ArticleLinkPasteboard.copy(article)
+                } label: {
+                    Label(ArticleContextAction.copyLink.title, systemImage: ArticleContextAction.copyLink.systemImage)
+                }
+                .accessibilityLabel(ArticleContextAction.copyLink.accessibilityLabel)
+                .accessibilityIdentifier("articleContextCopyLink")
+                Divider()
             }
-            Button {
-                ArticleLinkPasteboard.copy(article)
-            } label: {
-                Label(ArticleContextAction.copyLink.title, systemImage: ArticleContextAction.copyLink.systemImage)
-            }
-            .accessibilityLabel(ArticleContextAction.copyLink.accessibilityLabel)
-            .accessibilityIdentifier("articleContextCopyLink")
-            Divider()
             Button(role: .destructive, action: onDelete) {
                 Label(ArticleContextAction.delete.title, systemImage: ArticleContextAction.delete.systemImage)
             }

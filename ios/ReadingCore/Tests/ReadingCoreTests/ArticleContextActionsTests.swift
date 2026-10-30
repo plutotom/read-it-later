@@ -32,10 +32,13 @@ final class ArticleContextActionsTests: XCTestCase {
     }
 
     func testShareIsOmittedWhenURLCannotBeOpened() {
-        XCTAssertNil(ArticleContextAction.shareURL(for: article(url: "")))
+        for value in ["", "http:story", "https:///", "https://user:password@example.com", "text://draft"] {
+            XCTAssertNil(ArticleContextAction.shareURL(for: article(url: value)))
+            XCTAssertEqual(ArticleContextAction.all(for: article(url: value)).map(\.kind), [.delete])
+        }
         XCTAssertNil(ArticleContextAction.shareURL(for: article(url: "not a url")))
         XCTAssertNil(ArticleContextAction.shareURL(for: article(url: "ftp://example.com/file")))
-        XCTAssertEqual(ArticleContextAction.all(for: article(url: "")).map(\.kind), [.copyLink, .delete])
+        XCTAssertEqual(ArticleContextAction.all(for: article(url: "")).map(\.kind), [.delete])
     }
 
     func testCopyLinkUsesSavedURLString() {

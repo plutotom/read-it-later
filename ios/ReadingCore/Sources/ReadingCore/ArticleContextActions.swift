@@ -1,7 +1,7 @@
 import Foundation
 
 /// Home-list press-and-hold actions: Share, Copy link, Delete.
-/// Share is omitted when the saved URL cannot be opened as a link.
+/// Link actions are omitted for drafts, non-web URLs, and URLs containing credentials.
 public struct ArticleContextAction: Equatable, Sendable {
     public enum Kind: String, Sendable { case share, copyLink, delete }
 
@@ -12,9 +12,9 @@ public struct ArticleContextAction: Equatable, Sendable {
     public let isDestructive: Bool
 
     public static func all(for article: Article) -> [ArticleContextAction] {
-        var actions: [ArticleContextAction] = [copyLink, delete]
+        var actions: [ArticleContextAction] = [delete]
         if shareURL(for: article) != nil {
-            actions.insert(share, at: 0)
+            actions.insert(contentsOf: [share, copyLink], at: 0)
         }
         return actions
     }
@@ -46,7 +46,9 @@ public struct ArticleContextAction: Equatable, Sendable {
     public static func shareURL(for article: Article) -> URL? {
         guard let url = URL(string: article.url),
               let scheme = url.scheme?.lowercased(),
-              ["http", "https"].contains(scheme)
+              ["http", "https"].contains(scheme),
+              let host = url.host, !host.isEmpty,
+              url.user == nil, url.password == nil
         else { return nil }
         return url
     }

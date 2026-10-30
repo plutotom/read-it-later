@@ -425,6 +425,23 @@ final class ReadingUITests: XCTestCase {
         XCTAssertFalse(expand.exists)
     }
 
+    @MainActor func testArticleContextMenuDeleteCanBeCancelled() throws {
+        let app = launchFreshApp()
+        let article = app.staticTexts["An offline test article"]
+        XCTAssertTrue(article.waitForExistence(timeout: 15))
+        article.press(forDuration: 1)
+        XCTAssertTrue(app.buttons["articleContextShare"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["articleContextCopyLink"].exists)
+        let menu = XCTAttachment(screenshot: app.screenshot())
+        menu.name = "Article context menu"
+        menu.lifetime = .keepAlways
+        add(menu)
+        app.buttons["articleContextDelete"].tap()
+        XCTAssertTrue(app.buttons["Cancel"].waitForExistence(timeout: 5))
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(article.exists)
+    }
+
     @MainActor func testOfflineReaderAndNote() throws {
         let app = launchFreshApp()
         let article = app.staticTexts["An offline test article"]
