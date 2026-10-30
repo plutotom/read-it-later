@@ -149,6 +149,8 @@ private struct OriginalWebsiteWebView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
+        // Publisher sessions must not persist across readers or signed-in app accounts.
+        configuration.websiteDataStore = .nonPersistent()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.allowsInlineMediaPlayback = true
         let view = WKWebView(frame: .zero, configuration: configuration)
@@ -181,7 +183,7 @@ private struct OriginalWebsiteWebView: UIViewRepresentable {
             reloadToken = parent.reloadToken
         }
 
-        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
             let isMainFrame = navigationAction.targetFrame?.isMainFrame ?? true
             decisionHandler(ArticleWebURL.decision(for: navigationAction.request.url, isMainFrame: isMainFrame) == .allow ? .allow : .cancel)
         }
