@@ -447,10 +447,26 @@ final class ReadingUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["An offline note"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Read"].exists)
         app.buttons["Reading options"].tap()
+        XCTAssertTrue(app.buttons["View original site"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Remove favorite"].waitForExistence(timeout: 5))
         app.buttons["Remove favorite"].tap()
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Offline reader with note"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    @MainActor func testReadingOptionsOffersViewOriginalSite() throws {
+        let app = launchFreshApp()
+        let article = app.staticTexts["An offline test article"]
+        XCTAssertTrue(article.waitForExistence(timeout: 15))
+        article.tap()
+        XCTAssertTrue(app.buttons["Reading options"].waitForExistence(timeout: 5))
+        app.buttons["Reading options"].tap()
+        XCTAssertTrue(app.buttons["View original site"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Favorite"].exists)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Reading options with View original site"
         attachment.lifetime = .keepAlways
         add(attachment)
     }

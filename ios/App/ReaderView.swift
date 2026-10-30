@@ -5,6 +5,7 @@ struct ReaderView: View {
     @Bindable var model: LibraryModel
     @Environment(ListeningPlayer.self) private var player
     @Environment(SpeechSetup.self) private var speech
+    @Environment(\.openURL) private var openURL
     let id: String
     let expandPlayer: () -> Void
     @AppStorage("readerSize") private var readerSize = 19.0
@@ -84,7 +85,7 @@ struct ReaderView: View {
                             Button { Task { await model.restoreDownloadedText(id) } } label: { Label("Restore saved text", systemImage: "arrow.down.doc") }
                                 .buttonStyle(.bordered).accessibilityIdentifier("restoreSavedText")
                         }
-                        if (!article.isDownloaded || article.error != nil), let source = URL(string: article.url), ["http", "https"].contains(source.scheme?.lowercased() ?? "") {
+                        if (!article.isDownloaded || article.error != nil), ArticleOriginalSite.url(from: article.url) != nil {
                             Button { Task { await model.download(article) } } label: {
                                 if model.downloading.contains(id) { ProgressView() } else { Label("Download text", systemImage: "arrow.down.circle") }
                             }.buttonStyle(.borderedProminent).disabled(model.downloading.contains(id))
@@ -109,7 +110,7 @@ struct ReaderView: View {
                             Text("Your note").font(.headline)
                             Text(article.note).textSelection(.enabled)
                         }
-                        if let url = URL(string: article.url), ["http", "https"].contains(url.scheme?.lowercased() ?? "") { Link("Open original website", destination: url) }
+                        if let url = ArticleOriginalSite.url(from: article.url) { Link("Open original website", destination: url) }
                     }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .toolbar {
@@ -121,6 +122,10 @@ struct ReaderView: View {
                             Button(model.annotationSyncEnabled ? "Add a note" : "Edit note", systemImage: "square.and.pencil") { beginNote(article: article) }
                             if model.syncEnabled {
                                 Button("Saved text versions", systemImage: "clock.arrow.circlepath") { snapshots = model.textSnapshots(id); showingSnapshots = true }
+                            }
+                            if let url = ArticleOriginalSite.url(from: article.url) {
+                                Button("View original site", systemImage: "safari") { openURL(url) }
+                                    .accessibilityIdentifier("viewOriginalSite")
                             }
                             Button("Larger text", systemImage: "textformat.size.larger") { readerSize = min(30, readerSize + 2) }
                             Button("Smaller text", systemImage: "textformat.size.smaller") { readerSize = max(15, readerSize - 2) }
