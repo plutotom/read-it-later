@@ -13,8 +13,20 @@ final class ArticleOriginalSiteTests: XCTestCase {
         )
     }
 
+    func testNormalizesSchemeAndPreservesPublisherLocation() {
+        XCTAssertEqual(
+            ArticleOriginalSite.url(from: "HTTPS://example.com:8443/story%20one?q=a%26b#section")?.absoluteString,
+            "https://example.com:8443/story%20one?q=a%26b#section"
+        )
+    }
+
     func testRejectsNonWebAndCredentialedLinks() {
         for input in [
+            "https:///",
+            "https://",
+            "https://:password@example.com/",
+            "https://@example.com/",
+            "mailto:reader@example.com",
             "javascript:alert(1)",
             "file:///etc/passwd",
             "text://manual-fixture",
