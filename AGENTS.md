@@ -44,6 +44,20 @@ Then, for anything touching auth, data, or UI: push the branch, wait for the
 **Vercel preview deployment**, and verify the preview link before sharing it (see
 the preview-auth acceptance test below).
 
+## CI / GitHub Actions minutes
+
+macOS Actions minutes are limited, so the iOS workflows are **explicit-use only**:
+
+- **`TestFlight`** (`testflight.yml`) is for **cutting a release** only, run manually
+  after a batch of PRs is merged: `gh workflow run TestFlight --ref main`.
+- **`iOS preview`** (`ios.yml`) is an on-demand build/test check, run **only when a
+  human explicitly asks** (e.g. the laptop isn't available):
+  `gh workflow run "iOS preview" --ref <branch>`.
+- iOS validation normally happens **locally** on the maintainer's MacBook (Xcode / T3 Code).
+- Do **not** trigger, re-run, or add `push`/`pull_request` triggers to these workflows
+  unless explicitly asked. Don't re-enable a disabled workflow on your own.
+- `ci.yml` (web checks on Ubuntu) runs on PRs as normal.
+
 ## The goal this repo is set up for
 
 Agent makes a change → pushes a branch → CI goes green → Vercel builds a preview →

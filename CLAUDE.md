@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CI / GitHub Actions minutes
+
+iOS workflows (`TestFlight`, `iOS preview`) are manual, explicit-use only to save limited macOS minutes. Don't trigger or add automatic triggers unless asked. See AGENTS.md.
+
 ## What this is
 
 A self-hosted "read it later" app (T3 stack): save article URLs, extract clean readable content, organize into folders, highlight/annotate, listen via text-to-speech, and sync to external clients. The `.cursor/rules/main.mdc` file mislabels this as a "job board" — ignore that; it's stale boilerplate.
