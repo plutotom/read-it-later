@@ -45,13 +45,8 @@ final class ArticleWebURLTests: XCTestCase {
         XCTAssertTrue(ArticleWebURL.canLoadInApp(urlString: "http://localhost:4114/article"))
         XCTAssertTrue(ArticleWebURL.canLoadInApp(urlString: "http://127.0.0.1/article"))
         XCTAssertTrue(ArticleWebURL.canLoadInApp(urlString: "http://[::1]/article"))
-        var ipv6 = URLComponents()
-        ipv6.scheme = "http"
-        ipv6.host = "::1"
-        ipv6.path = "/article"
-        let ipv6URL = try XCTUnwrap(ipv6.url)
-        XCTAssertEqual(ArticleWebURL.decision(for: ipv6URL), .allow)
-        XCTAssertEqual(ArticleWebURL.decision(for: URL(string: "http://[::1]/article")), .allow)
+        let ipv6 = try XCTUnwrap(ArticleWebURL.parse("http://[::1]/article"))
+        XCTAssertEqual(ArticleWebURL.decision(for: ipv6), .allow)
         XCTAssertEqual(ArticleWebURL.decision(for: URL(string: "http://localhost/")), .allow)
     }
 
