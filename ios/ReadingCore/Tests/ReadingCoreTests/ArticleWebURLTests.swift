@@ -41,7 +41,7 @@ final class ArticleWebURLTests: XCTestCase {
         XCTAssertEqual(ArticleWebURL.decision(for: URL(string: "http://example.com/article")), .cancel)
     }
 
-    func testLoopbackHTTPCanLoadInApp() {
+    func testLoopbackHTTPCanLoadInApp() throws {
         XCTAssertTrue(ArticleWebURL.canLoadInApp(urlString: "http://localhost:4114/article"))
         XCTAssertTrue(ArticleWebURL.canLoadInApp(urlString: "http://127.0.0.1/article"))
         XCTAssertTrue(ArticleWebURL.canLoadInApp(urlString: "http://[::1]/article"))
