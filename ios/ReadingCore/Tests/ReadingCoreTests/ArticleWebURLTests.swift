@@ -44,11 +44,14 @@ final class ArticleWebURLTests: XCTestCase {
     func testLoopbackHTTPCanLoadInApp() {
         XCTAssertTrue(ArticleWebURL.canLoadInApp(urlString: "http://localhost:4114/article"))
         XCTAssertTrue(ArticleWebURL.canLoadInApp(urlString: "http://127.0.0.1/article"))
+        XCTAssertTrue(ArticleWebURL.canLoadInApp(urlString: "http://[::1]/article"))
         var ipv6 = URLComponents()
         ipv6.scheme = "http"
         ipv6.host = "::1"
         ipv6.path = "/article"
-        XCTAssertEqual(ArticleWebURL.decision(for: ipv6.url), .allow)
+        let ipv6URL = try XCTUnwrap(ipv6.url)
+        XCTAssertEqual(ArticleWebURL.decision(for: ipv6URL), .allow)
+        XCTAssertEqual(ArticleWebURL.decision(for: URL(string: "http://[::1]/article")), .allow)
         XCTAssertEqual(ArticleWebURL.decision(for: URL(string: "http://localhost/")), .allow)
     }
 

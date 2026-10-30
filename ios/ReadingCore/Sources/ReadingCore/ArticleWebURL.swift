@@ -21,7 +21,7 @@ public enum ArticleWebURL {
         if let parsed = parse(url.absoluteString) {
             return canLoadParsedInApp(parsed)
         }
-        guard url.user == nil, url.password == nil, let host = url.host, !host.isEmpty else { return false }
+        guard url.user == nil, url.password == nil, let host = host(of: url), !host.isEmpty else { return false }
         return canLoadParsedInApp(url)
     }
 
@@ -49,10 +49,15 @@ public enum ArticleWebURL {
         case "https":
             return true
         case "http":
-            return isLoopbackHost(url.host)
+            return isLoopbackHost(host(of: url))
         default:
             return false
         }
+    }
+
+    /// `URL.host` is nil for IPv6 literals such as `http://[::1]/`; `URLComponents.host` keeps `::1`.
+    private static func host(of url: URL) -> String? {
+        URLComponents(url: url, resolvingAgainstBaseURL: false)?.host ?? url.host
     }
 
     private static func isLoopbackHost(_ host: String?) -> Bool {
