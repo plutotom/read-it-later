@@ -34,7 +34,10 @@ public enum ArticleWebURL {
     public static func decision(for url: URL?, isMainFrame: Bool = true) -> ArticleWebNavigationDecision {
         let scheme = url?.scheme?.lowercased()
         if !isMainFrame {
-            if scheme == nil || ["http", "https", "about", "blob", "data"].contains(scheme ?? "") {
+            if ["http", "https"].contains(scheme ?? "") {
+                return url.flatMap { parse($0.absoluteString) } == nil ? .cancel : .allow
+            }
+            if ["about", "blob", "data"].contains(scheme ?? "") {
                 return .allow
             }
             return .cancel
@@ -81,3 +84,21 @@ public enum ArticleWebViewHintStore {
         seenArticleIDs.removeAll()
     }
 }
+
+#if canImport(WebKit)
+import WebKit
+
+/// Every viewer receives a fresh ephemeral publisher session.
+@MainActor
+public enum ArticleWebsiteConfiguration {
+    public static func make() -> WKWebViewConfiguration {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        #if os(iOS)
+        configuration.allowsInlineMediaPlayback = true
+        #endif
+        return configuration
+    }
+}
+#endif

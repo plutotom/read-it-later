@@ -157,7 +157,7 @@ struct ReaderView: View {
                                 Button("Larger text", systemImage: "textformat.size.larger") { readerSize = min(30, readerSize + 2) }
                                 Button("Smaller text", systemImage: "textformat.size.smaller") { readerSize = max(15, readerSize - 2) }
                             }
-                            if let url = URL(string: article.url) { ShareLink(item: url) }
+                            if let url = ArticleWebURL.parse(article.url) { ShareLink(item: url) }
                         } label: { Label("Reading options", systemImage: "ellipsis.circle") }
                     }
                 }

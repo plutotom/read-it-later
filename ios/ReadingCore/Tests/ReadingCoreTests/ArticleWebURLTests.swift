@@ -34,6 +34,15 @@ final class ArticleWebURLTests: XCTestCase {
         XCTAssertEqual(ArticleWebURL.decision(for: URL(string: "file:///etc/passwd")), .cancel)
     }
 
+    func testCredentialSubframesAndExternalSchemesAreRejected() {
+        for value in ["https://user:secret@example.com/", "https://user@example.com/", "tel:123", "mailto:a@example.com", "file:///tmp/a"] {
+            XCTAssertEqual(ArticleWebURL.decision(for: URL(string: value), isMainFrame: false), .cancel, value)
+            XCTAssertEqual(ArticleWebURL.decision(for: URL(string: value)), .cancel, value)
+        }
+        XCTAssertEqual(ArticleWebURL.decision(for: nil, isMainFrame: false), .cancel)
+        XCTAssertFalse(ArticleWebURL.canLoadInApp(urlString: "http://localhost.evil.example/"))
+    }
+
     func testHTTPSLoadsInAppAndPlainHTTPDoesNot() {
         XCTAssertTrue(ArticleWebURL.canLoadInApp(urlString: "https://example.com/offline"))
         XCTAssertEqual(ArticleWebURL.decision(for: URL(string: "https://example.com/offline")), .allow)
@@ -59,3 +68,16 @@ final class ArticleWebURLTests: XCTestCase {
         XCTAssertTrue(ArticleWebViewHintStore.consumeFirstVisit(articleID: "article-a"))
     }
 }
+
+#if canImport(WebKit)
+import WebKit
+extension ArticleWebURLTests {
+    @MainActor func testPublisherStoresAreEphemeralAndSeparate() {
+        let first = ArticleWebsiteConfiguration.make()
+        let second = ArticleWebsiteConfiguration.make()
+        XCTAssertFalse(first.websiteDataStore.isPersistent)
+        XCTAssertFalse(second.websiteDataStore.isPersistent)
+        XCTAssertFalse(first.websiteDataStore === second.websiteDataStore)
+    }
+}
+#endif
