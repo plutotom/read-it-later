@@ -1,16 +1,14 @@
+# iOS preview: on-demand build/test check, NOT a PR check.
+#
+# POLICY: explicit-use only. GitHub Actions macOS minutes are limited.
+# Normal iOS validation happens locally on the maintainer's MacBook (Xcode / T3 Code).
+# Agents: do NOT trigger, re-run, or add push/pull_request triggers to this
+# workflow unless a human explicitly asks. See AGENTS.md "CI / GitHub Actions minutes".
+
 name: iOS preview
 on:
-  push:
-    branches: [feature/native-ios-rebuild]
-    paths:
-      - "ios/**"
-      - ".github/workflows/ios.yml"
-      - "!ios/**/*.md"
-  pull_request:
-    paths:
-      - "ios/**"
-      - ".github/workflows/ios.yml"
-      - "!ios/**/*.md"
+  # Manual only: run when a human asks for an on-demand iOS check
+  # (e.g. laptop unavailable): gh workflow run "iOS preview" --ref <branch>
   workflow_dispatch:
 concurrency:
   group: ios-${{ github.event_name }}-${{ github.head_ref || github.ref }}

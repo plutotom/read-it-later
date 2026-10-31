@@ -1,3 +1,10 @@
+# TestFlight: RELEASE ONLY. Not for previews or build checks.
+#
+# POLICY: explicit-use only. GitHub Actions macOS minutes are limited.
+# Normal iOS validation happens locally on the maintainer's MacBook (Xcode / T3 Code).
+# Agents: do NOT trigger, re-run, or add push/pull_request triggers to this
+# workflow unless a human explicitly asks. See AGENTS.md "CI / GitHub Actions minutes".
+#
 # Archive Paper Drive and upload it to TestFlight for internal testing.
 #
 # iOS 26's xcodebuild archive rejects ad-hoc device signing, so the archive is
@@ -24,12 +31,8 @@
 name: TestFlight
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "ios/**"
-      - ".github/workflows/testflight.yml"
-      - "!ios/**/*.md"
+  # Manual only: releases are cut deliberately, batching several merged PRs.
+  #   gh workflow run TestFlight --ref main
   workflow_dispatch:
 
 concurrency:

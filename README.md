@@ -108,6 +108,13 @@ To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the fo
 
 You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
 
+## CI & releases
+
+- Web checks (`ci.yml`) run on every PR.
+- iOS validation is normally done locally (Xcode). The macOS workflows are manual-only to save limited Actions minutes:
+  - Cut a TestFlight release (after merging a batch of PRs): `gh workflow run TestFlight --ref main`
+  - On-demand iOS build check (only when asked, e.g. no laptop): `gh workflow run "iOS preview" --ref <branch>`
+
 ## How do I deploy this?
 
 Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
