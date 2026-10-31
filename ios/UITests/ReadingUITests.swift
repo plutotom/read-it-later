@@ -425,6 +425,65 @@ final class ReadingUITests: XCTestCase {
         XCTAssertFalse(expand.exists)
     }
 
+    @MainActor func testArticleContextMenuDeleteCanBeCancelled() throws {
+        let app = launchFreshApp()
+        let article = app.staticTexts["An offline test article"]
+        XCTAssertTrue(article.waitForExistence(timeout: 15))
+        article.press(forDuration: 1)
+        XCTAssertTrue(app.buttons["articleContextShare"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["articleContextCopyLink"].exists)
+        let menu = XCTAttachment(screenshot: app.screenshot())
+        menu.name = "Article context menu"
+        menu.lifetime = .keepAlways
+        add(menu)
+        app.buttons["articleContextDelete"].tap()
+        XCTAssertTrue(app.buttons["Cancel"].waitForExistence(timeout: 5))
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(article.exists)
+    }
+
+    @MainActor func testOriginalWebsiteViewerTogglesFromReaderAndPausesPreview() throws {
+        let app = launchFreshApp()
+        let article = app.staticTexts["An offline test article"]
+        XCTAssertTrue(article.waitForExistence(timeout: 15))
+        article.tap()
+        XCTAssertTrue(app.textViews["articleText"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.webViews["originalWebsite"].exists)
+        app.buttons["startListening"].tap()
+        XCTAssertTrue(app.buttons["Pause preview"].waitForExistence(timeout: 5))
+        app.buttons["Reading options"].tap()
+        let web = app.buttons["Switch to Web view"]
+        XCTAssertTrue(web.waitForExistence(timeout: 5))
+        web.tap()
+        if app.buttons["dismissWebViewTip"].waitForExistence(timeout: 3) {
+            app.buttons["dismissWebViewTip"].tap()
+        }
+        XCTAssertTrue(app.webViews["originalWebsite"].waitForExistence(timeout: 20))
+        XCTAssertTrue(app.buttons["openOriginalWebsite"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["reloadOriginalWebsite"].exists)
+        XCTAssertTrue(app.staticTexts["websiteHost"].exists)
+        XCTAssertTrue(app.staticTexts["websiteTitle"].exists)
+        XCTAssertTrue(app.buttons["Back in website"].exists)
+        XCTAssertTrue(app.buttons["Forward in website"].exists)
+        XCTAssertFalse(app.buttons["Forward in website"].isEnabled)
+        XCTAssertTrue(app.buttons["Share website"].exists)
+        app.buttons["reloadOriginalWebsite"].tap()
+        XCTAssertFalse(app.textViews["articleText"].isHittable)
+        XCTAssertFalse(app.buttons["startListening"].exists)
+        XCTAssertFalse(app.buttons["Pause preview"].exists)
+        app.buttons["Reading options"].tap()
+        XCTAssertTrue(app.buttons["Switch to Reader view"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Larger text"].exists)
+        app.buttons["Switch to Reader view"].tap()
+        XCTAssertTrue(app.textViews["articleText"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.webViews["originalWebsite"].exists)
+        XCTAssertTrue(app.buttons["Play preview"].waitForExistence(timeout: 5) || app.buttons["expandPlayer"].waitForExistence(timeout: 5))
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Reader restored after original website"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     @MainActor func testOfflineReaderAndNote() throws {
         let app = launchFreshApp()
         let article = app.staticTexts["An offline test article"]
@@ -447,10 +506,26 @@ final class ReadingUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["An offline note"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Read"].exists)
         app.buttons["Reading options"].tap()
+        XCTAssertTrue(app.buttons["View original site"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Remove favorite"].waitForExistence(timeout: 5))
         app.buttons["Remove favorite"].tap()
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Offline reader with note"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    @MainActor func testReadingOptionsOffersViewOriginalSite() throws {
+        let app = launchFreshApp()
+        let article = app.staticTexts["An offline test article"]
+        XCTAssertTrue(article.waitForExistence(timeout: 15))
+        article.tap()
+        XCTAssertTrue(app.buttons["Reading options"].waitForExistence(timeout: 5))
+        app.buttons["Reading options"].tap()
+        XCTAssertTrue(app.buttons["View original site"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Favorite"].exists)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Reading options with View original site"
         attachment.lifetime = .keepAlways
         add(attachment)
     }

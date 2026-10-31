@@ -5,6 +5,7 @@ struct ReaderView: View {
     @Bindable var model: LibraryModel
     @Environment(ListeningPlayer.self) private var player
     @Environment(SpeechSetup.self) private var speech
+    @Environment(\.openURL) private var openURL
     let id: String
     let expandPlayer: () -> Void
     @AppStorage("readerSize") private var readerSize = 19.0
@@ -24,7 +25,11 @@ struct ReaderView: View {
     @State private var highlightError: String?
     @State private var followVisibility: SpokenTextFollowVisibility = .hidden
     @State private var followToken = 0
+    @State private var showingOriginalWebsite = false
+    @State private var showWebViewHint = false
     private var article: Article? { model.articles.first { $0.id == id } }
+    private var originalWebsiteURL: URL? { article.flatMap { ArticleWebURL.parse($0.url) } }
+    private var isWebView: Bool { showingOriginalWebsite && originalWebsiteURL != nil }
     private var spokenAnchor: SpokenTextAnchor? { player.spokenTextAnchor(forArticleID: id) }
     private var showSpokenFollowButton: Bool {
         SpokenTextScroll.shouldShowButton(
@@ -36,6 +41,7 @@ struct ReaderView: View {
     var body: some View {
         Group {
             if let article {
+                ZStack {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
                         Text(URL(string: article.url)?.host ?? "Article").font(.subheadline).foregroundStyle(.secondary)
@@ -84,7 +90,7 @@ struct ReaderView: View {
                             Button { Task { await model.restoreDownloadedText(id) } } label: { Label("Restore saved text", systemImage: "arrow.down.doc") }
                                 .buttonStyle(.bordered).accessibilityIdentifier("restoreSavedText")
                         }
-                        if (!article.isDownloaded || article.error != nil), let source = URL(string: article.url), ["http", "https"].contains(source.scheme?.lowercased() ?? "") {
+                        if (!article.isDownloaded || article.error != nil), ArticleOriginalSite.url(from: article.url) != nil {
                             Button { Task { await model.download(article) } } label: {
                                 if model.downloading.contains(id) { ProgressView() } else { Label("Download text", systemImage: "arrow.down.circle") }
                             }.buttonStyle(.borderedProminent).disabled(model.downloading.contains(id))
@@ -109,12 +115,38 @@ struct ReaderView: View {
                             Text("Your note").font(.headline)
                             Text(article.note).textSelection(.enabled)
                         }
-                        if let url = URL(string: article.url), ["http", "https"].contains(url.scheme?.lowercased() ?? "") { Link("Open original website", destination: url) }
+                        if let url = ArticleWebURL.parse(article.url) { Link("Open original website", destination: url) }
                     }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .opacity(isWebView ? 0 : 1)
+                .allowsHitTesting(!isWebView)
+                .accessibilityHidden(isWebView)
+                if isWebView, let url = originalWebsiteURL {
+                    ArticleWebsiteView(
+                        url: url,
+                        title: article.title,
+                        showEmbeddingHint: showWebViewHint,
+                        onDismissEmbeddingHint: { showWebViewHint = false }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.background)
+                }
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
+                            if originalWebsiteURL != nil {
+                                if isWebView {
+                                    Button("Switch to Reader view", systemImage: "book") {
+                                        showWebViewHint = false
+                                        showingOriginalWebsite = false
+                                    }
+                                    .accessibilityIdentifier("switchArticleView")
+                                } else {
+                                    Button("Switch to Web view", systemImage: "globe") { showOriginalWebsite() }
+                                        .accessibilityIdentifier("switchArticleView")
+                                }
+                            }
                             Button(article.isRead ? "Mark unread" : "Mark read", systemImage: "checkmark.circle") { model.mutate { try $0.toggleRead(id: id) } }
                             Button(article.isFavorite ? "Remove favorite" : "Favorite", systemImage: "star") { model.mutate { try $0.toggleFavorite(id: id) } }
                             Button(article.isArchived ? "Move to Inbox" : "Archive", systemImage: "archivebox") { model.mutate { try $0.toggleArchived(id: id) } }
@@ -122,33 +154,41 @@ struct ReaderView: View {
                             if model.syncEnabled {
                                 Button("Saved text versions", systemImage: "clock.arrow.circlepath") { snapshots = model.textSnapshots(id); showingSnapshots = true }
                             }
-                            Button("Larger text", systemImage: "textformat.size.larger") { readerSize = min(30, readerSize + 2) }
-                            Button("Smaller text", systemImage: "textformat.size.smaller") { readerSize = max(15, readerSize - 2) }
-                            if let url = URL(string: article.url) { ShareLink(item: url) }
+                            if let url = ArticleOriginalSite.url(from: article.url) {
+                                Button("View original site", systemImage: "safari") { openURL(url) }
+                                    .accessibilityIdentifier("viewOriginalSite")
+                            }
+                            if !isWebView {
+                                Button("Larger text", systemImage: "textformat.size.larger") { readerSize = min(30, readerSize + 2) }
+                                Button("Smaller text", systemImage: "textformat.size.smaller") { readerSize = max(15, readerSize - 2) }
+                            }
+                            if let url = ArticleWebURL.parse(article.url) { ShareLink(item: url) }
                         } label: { Label("Reading options", systemImage: "ellipsis.circle") }
                     }
                 }
             } else { ContentUnavailableView("Article not found", systemImage: "doc") }
         }
         .safeAreaInset(edge: .bottom, spacing: 8) {
-            VStack(spacing: 8) {
-                if showSpokenFollowButton {
-                    Button { followToken += 1 } label: {
-                        Label("Spoken text", systemImage: followVisibility == .visible(direction: .up) ? "arrow.up.to.line" : "arrow.down.to.line")
-                            .font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(.regularMaterial, in: Capsule())
-                            .overlay(Capsule().stroke(.primary.opacity(0.08)))
+            if !isWebView {
+                VStack(spacing: 8) {
+                    if showSpokenFollowButton {
+                        Button { followToken += 1 } label: {
+                            Label("Spoken text", systemImage: followVisibility == .visible(direction: .up) ? "arrow.up.to.line" : "arrow.down.to.line")
+                                .font(.subheadline.weight(.semibold))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(.regularMaterial, in: Capsule())
+                                .overlay(Capsule().stroke(.primary.opacity(0.08)))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Show spoken text")
+                        .accessibilityHint("Scrolls to the words currently being spoken")
+                        .accessibilityIdentifier("jumpToSpokenText")
+                        .frame(maxWidth: .infinity)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Show spoken text")
-                    .accessibilityHint("Scrolls to the words currently being spoken")
-                    .accessibilityIdentifier("jumpToSpokenText")
-                    .frame(maxWidth: .infinity)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    if player.document != nil { MiniListeningPlayer(player: player, expand: expandPlayer) }
                 }
-                if player.document != nil { MiniListeningPlayer(player: player, expand: expandPlayer) }
             }
         }
         .animation(.snappy, value: showSpokenFollowButton)
@@ -172,6 +212,10 @@ struct ReaderView: View {
             }
         }
         .task(id: id) { loadAnnotations() }
+        .onChange(of: id) { _, _ in
+            showingOriginalWebsite = false
+            showWebViewHint = false
+        }
         .onChange(of: model.contentRevision) { _, _ in loadAnnotations() }
         .onDisappear { preparationTask?.cancel(); if let preparationID { player.cancelPreparation(preparationID) } }
         .sheet(isPresented: $showingHighlights) {
@@ -254,6 +298,14 @@ struct ReaderView: View {
             player.start(document, paragraph: paragraph, expectedIntent: intent)
         } catch is CancellationError { }
         catch { if player.intentToken == intent { audioError = error.localizedDescription } }
+    }
+
+    @MainActor private func showOriginalWebsite() {
+        player.pause()
+        if !showingOriginalWebsite {
+            showWebViewHint = ArticleWebViewHintStore.consumeFirstVisit(articleID: id)
+        }
+        showingOriginalWebsite = true
     }
 
     private func beginNote(article: Article) {
