@@ -65,6 +65,13 @@ it("shows a setup action when no password exists", async () => {
   ).toBe("Set up password");
 });
 
+it("links to the coming next formats page", async () => {
+  await mount(true);
+  expect(
+    container.querySelector('a[href="/preferences/coming-soon"]')?.textContent,
+  ).toContain("Coming next");
+});
+
 it("does not misreport an unknown status as a missing password", async () => {
   await mount(undefined);
   expect(container.textContent).toContain("Could not check password status.");

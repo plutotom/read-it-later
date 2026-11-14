@@ -17,6 +17,7 @@ import {
   Loader2,
   Volume2,
   HardDrive,
+  Library,
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
@@ -213,6 +214,20 @@ export default function PreferencesPage() {
             </div>
           </CardContent>
         </Card>
+
+        <Link
+          href="/preferences/coming-soon"
+          className="border-rule bg-surface hover:bg-background-deep text-foreground mt-6 flex min-h-20 items-center gap-4 rounded-xl border px-6 py-5 transition-colors"
+        >
+          <Library className="text-muted-foreground size-5 shrink-0" />
+          <div className="flex-1">
+            <h2 className="font-medium">Coming next</h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              What is here, and the four formats still to come.
+            </p>
+          </div>
+          <ChevronRight className="text-muted-foreground size-4" />
+        </Link>
 
         <Link
           href="/preferences/storage"
