@@ -231,7 +231,7 @@ const lampSoonStyles = `
     text-decoration: none;
   }
   .lamp-soon__back:hover { color: #f0e2c4; }
-  header { margin: 3rem 0 2.2rem; }
+  .lamp-soon header { margin: 3rem 0 2.2rem; }
   .lamp-soon__kicker {
     font-family: var(--font-barlow-condensed), ui-sans-serif, system-ui, sans-serif;
     letter-spacing: 0.32em;
@@ -339,6 +339,9 @@ const lampSoonStyles = `
     font-size: 0.75rem;
     color: #8d7350;
     white-space: nowrap;
+  }
+  @media (max-width: 640px) {
+    .lamp-soon__status { white-space: normal; text-align: right; max-width: 8rem; }
   }
   .lamp-soon__status--on { color: #e8b45a; }
   .lamp-soon__promise {
