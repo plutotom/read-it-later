@@ -1,0 +1,20 @@
+---
+description: Planned content types beyond HTML articles. Use when adding formats, ingest, or media features.
+globs: src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Content types we will take
+
+The library is articles first. Beyond HTML, only these formats are in scope:
+
+1. **PDF & EPUB** (underway)
+2. **YouTube**
+3. **Podcasts**
+4. **Academic papers**
+
+That list lives in `src/lib/coming-formats.ts` and on `/preferences/coming-soon`.
+
+Do not add other media types (short video, images-as-a-product, social feeds, a podcast/YouTube player with discovery/queues/sleep timers) unless a human explicitly expands this list.
+
+Each new type should become a **document** in the existing library (search, highlights, folders, PARA) — not a separate app. How we handle each one is undecided; do not invent ingest or playback designs in passing.

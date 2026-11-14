@@ -10,13 +10,19 @@ import { AddArticleFormCard } from "./AddArticleFormCard";
 interface LayoutProps {
   children: React.ReactNode;
   pageTitle: string;
+  /** Hide the add-article composer. Use on manifesto-style pages. */
+  showComposer?: boolean;
 }
 
 /**
  * Main application layout with navigation
  * Provides sidebar on mobile, header nav on desktop
  */
-export function Layout({ children, pageTitle }: LayoutProps) {
+export function Layout({
+  children,
+  pageTitle,
+  showComposer = true,
+}: LayoutProps) {
   return (
     <GeneralProvider>
       <SidebarProvider defaultOpen={false}>
@@ -28,9 +34,9 @@ export function Layout({ children, pageTitle }: LayoutProps) {
           </div>
 
           <main className="bg-background flex-1">{children}</main>
-          <AddArticleButton />
+          {showComposer ? <AddArticleButton /> : null}
         </div>
-        <AddArticleFormCard />
+        {showComposer ? <AddArticleFormCard /> : null}
       </SidebarProvider>
     </GeneralProvider>
   );
