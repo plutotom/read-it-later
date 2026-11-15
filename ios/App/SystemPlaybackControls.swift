@@ -8,25 +8,9 @@ import ReadingCore
     private var observers: [NSObjectProtocol] = []
     private var resumeAfterInterruption = false
     private var interruptionToken: UUID?
+    private var remoteCommandsInstalled = false
     init(player: ListeningPlayer) {
         self.player = player
-        let center = MPRemoteCommandCenter.shared()
-        center.playCommand.addTarget { @Sendable [weak player] _ in Task { @MainActor in player?.resume() }; return .success }
-        center.pauseCommand.addTarget { @Sendable [weak player] _ in Task { @MainActor in player?.pause() }; return .success }
-        center.togglePlayPauseCommand.addTarget { @Sendable [weak player] _ in Task { @MainActor in player?.toggle() }; return .success }
-        center.skipForwardCommand.preferredIntervals = [15]
-        center.skipBackwardCommand.preferredIntervals = [15]
-        center.skipForwardCommand.addTarget { @Sendable [weak player] _ in Task { @MainActor in player?.skip(15) }; return .success }
-        center.skipBackwardCommand.addTarget { @Sendable [weak player] _ in Task { @MainActor in player?.skip(-15) }; return .success }
-        center.changePlaybackPositionCommand.addTarget { @Sendable [weak player] event in
-            guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
-            let time = event.positionTime; Task { @MainActor in player?.seek(to: time) }; return .success
-        }
-        center.changePlaybackRateCommand.supportedPlaybackRates = [0.5, 0.8, 1, 1.2, 1.5, 2, 2.5, 3]
-        center.changePlaybackRateCommand.addTarget { @Sendable [weak player] event in
-            guard let event = event as? MPChangePlaybackRateCommandEvent else { return .commandFailed }
-            let rate = Double(event.playbackRate); Task { @MainActor in player?.setRate(rate) }; return .success
-        }
         observers.append(NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { @Sendable [weak self] notification in
             let type = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
             let options = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
@@ -52,8 +36,33 @@ import ReadingCore
             }
         }
     }
+    private func installRemoteCommandsIfNeeded() {
+        guard !remoteCommandsInstalled else { return }
+        remoteCommandsInstalled = true
+        let center = MPRemoteCommandCenter.shared()
+        center.playCommand.addTarget { @Sendable [weak self] _ in Task { @MainActor in self?.player?.resume() }; return .success }
+        center.pauseCommand.addTarget { @Sendable [weak self] _ in Task { @MainActor in self?.player?.pause() }; return .success }
+        center.togglePlayPauseCommand.addTarget { @Sendable [weak self] _ in Task { @MainActor in self?.player?.toggle() }; return .success }
+        center.skipForwardCommand.preferredIntervals = [15]
+        center.skipBackwardCommand.preferredIntervals = [15]
+        center.skipForwardCommand.addTarget { @Sendable [weak self] _ in Task { @MainActor in self?.player?.skip(15) }; return .success }
+        center.skipBackwardCommand.addTarget { @Sendable [weak self] _ in Task { @MainActor in self?.player?.skip(-15) }; return .success }
+        center.changePlaybackPositionCommand.addTarget { @Sendable [weak self] event in
+            guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
+            let time = event.positionTime; Task { @MainActor in self?.player?.seek(to: time) }; return .success
+        }
+        center.changePlaybackRateCommand.supportedPlaybackRates = [0.5, 0.8, 1, 1.2, 1.5, 2, 2.5, 3]
+        center.changePlaybackRateCommand.addTarget { @Sendable [weak self] event in
+            guard let event = event as? MPChangePlaybackRateCommandEvent else { return .commandFailed }
+            let rate = Double(event.playbackRate); Task { @MainActor in self?.player?.setRate(rate) }; return .success
+        }
+    }
     private func update() {
-        guard let player, let document = player.document, !player.isSilentPreview else { MPNowPlayingInfoCenter.default().nowPlayingInfo = nil; return }
+        guard let player, let document = player.document, !player.isSilentPreview else {
+            if remoteCommandsInstalled { MPNowPlayingInfoCenter.default().nowPlayingInfo = nil }
+            return
+        }
+        installRemoteCommandsIfNeeded()
         MPNowPlayingInfoCenter.default().nowPlayingInfo = [
             MPMediaItemPropertyTitle: document.title,
             MPMediaItemPropertyArtist: "Paper Drive",

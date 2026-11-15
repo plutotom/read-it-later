@@ -381,7 +381,10 @@ Published audio and queued uploads remain stored. See `docs/audio-usage.md`.
 
 `SpeechService.stream` supplies incremental events; the completed `generate` method remains
 for compatibility. `PCMPlaybackTransport` schedules buffers through AVAudioEngine and
-AVAudioUnitTimePitch. Render callbacks queue sections independently of the 100 ms UI ticker.
+AVAudioUnitTimePitch, but it creates that graph and activates `.playback` / `.spokenAudio`
+only on explicit play—not at launch, while browsing, while reading, or while prefetching.
+Pause keeps the session for lock-screen controls; close deactivates it and notifies other apps.
+Render callbacks queue sections independently of the 100 ms UI ticker.
 `BackendSpeechService` validates frames and persists complete chunks. `SimulatedSpeechService`
 remains silent and deterministic. The UI-test-only PCM fixture exercises the real renderer
 without making paid requests.

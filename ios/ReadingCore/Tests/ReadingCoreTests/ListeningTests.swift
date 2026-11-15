@@ -255,3 +255,25 @@ extension ListeningTests {
         reopened.close(); await reopenedService.finishAll()
     }
 }
+
+extension ListeningTests {
+    @MainActor func testConfigureAndBufferingDoNotStartTransportPlayback() async {
+        let service = ControlledSpeechService(); let transport = ManualTransport()
+        let player = ListeningPlayer(service: SimulatedSpeechService(), transport: transport, automaticallyTick: false)
+        player.configure(service: service, transport: transport)
+        XCTAssertFalse(transport.playing)
+        XCTAssertEqual(transport.loads, 0)
+        player.start(document)
+        await wait { await service.count() >= 1 }
+        XCTAssertEqual(player.state, .buffering)
+        XCTAssertFalse(transport.playing, "Buffering must not take audio focus before Play has audio")
+        await service.complete(0)
+        await wait { transport.playing }
+        XCTAssertEqual(player.state, .playing)
+        player.pause()
+        XCTAssertFalse(transport.playing)
+        player.close()
+        await service.finishAll()
+        XCTAssertFalse(transport.playing)
+    }
+}

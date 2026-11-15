@@ -59,6 +59,30 @@ final class StreamingSpeechTests: XCTestCase {
         XCTAssertEqual(player.state, .finished)
         player.close(); await service.end()
     }
+    @MainActor func testStreamingQueuesWithoutPlayingUntilExplicitPlay() async throws {
+        let service = OpenStreamService(), transport = StreamingTestTransport()
+        let player = ListeningPlayer(service: service, transport: transport, automaticallyTick: false)
+        player.configure(service: SimulatedSpeechService(), transport: transport)
+        XCTAssertFalse(transport.playing)
+        player.configure(service: service, transport: transport)
+        let doc = ListeningDocument(articleID: "focus", title: "Test", text: "A short paragraph.\n\nAnother paragraph.")
+        player.start(doc)
+        // Wait until the stream is attached. begin() runs first, so received[0] can
+        // exist before send() would be delivered.
+        for _ in 0..<100 where await service.count() < 1 { try await Task.sleep(for: .milliseconds(2)) }
+        XCTAssertEqual(player.state, .buffering)
+        XCTAssertFalse(transport.playing, "begin/prefetch must not start the renderer")
+        XCTAssertEqual(transport.received[0]?.count, 0)
+        await service.send(.audio(Data(repeating: 0, count: 48000)), text: "A short paragraph.")
+        for _ in 0..<100 where !transport.playing { try await Task.sleep(for: .milliseconds(2)) }
+        XCTAssertTrue(transport.playing)
+        XCTAssertEqual(player.state, .playing)
+        player.pause()
+        XCTAssertFalse(transport.playing)
+        player.close(); await service.end()
+        XCTAssertTrue(transport.received.isEmpty)
+        XCTAssertFalse(transport.playing)
+    }
     func testPersistentCacheExpiryLRUAndIdentity() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
