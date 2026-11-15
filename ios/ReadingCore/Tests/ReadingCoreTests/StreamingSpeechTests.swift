@@ -67,7 +67,9 @@ final class StreamingSpeechTests: XCTestCase {
         player.configure(service: service, transport: transport)
         let doc = ListeningDocument(articleID: "focus", title: "Test", text: "A short paragraph.\n\nAnother paragraph.")
         player.start(doc)
-        for _ in 0..<100 where transport.received[0] == nil { try await Task.sleep(for: .milliseconds(2)) }
+        // Wait until the stream is attached. begin() runs first, so received[0] can
+        // exist before send() would be delivered.
+        for _ in 0..<100 where await service.count() < 1 { try await Task.sleep(for: .milliseconds(2)) }
         XCTAssertEqual(player.state, .buffering)
         XCTAssertFalse(transport.playing, "begin/prefetch must not start the renderer")
         XCTAssertEqual(transport.received[0]?.count, 0)
