@@ -1,0 +1,14 @@
+---
+description: Prefer iOS and TestFlight builds on the maintainer MacBook, not GitHub Actions.
+globs:
+alwaysApply: true
+---
+# iOS builds: MacBook first
+
+If a Mac is linked (T3 environment / maintainer laptop), **build, archive, and TestFlight-upload Paper Drive there** with Xcode. Do not spend GitHub Actions macOS minutes when the laptop can do it.
+
+- Use `ios/README.md` local archive/export commands (`xcodegen`, `xcodebuild archive` + `-exportArchive` with `ios/ExportOptions-TestFlight.plist`).
+- Xcode → Settings → Accounts must be signed into team `3CVY7K9AJ6` for export/upload.
+- Do **not** run `gh workflow run TestFlight` or `"iOS preview"` unless the human explicitly asks, or the laptop is unavailable and they still want a GitHub build.
+- Do not add `push` / `pull_request` triggers to those workflows.
+- Ubuntu `ci.yml` is unchanged (web checks on PRs).

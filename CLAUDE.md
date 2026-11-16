@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## CI / GitHub Actions minutes
 
-iOS workflows (`TestFlight`, `iOS preview`) are manual, explicit-use only to save limited macOS minutes. Don't trigger or add automatic triggers unless asked. See AGENTS.md.
+Prefer iOS / TestFlight builds on the maintainer MacBook (Xcode, linked T3 environment), not GitHub Actions. The `TestFlight` and `iOS preview` workflows are last-resort, explicit-use only — don't trigger or add automatic triggers unless asked, and not when the laptop can build. See AGENTS.md and `.cursor/rules/ios-local-builds.mdc`.
 
 ## What this is
 

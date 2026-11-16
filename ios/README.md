@@ -80,16 +80,21 @@ belongs only to **isaiah proctor — 3CVY7K9AJ6**. The main app and extension ar
 to `group.com.isaiahproctor.readitlater`. Display names use Paper Drive; bundle IDs,
 App Group, and on-device storage remain unchanged so existing libraries survive updates.
 
+**Prefer this Mac.** Archive and upload from the maintainer laptop with Xcode (commands
+below). Do not spend GitHub Actions macOS minutes when that machine is available.
+Xcode → Settings → Accounts must be signed into team `3CVY7K9AJ6` or export fails
+with “App Store Connect access is required.”
+
 ### Automated upload (GitHub Actions)
 
 `.github/workflows/testflight.yml` archives on a `macos-26` runner and uploads with
 `ios/ExportOptions-TestFlight.plist` (`destination: upload`, internal-testing-only).
-You do not need to archive from Xcode on a Mac for internal TestFlight.
+This is a **fallback** when the laptop cannot build. Run it only when a human asks.
 
 **Triggers**
 
-- Push to `main` that touches `ios/**` or the workflow file.
-- **Actions → TestFlight → Run workflow** (`workflow_dispatch`) on any branch.
+- **Actions → TestFlight → Run workflow** (`workflow_dispatch`) on `main` (or another
+  ref the human names). There is no `push` / `pull_request` trigger.
 
 A single `testflight-upload` concurrency group queues overlapping runs and does not
 cancel an upload already in progress.
