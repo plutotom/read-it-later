@@ -46,16 +46,20 @@ the preview-auth acceptance test below).
 
 ## CI / GitHub Actions minutes
 
-macOS Actions minutes are limited, so the iOS workflows are **explicit-use only**:
+macOS Actions minutes are limited. **Prefer the maintainer MacBook** (linked T3
+environment / Xcode) for iOS builds, archives, and TestFlight uploads. See
+`.cursor/rules/ios-local-builds.mdc` and `ios/README.md`.
 
-- **`TestFlight`** (`testflight.yml`) is for **cutting a release** only, run manually
-  after a batch of PRs is merged: `gh workflow run TestFlight --ref main`.
-- **`iOS preview`** (`ios.yml`) is an on-demand build/test check, run **only when a
-  human explicitly asks** (e.g. the laptop isn't available):
+The iOS GitHub workflows are **explicit-use only** — last resort, not the default:
+
+- **`TestFlight`** (`testflight.yml`) is for **cutting a release on GitHub** only
+  when a human asks *and* the laptop cannot do it:
+  `gh workflow run TestFlight --ref main`.
+- **`iOS preview`** (`ios.yml`) is an on-demand GitHub build/test check, run
+  **only when a human explicitly asks** (e.g. the laptop isn't available):
   `gh workflow run "iOS preview" --ref <branch>`.
-- iOS validation normally happens **locally** on the maintainer's MacBook (Xcode / T3 Code).
-- Do **not** trigger, re-run, or add `push`/`pull_request` triggers to these workflows
-  unless explicitly asked. Don't re-enable a disabled workflow on your own.
+- Do **not** trigger, re-run, or add `push`/`pull_request` triggers to these
+  workflows unless explicitly asked. Don't re-enable a disabled workflow on your own.
 - `ci.yml` (web checks on Ubuntu) runs on PRs as normal.
 
 ## The goal this repo is set up for
