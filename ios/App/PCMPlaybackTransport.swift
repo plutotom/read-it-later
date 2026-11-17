@@ -7,7 +7,8 @@ import ReadingCore
     private var engine: AVAudioEngine?
     private var node: AVAudioPlayerNode?
     private var pitch: AVAudioUnitTimePitch?
-    private let format = AVAudioFormat(standardFormatWithSampleRate: 24000, channels: 1)!
+    private let format = AVAudioFormat(standardFormatWithSampleRate: ListeningPlaybackRate.sourceSampleRate, channels: 1)!
+    private let stretchFormat = AVAudioFormat(standardFormatWithSampleRate: ListeningPlaybackRate.timeStretchSampleRate, channels: 1)!
     private struct Segment {
         var bytes = Data(); var scheduled = 0; var finished = false
         var skip: Int; var start: Int64?; var end: Int64?
@@ -42,7 +43,7 @@ import ReadingCore
     }
     var position: TimeInterval {
         guard let index = renderIndex, let segment = segments[index], let start = segment.start else { return 0 }
-        return Double(max(0, frame - start) + Int64(segment.skip / 2)) / 24000
+        return Double(max(0, frame - start) + Int64(segment.skip / 2)) / ListeningPlaybackRate.sourceSampleRate
     }
     var ended: Bool {
         guard let index = order.last, let end = segments[index]?.end else { return false }
@@ -52,7 +53,7 @@ import ReadingCore
     func begin(index: Int, at time: TimeInterval) throws {
         guard segments[index] == nil else { return }
         guard time.isFinite, time >= 0 else { throw SpeechError.invalidResponse }
-        segments[index] = Segment(skip: Int(time * 24000) * 2); order.append(index); order.sort()
+        segments[index] = Segment(skip: Int(time * ListeningPlaybackRate.sourceSampleRate) * 2); order.append(index); order.sort()
         try flush()
     }
     func append(_ data: Data, index: Int) throws {
@@ -83,7 +84,7 @@ import ReadingCore
             let available = segment.bytes.count - segment.bytes.count % 2
             // Small buffers support low startup latency and do not require whole-article audio.
             while segment.scheduled < available {
-                let length = min(24000, (available - segment.scheduled) / 2)
+                let length = min(Int(ListeningPlaybackRate.sourceSampleRate), (available - segment.scheduled) / 2)
                 guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(length)), let channel = buffer.floatChannelData?[0] else { throw SpeechError.invalidResponse }
                 buffer.frameLength = AVAudioFrameCount(length)
                 segment.bytes.withUnsafeBytes { raw in
@@ -108,11 +109,29 @@ import ReadingCore
         guard engine == nil, policy.shouldCreateAudioGraph(for: .play) else { return }
         let engine = AVAudioEngine()
         let node = AVAudioPlayerNode()
+        let converter = AVAudioMixerNode()
         let pitch = AVAudioUnitTimePitch()
-        engine.attach(node); engine.attach(pitch)
-        engine.connect(node, to: pitch, format: format)
-        engine.connect(pitch, to: engine.mainMixerNode, format: format)
+        engine.attach(node); engine.attach(converter); engine.attach(pitch)
+        // Player stays at 24 kHz so the render clock is unchanged. TimePitch tracks pitch
+        // poorly on 24 kHz TTS, so upsample before the stretch unit.
+        engine.connect(node, to: converter, format: format)
+        engine.connect(converter, to: pitch, format: stretchFormat)
+        engine.connect(pitch, to: engine.mainMixerNode, format: stretchFormat)
         self.engine = engine; self.node = node; self.pitch = pitch
+        applyTimePitch()
+    }
+    private func applyTimePitch() {
+        guard let pitch else { return }
+        let settings = ListeningPlaybackRate(currentRate)
+        pitch.overlap = ListeningPlaybackRate.overlap
+        pitch.pitch = ListeningPlaybackRate.pitchCents
+        if settings.bypassesTimeStretch {
+            pitch.bypass = true
+            pitch.rate = 1
+        } else {
+            pitch.rate = settings.timePitchRate
+            pitch.bypass = false
+        }
     }
     private func activateSession() throws {
         guard !sessionActive, policy.shouldActivate(for: .play) else { return }
@@ -127,13 +146,13 @@ import ReadingCore
         ensureGraph()
         try schedulePending()
         try activateSession()
-        guard let engine, let node, let pitch else { return }
+        guard let engine, let node else { return }
         if !engine.isRunning { try engine.start() }
-        pitch.rate = Float(currentRate)
+        applyTimePitch()
         if !node.isPlaying { node.play() }
     }
     func play(rate: Double) {
-        currentRate = rate; playing = true
+        currentRate = ListeningPlaybackRate(rate).value; playing = true
         do { try startEngine() } catch { failureMessage = error.localizedDescription }
     }
     func pause() { playing = false; node?.pause() }

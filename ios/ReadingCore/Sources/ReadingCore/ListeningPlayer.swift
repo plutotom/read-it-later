@@ -130,7 +130,7 @@ import OSLog
     public func setRate(_ value: Double) {
         guard value.isFinite else { return }
         if loaded { chunkTime = transport.position }
-        rate = min(3, max(0.5, value))
+        rate = ListeningPlaybackRate(value).value
         if wantsPlayback && loaded { transport.play(rate: rate) }
     }
     public func setVoice(_ value: SpeechVoice) {
@@ -217,7 +217,7 @@ import OSLog
         let fingerprint = contentFingerprint(document.text)
         guard fingerprint == value.fingerprint, let index = document.chunk(atUTF16Offset: value.offset) else { return }
         if let savedVoice = voices.first(where: { $0.id == value.voice }) { voice = savedVoice }
-        rate = min(3, max(0.5, value.rate)); chunkIndex = index
+        rate = ListeningPlaybackRate(value.rate).value; chunkIndex = index
         if value.finished == true { state = .finished; chunkIndex = 0; chunkTime = 0; return }
         let chunk = document.chunks[index]
         if let time = value.time, time.isFinite, time >= 0, time <= 3600,

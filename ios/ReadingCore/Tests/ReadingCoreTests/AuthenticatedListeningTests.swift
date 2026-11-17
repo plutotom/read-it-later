@@ -245,6 +245,8 @@ extension AuthenticatedListeningTests {
             XCTAssertNil(request.value(forHTTPHeaderField: "Cookie"))
             let body = try XCTUnwrap(JSONSerialization.jsonObject(with: try XCTUnwrap(request.httpBody)) as? [String: Any])
             XCTAssertEqual(Set(body.keys), ["articleId", "revision", "segment", "voiceId"])
+            XCTAssertNil(body["rate"])
+            XCTAssertNil(body["speakingRate"])
             XCTAssertEqual(body["articleId"] as? String, fixtureRequest.segment?.articleId)
             XCTAssertEqual(body["revision"] as? String, "fixture-revision")
             XCTAssertEqual(body["segment"] as? Int, 7)
