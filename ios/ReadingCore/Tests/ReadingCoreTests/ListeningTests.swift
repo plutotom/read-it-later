@@ -135,7 +135,8 @@ final class ListeningTests: XCTestCase {
         let generated = await service.count()
         player.setRate(2)
         XCTAssertEqual(transport.rate, 2)
-        XCTAssertEqual(await service.count(), generated, "Speed is local; it must not create another speech request")
+        let afterRate = await service.count()
+        XCTAssertEqual(afterRate, generated, "Speed is local; it must not create another speech request")
         transport.position = 10; player.tick()
         XCTAssertEqual(player.chunkIndex, 1)
         XCTAssertEqual(player.state, .playing)
@@ -281,7 +282,8 @@ extension ListeningTests {
         XCTAssertEqual(transport.rate, 0.5)
         player.setRate(.nan)
         XCTAssertEqual(player.rate, 0.5)
-        XCTAssertEqual(await service.calls, generated)
+        let after = await service.calls
+        XCTAssertEqual(after, generated)
         player.close(); await service.finishAll()
     }
 
