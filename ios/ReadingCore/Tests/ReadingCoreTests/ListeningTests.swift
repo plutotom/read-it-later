@@ -132,8 +132,10 @@ final class ListeningTests: XCTestCase {
         await wait { await service.count() == 3 }
         await service.complete(0); await service.complete(1); await service.complete(2)
         await wait { player.durations.count == 3 }
+        let generated = await service.count()
         player.setRate(2)
         XCTAssertEqual(transport.rate, 2)
+        XCTAssertEqual(await service.count(), generated, "Speed is local; it must not create another speech request")
         transport.position = 10; player.tick()
         XCTAssertEqual(player.chunkIndex, 1)
         XCTAssertEqual(player.state, .playing)
@@ -257,6 +259,32 @@ extension ListeningTests {
 }
 
 extension ListeningTests {
+    @MainActor func testRateIsLocalTimeStretchAndDoesNotRegenerateAudio() async {
+        let service = ControlledSpeechService(); let transport = ManualTransport()
+        let player = ListeningPlayer(service: service, transport: transport, automaticallyTick: false)
+        player.start(document)
+        await wait { await service.count() == 3 }
+        await service.complete(0, duration: 10); await service.complete(1); await service.complete(2)
+        await wait { player.state == .playing }
+        XCTAssertEqual(transport.rate, 1)
+        let generated = await service.calls
+        player.setRate(1.25)
+        player.setRate(1.5)
+        player.setRate(2)
+        XCTAssertEqual(player.rate, 2)
+        XCTAssertEqual(transport.rate, 2)
+        XCTAssertEqual(player.remaining, player.total / 2, accuracy: 0.01)
+        player.setRate(1)
+        XCTAssertEqual(transport.rate, 1)
+        player.setRate(0.25)
+        XCTAssertEqual(player.rate, 0.5)
+        XCTAssertEqual(transport.rate, 0.5)
+        player.setRate(.nan)
+        XCTAssertEqual(player.rate, 0.5)
+        XCTAssertEqual(await service.calls, generated)
+        player.close(); await service.finishAll()
+    }
+
     @MainActor func testConfigureAndBufferingDoNotStartTransportPlayback() async {
         let service = ControlledSpeechService(); let transport = ManualTransport()
         let player = ListeningPlayer(service: SimulatedSpeechService(), transport: transport, automaticallyTick: false)
