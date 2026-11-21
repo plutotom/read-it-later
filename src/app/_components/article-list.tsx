@@ -22,6 +22,8 @@ import { useRouter } from "next/navigation";
 import { truncateText } from "~/lib/text-utils";
 import { api } from "~/trpc/react";
 import { isPdfArticle } from "~/lib/article-content-kind";
+import { useParaEnabled } from "~/hooks/use-para-enabled";
+import { cn } from "~/lib/utils";
 
 const HERO_TITLE_MAX_CHARS = 100;
 const HERO_EXCERPT_MAX_CHARS = 180;
@@ -36,6 +38,9 @@ interface ArticleListProps {
   onMoveToFolder?: (articleId: string, folderId: string | null) => void;
   showSearch?: boolean;
   showFilters?: boolean;
+  /** Inbox-only: Unread is a mark/filter, not a library destination. */
+  showUnreadFilter?: boolean;
+  isArchive?: boolean;
 }
 
 export function ArticleList({
@@ -48,14 +53,21 @@ export function ArticleList({
   onMoveToFolder,
   showSearch = true,
   showFilters = false,
+  showUnreadFilter = false,
+  isArchive = false,
 }: ArticleListProps) {
   const PAGE_SIZE = 10;
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "title">("newest");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [unreadOnly, setUnreadOnly] = useState(false);
 
   const filteredArticles = useMemo(() => {
     let filtered = [...articles];
+
+    if (showUnreadFilter && unreadOnly) {
+      filtered = filtered.filter((article) => !article.isRead);
+    }
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -86,7 +98,7 @@ export function ArticleList({
     });
 
     return filtered;
-  }, [articles, searchQuery, sortBy]);
+  }, [articles, searchQuery, sortBy, showUnreadFilter, unreadOnly]);
 
   const heroArticle =
     searchQuery.trim().length === 0 && filteredArticles.length > 0
@@ -101,14 +113,18 @@ export function ArticleList({
     listArticles.length - visibleArticles.length,
   );
 
+  const heroIsUnread =
+    heroArticle && !heroArticle.isArchived && !heroArticle.isRead;
+
   const articleIds = useMemo(
     () => filteredArticles.map((article) => article.id),
     [filteredArticles],
   );
 
+  const { paraEnabled } = useParaEnabled();
   const { data: paraStatuses = {} } = api.para.getArticleStatuses.useQuery(
     { articleIds },
-    { enabled: articleIds.length > 0 },
+    { enabled: paraEnabled && articleIds.length > 0 },
   );
 
   const router = useRouter();
@@ -158,6 +174,37 @@ export function ArticleList({
             placeholder="Search"
           />
 
+          {showUnreadFilter && (
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                aria-pressed={!unreadOnly}
+                onClick={() => setUnreadOnly(false)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-sm font-medium transition",
+                  unreadOnly
+                    ? "border-rule bg-surface text-foreground-soft hover:text-foreground"
+                    : "border-rule bg-foreground/10 text-foreground",
+                )}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                aria-pressed={unreadOnly}
+                onClick={() => setUnreadOnly(true)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-sm font-medium transition",
+                  unreadOnly
+                    ? "border-rule bg-foreground/10 text-foreground"
+                    : "border-rule bg-surface text-foreground-soft hover:text-foreground",
+                )}
+              >
+                Unread
+              </button>
+            </div>
+          )}
+
           {showFilters && (
             <div className="flex flex-wrap gap-2 text-sm">
               <select
@@ -196,12 +243,22 @@ export function ArticleList({
               className="text-foreground mb-2 text-2xl font-medium tracking-tight"
               style={{ fontFamily: "var(--font-app-display)" }}
             >
-              {searchQuery ? "No articles found" : "No articles yet"}
+              {searchQuery
+                ? "No articles found"
+                : unreadOnly
+                  ? "Caught up"
+                  : isArchive
+                    ? "Archive is empty"
+                    : "No articles yet"}
             </h3>
             <p className="text-foreground-soft max-w-sm text-sm leading-relaxed">
               {searchQuery
                 ? "Try adjusting your search terms or filters"
-                : "Start by adding your first article to read later"}
+                : unreadOnly
+                  ? "Nothing unread in Inbox."
+                  : isArchive
+                    ? "Articles you archive from Inbox appear here."
+                    : "Start by adding your first article to read later"}
             </p>
           </div>
         ) : (
@@ -218,11 +275,16 @@ export function ArticleList({
                   <div className="grid min-h-[240px] grid-cols-1 sm:grid-cols-[1.2fr_0.8fr]">
                     <div className="p-5 sm:p-7">
                       <div className="text-muted-foreground text-xs tracking-[0.18em] uppercase">
-                        Continue reading
+                        {heroIsUnread ? "Unread" : "Continue reading"}
                       </div>
                       <h2
-                        className="text-foreground mt-3 line-clamp-3 text-3xl leading-[1.05] font-medium tracking-tight break-words sm:text-4xl"
+                        className={
+                          !heroIsUnread
+                            ? "text-foreground-soft mt-3 line-clamp-3 text-3xl leading-[1.05] font-medium tracking-tight break-words sm:text-4xl"
+                            : "text-foreground mt-3 line-clamp-3 text-3xl leading-[1.05] font-semibold tracking-tight break-words sm:text-4xl"
+                        }
                         style={{ fontFamily: "var(--font-app-display)" }}
+                        data-unread={heroIsUnread ? "true" : undefined}
                       >
                         {truncateText(heroArticle.title, HERO_TITLE_MAX_CHARS)}
                       </h2>
@@ -243,7 +305,7 @@ export function ArticleList({
                           </>
                         )}
                         {isPdfArticle(heroArticle) && <PdfBadge size="md" />}
-                        {paraStatuses[heroArticle.id] && (
+                        {paraEnabled && paraStatuses[heroArticle.id] && (
                           <ParaBadge size="md" />
                         )}
                       </div>
@@ -262,7 +324,11 @@ export function ArticleList({
                 <div className="absolute top-3 right-3 z-10 sm:top-4 sm:right-4">
                   <ArticleActionsMenu
                     article={heroArticle}
-                    isOnPara={paraStatuses[heroArticle.id] ?? false}
+                    isOnPara={
+                      paraEnabled
+                        ? (paraStatuses[heroArticle.id] ?? false)
+                        : false
+                    }
                     onArchive={() => onArchive?.(heroArticle.id)}
                     onUnarchive={() => onUnarchive?.(heroArticle.id)}
                     onDelete={() => onDelete?.(heroArticle.id)}
@@ -279,7 +345,9 @@ export function ArticleList({
                   <ArticleCard
                     key={article.id}
                     article={article}
-                    isOnPara={paraStatuses[article.id] ?? false}
+                    isOnPara={
+                      paraEnabled ? (paraStatuses[article.id] ?? false) : false
+                    }
                     onClick={() => onArticleClick?.(article)}
                     onPrefetch={() => prefetchArticle(article.id)}
                     onArchive={() => onArchive?.(article.id)}

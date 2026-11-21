@@ -18,20 +18,21 @@ export interface NavGroup {
 }
 
 /**
- * Main navigation items available throughout the app
+ * Library places. Inbox and Archive are destinations; unread is a mark on a
+ * row, not a third place. Folders come later.
  */
 export const mainNavItems: NavItem[] = [
   {
     title: "Inbox",
     url: "/",
     icon: Home,
-    description: "Articles to read",
+    description: "The working pile",
   },
   {
-    title: "Archived",
+    title: "Archive",
     url: "/archived",
     icon: FolderArchive,
-    description: "Saved articles",
+    description: "Out of the pile, still in your library",
   },
   {
     title: "Para",
@@ -41,12 +42,25 @@ export const mainNavItems: NavItem[] = [
   },
 ];
 
+export function getMainNavItems(options?: {
+  paraEnabled?: boolean;
+}): NavItem[] {
+  if (options?.paraEnabled === false) {
+    return mainNavItems.filter((item) => item.url !== "/para");
+  }
+  return mainNavItems;
+}
+
 /**
  * Navigation groups for sidebar organization
  */
 export const navGroups: NavGroup[] = [
   { title: "Articles", items: mainNavItems },
 ];
+
+export function getNavGroups(options?: { paraEnabled?: boolean }): NavGroup[] {
+  return [{ title: "Articles", items: getMainNavItems(options) }];
+}
 
 /**
  * Legacy format for backwards compatibility with existing components

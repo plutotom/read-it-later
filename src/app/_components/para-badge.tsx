@@ -1,6 +1,7 @@
 "use client";
 
 import { Tablet } from "lucide-react";
+import { useParaEnabled } from "~/hooks/use-para-enabled";
 import { cn } from "~/lib/utils";
 
 interface ParaBadgeProps {
@@ -9,6 +10,9 @@ interface ParaBadgeProps {
 }
 
 export function ParaBadge({ className, size = "sm" }: ParaBadgeProps) {
+  const { paraEnabled } = useParaEnabled();
+  if (!paraEnabled) return null;
+
   return (
     <span
       className={cn(

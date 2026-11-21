@@ -1,18 +1,14 @@
 import Foundation
 
-/// Library list segments. Archived rows stay out of All / Unread / Favorites.
+/// Library places. Inbox and Archive are destinations; unread is a mark on a row.
 public enum ArticleLibraryFilter: String, CaseIterable, Sendable {
-    case all = "All"
-    case unread = "Unread"
-    case favorites = "Favorites"
-    case archived = "Archived"
+    case inbox = "Inbox"
+    case archive = "Archive"
 
     public func includes(_ article: Article) -> Bool {
         switch self {
-        case .all: !article.isArchived
-        case .unread: !article.isRead && !article.isArchived
-        case .favorites: article.isFavorite && !article.isArchived
-        case .archived: article.isArchived
+        case .inbox: !article.isArchived
+        case .archive: article.isArchived
         }
     }
 }
@@ -20,7 +16,7 @@ public enum ArticleLibraryFilter: String, CaseIterable, Sendable {
 /// Mail-style row actions with compact labels for the system's rounded swipe buttons.
 /// The first action on each edge is the full swipe.
 public struct ArticleSwipeAction: Equatable, Sendable {
-    public enum Kind: String, Sendable { case read, favorite, archive, delete }
+    public enum Kind: String, Sendable { case read, archive, delete }
     public enum Edge: String, Sendable { case leading, trailing }
     public enum Tint: String, Sendable { case blue, orange, gray }
 
@@ -33,11 +29,11 @@ public struct ArticleSwipeAction: Equatable, Sendable {
     public let isDestructive: Bool
 
     public static func all(for article: Article) -> [ArticleSwipeAction] {
-        [read(for: article), favorite(for: article), archive(for: article), delete]
+        [read(for: article), archive(for: article), delete]
     }
 
     public static func leading(for article: Article) -> [ArticleSwipeAction] {
-        [read(for: article), favorite(for: article)]
+        [read(for: article)]
     }
 
     public static func trailing(for article: Article) -> [ArticleSwipeAction] {
@@ -52,18 +48,6 @@ public struct ArticleSwipeAction: Equatable, Sendable {
             systemImage: article.isRead ? "envelope.badge.fill" : "envelope.open.fill",
             accessibilityLabel: article.isRead ? "Mark as unread" : "Mark as read",
             tint: .blue,
-            isDestructive: false
-        )
-    }
-
-    public static func favorite(for article: Article) -> ArticleSwipeAction {
-        ArticleSwipeAction(
-            kind: .favorite,
-            edge: .leading,
-            title: article.isFavorite ? "Unfavorite" : "Favorite",
-            systemImage: article.isFavorite ? "star.slash.fill" : "star.fill",
-            accessibilityLabel: article.isFavorite ? "Remove from favorites" : "Add to favorites",
-            tint: .orange,
             isDestructive: false
         )
     }

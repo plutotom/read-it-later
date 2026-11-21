@@ -6,6 +6,18 @@ import { userPreferences } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { hasAccountPassword } from "~/server/services/native-auth/password-status";
 
+function asSettingsRecord(settings: unknown): Record<string, unknown> {
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+    return {};
+  }
+  return settings as Record<string, unknown>;
+}
+
+/** Missing or non-false values default to on so existing users keep PARA chrome. */
+function resolveParaEnabled(settings: unknown): boolean {
+  return asSettingsRecord(settings).paraEnabled !== false;
+}
+
 // GET /api/preferences - Load user preferences
 export async function GET() {
   const session = await auth.api.getSession({
@@ -30,6 +42,7 @@ export async function GET() {
         theme: "light",
         ttsVoiceName: "en-US-Standard-A",
         settings: {},
+        paraEnabled: true,
         hasPassword,
       },
       { headers: { "Cache-Control": "private, no-store" } },
@@ -41,6 +54,7 @@ export async function GET() {
       theme: prefs.theme,
       ttsVoiceName: prefs.ttsVoiceName ?? "en-US-Standard-A",
       settings: prefs.settings,
+      paraEnabled: resolveParaEnabled(prefs.settings),
       hasPassword,
     },
     { headers: { "Cache-Control": "private, no-store" } },
@@ -61,11 +75,27 @@ export async function POST(request: Request) {
     theme?: "light" | "dark";
     ttsVoiceName?: string;
     settings?: Record<string, unknown>;
+    paraEnabled?: boolean;
   };
 
   const existingPrefs = await db.query.userPreferences.findFirst({
     where: eq(userPreferences.userId, session.user.id),
   });
+
+  const existingSettings = asSettingsRecord(existingPrefs?.settings);
+  const paraEnabledUpdate =
+    typeof body.paraEnabled === "boolean" ? body.paraEnabled : undefined;
+  const shouldUpdateSettings =
+    body.settings !== undefined || paraEnabledUpdate !== undefined;
+  const nextSettings = shouldUpdateSettings
+    ? {
+        ...existingSettings,
+        ...(body.settings ?? {}),
+        ...(paraEnabledUpdate !== undefined
+          ? { paraEnabled: paraEnabledUpdate }
+          : {}),
+      }
+    : undefined;
 
   if (existingPrefs) {
     // Update existing preferences
@@ -74,7 +104,7 @@ export async function POST(request: Request) {
       .set({
         ...(body.theme && { theme: body.theme }),
         ...(body.ttsVoiceName && { ttsVoiceName: body.ttsVoiceName }),
-        ...(body.settings && { settings: body.settings }),
+        ...(nextSettings && { settings: nextSettings }),
       })
       .where(eq(userPreferences.userId, session.user.id));
   } else {
@@ -84,7 +114,7 @@ export async function POST(request: Request) {
       userId: session.user.id,
       theme: body.theme ?? "light",
       ttsVoiceName: body.ttsVoiceName ?? "en-US-Standard-A",
-      settings: body.settings ?? {},
+      settings: nextSettings ?? {},
     });
   }
 

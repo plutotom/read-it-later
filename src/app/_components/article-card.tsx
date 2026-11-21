@@ -6,6 +6,7 @@ import { ArticleActionsMenu } from "./article-actions-menu";
 import { ParaBadge } from "./para-badge";
 import { PdfBadge } from "./pdf-badge";
 import { isPdfArticle } from "~/lib/article-content-kind";
+import { useParaEnabled } from "~/hooks/use-para-enabled";
 
 interface ArticleCardProps {
   article: Article;
@@ -46,8 +47,10 @@ export function ArticleCard({
     }
   };
 
+  const { paraEnabled } = useParaEnabled();
   const domain = getDomainFromUrl(article.url);
   const initial = domain.charAt(0).toUpperCase();
+  const isUnread = !article.isArchived && !article.isRead;
   const isPdf = isPdfArticle(article);
   const faviconPalette = [
     "var(--accent)",
@@ -77,11 +80,13 @@ export function ArticleCard({
 
         <div className="min-w-0 flex-1">
           <div
-            className="text-foreground line-clamp-2 text-[17px] leading-snug tracking-tight"
-            style={{
-              fontFamily: "var(--font-app-display)",
-              fontWeight: 500,
-            }}
+            className={
+              !isUnread
+                ? "text-foreground-soft line-clamp-2 text-[17px] leading-snug font-medium tracking-tight"
+                : "text-foreground line-clamp-2 text-[17px] leading-snug font-semibold tracking-tight"
+            }
+            style={{ fontFamily: "var(--font-app-display)" }}
+            data-unread={isUnread ? "true" : undefined}
           >
             {article.title}
           </div>
@@ -101,7 +106,7 @@ export function ArticleCard({
               </>
             )}
             {isPdf && <PdfBadge />}
-            {isOnPara && <ParaBadge />}
+            {paraEnabled && isOnPara && <ParaBadge />}
             {listenProgress !== undefined && (
               <>
                 <span>·</span>

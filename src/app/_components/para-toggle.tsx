@@ -13,6 +13,7 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 import { toast } from "~/hooks/use-toast";
+import { useParaEnabled } from "~/hooks/use-para-enabled";
 import { cn } from "~/lib/utils";
 
 interface ParaToggleProps {
@@ -58,12 +59,13 @@ export function ParaToggle({
   disabled = false,
   disabledReason,
 }: ParaToggleProps) {
+  const { paraEnabled } = useParaEnabled();
   const utils = api.useUtils();
 
   const { data: queriedIsOnPara = false, isLoading } =
     api.para.isOnPara.useQuery(
       { articleId },
-      { enabled: isOnParaProp === undefined },
+      { enabled: paraEnabled && isOnParaProp === undefined },
     );
 
   const isOnPara = isOnParaProp ?? queriedIsOnPara;
@@ -104,6 +106,8 @@ export function ParaToggle({
 
   const isPending = add.isPending || remove.isPending;
   const showOnListState = isOnPara && !isPending;
+
+  if (!paraEnabled) return null;
 
   const handleChange = (checked: boolean) => {
     if (disabled) return;

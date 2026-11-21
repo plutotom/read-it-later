@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { getReturnToLabel, sanitizeReturnTo } from "~/lib/article-navigation";
 import { withViewTransition } from "~/lib/with-view-transition";
 import { ParaToggle } from "./para-toggle";
+import { useParaEnabled } from "~/hooks/use-para-enabled";
 import { ArticleActionsMenu } from "./article-actions-menu";
 import { useDeleteArticle } from "../_hooks/use-delete-article";
 import { cn } from "~/lib/utils";
@@ -54,6 +55,7 @@ export function ArticleReaderHeader({
   onViewModeChange,
 }: ArticleReaderHeaderProps) {
   const returnTo = sanitizeReturnTo(returnToProp ?? null);
+  const { paraEnabled } = useParaEnabled();
   const utils = api.useUtils();
   const router = useRouter();
   const { mutate: archive } = api.article.archive.useMutation({
@@ -189,15 +191,17 @@ export function ArticleReaderHeader({
               onFontSizeChange={onFontSizeChange}
             />
 
-            <div className="border-rule border-t pt-3">
-              <ParaToggle
-                articleId={article.id}
-                articleTitle={article.title}
-                className="px-1 py-2"
-                disabled={isPdfWithoutText}
-                disabledReason={DOCUMENT_UNSUPPORTED_PARA_MESSAGE}
-              />
-            </div>
+            {paraEnabled && (
+              <div className="border-rule border-t pt-3">
+                <ParaToggle
+                  articleId={article.id}
+                  articleTitle={article.title}
+                  className="px-1 py-2"
+                  disabled={isPdfWithoutText}
+                  disabledReason={DOCUMENT_UNSUPPORTED_PARA_MESSAGE}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

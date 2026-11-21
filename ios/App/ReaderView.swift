@@ -148,7 +148,6 @@ struct ReaderView: View {
                                 }
                             }
                             Button(article.isRead ? "Mark unread" : "Mark read", systemImage: "checkmark.circle") { model.mutate { try $0.toggleRead(id: id) } }
-                            Button(article.isFavorite ? "Remove favorite" : "Favorite", systemImage: "star") { model.mutate { try $0.toggleFavorite(id: id) } }
                             Button(article.isArchived ? "Move to Inbox" : "Archive", systemImage: "archivebox") { model.mutate { try $0.toggleArchived(id: id) } }
                             Button(model.annotationSyncEnabled ? "Add a note" : "Edit note", systemImage: "square.and.pencil") { beginNote(article: article) }
                             if model.syncEnabled {

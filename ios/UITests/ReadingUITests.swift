@@ -15,7 +15,6 @@ final class ReadingUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["A shared web article"].waitForExistence(timeout: 30))
         app.staticTexts["A shared web article"].tap()
         XCTAssertTrue(app.textViews["articleText"].waitForExistence(timeout: 10))
-        app.buttons["Reading options"].tap(); app.buttons["Favorite"].tap()
         app.buttons["Paper Drive"].tap()
         XCTAssertTrue(app.navigationBars["Paper Drive"].waitForExistence(timeout: 5))
         try setFixtureBackendOffline(true)
@@ -500,15 +499,16 @@ final class ReadingUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["An offline note"].waitForExistence(timeout: 5))
         app.buttons["Mark read"].tap()
         app.buttons["Reading options"].tap()
-        app.buttons["Favorite"].tap()
+        app.buttons["Archive"].tap()
         reopen(app)
+        app.segmentedControls.buttons["Archive"].tap()
         app.staticTexts["An offline test article"].tap()
         XCTAssertTrue(app.staticTexts["An offline note"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Read"].exists)
         app.buttons["Reading options"].tap()
+        XCTAssertTrue(app.buttons["Mark unread"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["View original site"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Remove favorite"].waitForExistence(timeout: 5))
-        app.buttons["Remove favorite"].tap()
+        XCTAssertTrue(app.buttons["Move to Inbox"].waitForExistence(timeout: 5))
+        app.buttons["Move to Inbox"].tap()
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Offline reader with note"
         attachment.lifetime = .keepAlways
@@ -523,7 +523,8 @@ final class ReadingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Reading options"].waitForExistence(timeout: 5))
         app.buttons["Reading options"].tap()
         XCTAssertTrue(app.buttons["View original site"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Favorite"].exists)
+        XCTAssertTrue(app.buttons["Archive"].exists)
+        XCTAssertFalse(app.buttons["Favorite"].exists)
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Reading options with View original site"
         attachment.lifetime = .keepAlways
