@@ -40,6 +40,7 @@ interface ArticleListProps {
   showFilters?: boolean;
   /** Inbox-only: Unread is a mark/filter, not a library destination. */
   showUnreadFilter?: boolean;
+  isArchive?: boolean;
 }
 
 export function ArticleList({
@@ -53,6 +54,7 @@ export function ArticleList({
   showSearch = true,
   showFilters = false,
   showUnreadFilter = false,
+  isArchive = false,
 }: ArticleListProps) {
   const PAGE_SIZE = 10;
   const [searchQuery, setSearchQuery] = useState("");
@@ -110,6 +112,9 @@ export function ArticleList({
     0,
     listArticles.length - visibleArticles.length,
   );
+
+  const heroIsUnread =
+    heroArticle && !heroArticle.isArchived && !heroArticle.isRead;
 
   const articleIds = useMemo(
     () => filteredArticles.map((article) => article.id),
@@ -242,14 +247,18 @@ export function ArticleList({
                 ? "No articles found"
                 : unreadOnly
                   ? "Caught up"
-                  : "No articles yet"}
+                  : isArchive
+                    ? "Archive is empty"
+                    : "No articles yet"}
             </h3>
             <p className="text-foreground-soft max-w-sm text-sm leading-relaxed">
               {searchQuery
                 ? "Try adjusting your search terms or filters"
                 : unreadOnly
                   ? "Nothing unread in Inbox."
-                  : "Start by adding your first article to read later"}
+                  : isArchive
+                    ? "Articles you archive from Inbox appear here."
+                    : "Start by adding your first article to read later"}
             </p>
           </div>
         ) : (
@@ -266,16 +275,16 @@ export function ArticleList({
                   <div className="grid min-h-[240px] grid-cols-1 sm:grid-cols-[1.2fr_0.8fr]">
                     <div className="p-5 sm:p-7">
                       <div className="text-muted-foreground text-xs tracking-[0.18em] uppercase">
-                        {heroArticle.isRead ? "Continue reading" : "Unread"}
+                        {heroIsUnread ? "Unread" : "Continue reading"}
                       </div>
                       <h2
                         className={
-                          heroArticle.isRead
+                          !heroIsUnread
                             ? "text-foreground-soft mt-3 line-clamp-3 text-3xl leading-[1.05] font-medium tracking-tight break-words sm:text-4xl"
                             : "text-foreground mt-3 line-clamp-3 text-3xl leading-[1.05] font-semibold tracking-tight break-words sm:text-4xl"
                         }
                         style={{ fontFamily: "var(--font-app-display)" }}
-                        data-unread={heroArticle.isRead ? undefined : "true"}
+                        data-unread={heroIsUnread ? "true" : undefined}
                       >
                         {truncateText(heroArticle.title, HERO_TITLE_MAX_CHARS)}
                       </h2>

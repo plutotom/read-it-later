@@ -37,6 +37,7 @@ export default function PreferencesPage() {
   const [paraEnabled, setParaEnabledState] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingVoice, setIsSavingVoice] = useState(false);
+  const [paraError, setParaError] = useState(false);
   const [isSavingPara, setIsSavingPara] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [passwordStatus, setPasswordStatus] = useState<{
@@ -107,18 +108,23 @@ export default function PreferencesPage() {
   };
 
   const handleParaEnabledChange = async (enabled: boolean) => {
-    setParaEnabledState(enabled);
-    setParaEnabled(enabled);
+    setParaError(false);
     setIsSavingPara(true);
 
     try {
-      await fetch("/api/preferences", {
+      const response = await fetch("/api/preferences", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paraEnabled: enabled }),
       });
-    } catch (error) {
-      console.error("Failed to save PARA preference:", error);
+      if (!response.ok) {
+        setParaError(true);
+        return;
+      }
+      setParaEnabledState(enabled);
+      setParaEnabled(enabled);
+    } catch {
+      setParaError(true);
     } finally {
       setIsSavingPara(false);
     }
@@ -219,6 +225,11 @@ export default function PreferencesPage() {
                   <p className="text-sm text-gray-400">
                     Show PARA buttons, badges, and the nav link
                   </p>
+                  {paraError && (
+                    <p role="alert" className="text-sm text-red-400">
+                      Could not save the PARA preference. Try again.
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">

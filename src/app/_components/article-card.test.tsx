@@ -68,3 +68,15 @@ it("does not mark read titles as unread", async () => {
   });
   expect(container.querySelector("[data-unread]")).toBeNull();
 });
+
+it("uses regular title styling for unread articles in Archive", async () => {
+  await act(async () => {
+    root.render(
+      <ArticleCard
+        article={{ ...base, isArchived: true }}
+        showActions={false}
+      />,
+    );
+  });
+  expect(container.querySelector("[data-unread]")).toBeNull();
+});

@@ -86,3 +86,16 @@ it("renders a PARA e-reader sync switch", async () => {
   expect(container.textContent).toContain("E-reader sync");
   expect(container.querySelector("#para-enabled-toggle")).not.toBeNull();
 });
+
+it("keeps the saved PARA setting when the server rejects a change", async () => {
+  await mount(true);
+  vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 500 }));
+  const toggle = container.querySelector<HTMLButtonElement>(
+    "#para-enabled-toggle",
+  )!;
+  await act(async () => toggle.click());
+  expect(toggle.getAttribute("aria-checked")).toBe("true");
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+    "Could not save the PARA preference",
+  );
+});

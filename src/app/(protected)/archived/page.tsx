@@ -65,6 +65,7 @@ export default function ArchivedPage() {
             }
             onUnarchive={handleUnarchive}
             onDelete={handleDelete}
+            isArchive
             showSearch
             showFilters={false}
           />

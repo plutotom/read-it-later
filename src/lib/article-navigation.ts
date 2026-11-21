@@ -30,8 +30,8 @@ export function sanitizeReturnTo(from: string | null): string {
 }
 
 export function getReturnToLabel(returnTo: string): string {
-  if (returnTo === "/") return "Back to inbox";
-  if (returnTo === "/archived") return "Back to archived articles";
+  if (returnTo === "/") return "Back to Inbox";
+  if (returnTo === "/archived") return "Back to Archive";
   if (returnTo.startsWith("/search")) return "Back to search";
   if (returnTo.startsWith("/folder/")) return "Back to folder";
   if (returnTo === "/para") return "Back to Para";

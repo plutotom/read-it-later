@@ -53,12 +53,18 @@ struct LibraryView: View {
                         }
                         if let message = model.syncError { Text(message).font(.caption).foregroundStyle(.orange) }
                     }
-                    Picker("Library filter", selection: $filter) {
+                    Picker("Library", selection: $filter) {
                         ForEach(ArticleLibraryFilter.allCases, id: \.rawValue) { Text($0.rawValue).tag($0.rawValue) }
                     }.pickerStyle(.segmented)
                 }
                 if filtered.isEmpty {
-                    ContentUnavailableView(search.isEmpty ? "Your next good read" : "No matches", systemImage: "books.vertical", description: Text("Save a link with + or share one from Safari. Downloaded text stays available offline."))
+                    if !search.isEmpty {
+                        ContentUnavailableView.search(text: search)
+                    } else if filter == ArticleLibraryFilter.archive.rawValue {
+                        ContentUnavailableView("Archive is empty", systemImage: "archivebox", description: Text("Articles you archive from Inbox appear here."))
+                    } else {
+                        ContentUnavailableView("Your next good read", systemImage: "books.vertical", description: Text("Save a link with + or share one from Safari. Downloaded text stays available offline."))
+                    }
                 }
                 ForEach(filtered) { article in
                     NavigationLink {
@@ -67,7 +73,7 @@ struct LibraryView: View {
                         VStack(alignment: .leading, spacing: 7) {
                             Text(URL(string: article.url)?.host ?? article.url)
                                 .font(.caption).foregroundStyle(.secondary)
-                            Text(article.title).font(.headline).fontWeight(article.isRead ? .regular : .semibold).lineLimit(3)
+                            Text(article.title).font(.headline).fontWeight(article.isArchived || article.isRead ? .regular : .semibold).lineLimit(3)
                             HStack {
                                 Label(article.isDownloaded ? "Text available offline" : "Link saved", systemImage: article.isDownloaded ? "checkmark.circle" : "link")
                                 if model.downloading.contains(article.id) { ProgressView() }

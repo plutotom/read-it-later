@@ -5,6 +5,7 @@ import { ArticleReader } from "~/app/_components/article-reader";
 import { AddArticleFormCard } from "~/app/_components/AddArticleFormCard";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { sanitizeReturnTo } from "~/lib/article-navigation";
+import { useSetArticleRead } from "../_hooks/use-set-article-read";
 import { api } from "~/trpc/react";
 import type { NotePosition } from "~/types/annotation";
 import { GeneralProvider } from "../(protected)/contexts/general-context";
@@ -26,20 +27,8 @@ export function ArticleDetailView({ id }: ArticleDetailViewProps) {
     position: (n.position as NotePosition | null) ?? null,
   }));
 
-  const utils = api.useUtils();
-
-  const markAsRead = api.article.markAsRead.useMutation({
-    onSuccess: () => {
-      void utils.article.getAll.invalidate();
-      void utils.article.get.invalidate({ id });
-    },
-  });
-
-  const handleMarkAsRead = () => {
-    if (article && !article.isRead) {
-      markAsRead.mutate({ id: article.id });
-    }
-  };
+  const { setRead } = useSetArticleRead();
+  const handleMarkAsRead = () => setRead(id, true);
 
   if (error) {
     return (

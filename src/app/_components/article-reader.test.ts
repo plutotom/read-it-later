@@ -198,3 +198,25 @@ it.each([
     expect(container.querySelector("iframe")).toBeNull();
   },
 );
+
+it.each([true, false])(
+  "auto-marks only on entry when the initial read state is %s",
+  async (isRead) => {
+    const onMarkAsRead = vi.fn();
+    const render = async (read: boolean) =>
+      act(async () =>
+        root.render(
+          createElement(ArticleReader, {
+            article: { ...article, isRead: read },
+            onMarkAsRead,
+          }),
+        ),
+      );
+
+    await render(isRead);
+    expect(onMarkAsRead).toHaveBeenCalledTimes(isRead ? 0 : 1);
+    await render(true);
+    await render(false);
+    expect(onMarkAsRead).toHaveBeenCalledTimes(isRead ? 0 : 1);
+  },
+);

@@ -190,19 +190,10 @@ export function ArticleReader({
     onMarkAsReadRef.current = onMarkAsRead;
   }, [onMarkAsRead]);
 
-  // Mark article as read when it changes to unread
   useEffect(() => {
-    if (
-      !article.isRead &&
-      onMarkAsReadRef.current &&
-      markedAsReadRef.current !== article.id
-    ) {
-      markedAsReadRef.current = article.id;
-      onMarkAsReadRef.current();
-    }
-    if (markedAsReadRef.current && markedAsReadRef.current !== article.id) {
-      markedAsReadRef.current = null;
-    }
+    if (markedAsReadRef.current === article.id) return;
+    markedAsReadRef.current = article.id;
+    if (!article.isRead) onMarkAsReadRef.current?.();
   }, [article.id, article.isRead]);
 
   useEffect(() => {

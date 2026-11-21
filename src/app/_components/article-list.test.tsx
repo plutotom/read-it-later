@@ -103,7 +103,9 @@ it("keeps unread as a filter on Inbox, not a destination", async () => {
 it("does not show the unread chip outside Inbox", async () => {
   await act(async () => {
     root.render(
-      <ArticleList articles={[article({ title: "Archived unread" })]} />,
+      <ArticleList
+        articles={[article({ title: "Archived story", isArchived: true })]}
+      />,
     );
   });
   expect(
@@ -111,4 +113,6 @@ it("does not show the unread chip outside Inbox", async () => {
       (node) => node.textContent?.trim() === "Unread",
     ),
   ).toBe(false);
+  expect(container.querySelector("[data-unread]")).toBeNull();
+  expect(container.textContent).not.toContain("Unread");
 });
