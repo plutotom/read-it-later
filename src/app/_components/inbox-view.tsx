@@ -54,7 +54,7 @@ export function InboxView() {
           onArchive={handleArchive}
           onDelete={handleDelete}
           showSearch
-          showFilters={false}
+          showUnreadFilter
         />
       </div>
     </Layout>

@@ -21,9 +21,13 @@ import {
   Trash2,
   BookOpen,
   Globe,
+  CheckCircle,
+  Circle,
 } from "lucide-react";
 import { type ArticleViewMode } from "~/lib/article-web-view";
 import { ParaToggle } from "./para-toggle";
+import { useParaEnabled } from "~/hooks/use-para-enabled";
+import { useSetArticleRead } from "../_hooks/use-set-article-read";
 import { ShareDialog } from "./share-dialog";
 import { cn } from "~/lib/utils";
 import {
@@ -62,6 +66,8 @@ export function ArticleActionsMenu({
   onViewModeChange,
 }: ArticleActionsMenuProps) {
   const { setMetadataEditArticle } = useContext(GeneralContext);
+  const { paraEnabled } = useParaEnabled();
+  const { setRead, isPending: isReadPending } = useSetArticleRead();
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
@@ -140,14 +146,32 @@ export function ArticleActionsMenu({
             Edit metadata
           </DropdownMenuItem>
 
-          <ParaToggle
-            articleId={article.id}
-            articleTitle={article.title}
-            isOnPara={isOnPara}
-            variant="menu"
-            disabled={isPdfArticle(article) && !hasExtractedText(article)}
-            disabledReason={DOCUMENT_UNSUPPORTED_PARA_MESSAGE}
-          />
+          <DropdownMenuItem
+            onPointerDown={preventMenuClickThrough}
+            disabled={isReadPending}
+            onClick={(e) => {
+              e.stopPropagation();
+              setRead(article.id, !article.isRead);
+            }}
+          >
+            {article.isRead ? (
+              <Circle className="mr-2 h-4 w-4" />
+            ) : (
+              <CheckCircle className="mr-2 h-4 w-4" />
+            )}
+            {article.isRead ? "Mark as unread" : "Mark as read"}
+          </DropdownMenuItem>
+
+          {paraEnabled && (
+            <ParaToggle
+              articleId={article.id}
+              articleTitle={article.title}
+              isOnPara={isOnPara}
+              variant="menu"
+              disabled={isPdfArticle(article) && !hasExtractedText(article)}
+              disabledReason={DOCUMENT_UNSUPPORTED_PARA_MESSAGE}
+            />
+          )}
 
           {article.isArchived ? (
             <DropdownMenuItem

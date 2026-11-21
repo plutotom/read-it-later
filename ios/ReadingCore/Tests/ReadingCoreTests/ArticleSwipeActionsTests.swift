@@ -17,10 +17,10 @@ final class ArticleSwipeActionsTests: XCTestCase {
         )
     }
 
-    func testEdgesSplitFourActionsWithFullSwipeFirst() {
+    func testEdgesSplitReadArchiveDeleteWithFullSwipeFirst() {
         let actions = ArticleSwipeAction.all(for: article())
-        XCTAssertEqual(actions.map(\.kind), [.read, .favorite, .archive, .delete])
-        XCTAssertEqual(ArticleSwipeAction.leading(for: article()).map(\.kind), [.read, .favorite])
+        XCTAssertEqual(actions.map(\.kind), [.read, .archive, .delete])
+        XCTAssertEqual(ArticleSwipeAction.leading(for: article()).map(\.kind), [.read])
         XCTAssertEqual(ArticleSwipeAction.trailing(for: article()).map(\.kind), [.archive, .delete])
         XCTAssertEqual(ArticleSwipeAction.leading(for: article()).first?.kind, .read)
         XCTAssertEqual(ArticleSwipeAction.trailing(for: article()).first?.kind, .archive)
@@ -37,19 +37,6 @@ final class ArticleSwipeActionsTests: XCTestCase {
         XCTAssertEqual(read.title, "Unread")
         XCTAssertEqual(read.systemImage, "envelope.badge.fill")
         XCTAssertEqual(read.accessibilityLabel, "Mark as unread")
-    }
-
-    func testFavoriteToggleUpdatesLabelIconAndAccessibility() {
-        let add = ArticleSwipeAction.favorite(for: article())
-        XCTAssertEqual(add.title, "Favorite")
-        XCTAssertEqual(add.systemImage, "star.fill")
-        XCTAssertEqual(add.accessibilityLabel, "Add to favorites")
-        XCTAssertEqual(add.tint, .orange)
-
-        let remove = ArticleSwipeAction.favorite(for: article(favorite: true))
-        XCTAssertEqual(remove.title, "Unfavorite")
-        XCTAssertEqual(remove.systemImage, "star.slash.fill")
-        XCTAssertEqual(remove.accessibilityLabel, "Remove from favorites")
     }
 
     func testArchiveToggleUpdatesLabelIconAndAccessibility() {
@@ -75,25 +62,19 @@ final class ArticleSwipeActionsTests: XCTestCase {
         XCTAssertFalse(ArticleSwipeAction.archive(for: article()).isDestructive)
     }
 
-    func testLibraryFiltersHideArchivedAndHonorReadFavoriteToggles() {
+    func testLibraryPlacesAreInboxAndArchive() {
         var row = article()
-        XCTAssertTrue(ArticleLibraryFilter.all.includes(row))
-        XCTAssertTrue(ArticleLibraryFilter.unread.includes(row))
-        XCTAssertFalse(ArticleLibraryFilter.favorites.includes(row))
-        XCTAssertFalse(ArticleLibraryFilter.archived.includes(row))
+        XCTAssertTrue(ArticleLibraryFilter.inbox.includes(row))
+        XCTAssertFalse(ArticleLibraryFilter.archive.includes(row))
 
         row.isRead = true
-        XCTAssertTrue(ArticleLibraryFilter.all.includes(row))
-        XCTAssertFalse(ArticleLibraryFilter.unread.includes(row))
-
         row.isFavorite = true
-        XCTAssertTrue(ArticleLibraryFilter.favorites.includes(row))
+        XCTAssertTrue(ArticleLibraryFilter.inbox.includes(row))
+        XCTAssertFalse(ArticleLibraryFilter.archive.includes(row))
 
         row.isArchived = true
-        XCTAssertFalse(ArticleLibraryFilter.all.includes(row))
-        XCTAssertFalse(ArticleLibraryFilter.unread.includes(row))
-        XCTAssertFalse(ArticleLibraryFilter.favorites.includes(row))
-        XCTAssertTrue(ArticleLibraryFilter.archived.includes(row))
+        XCTAssertFalse(ArticleLibraryFilter.inbox.includes(row))
+        XCTAssertTrue(ArticleLibraryFilter.archive.includes(row))
     }
 
     @MainActor func testFlagTogglesPersistThroughExistingLibraryMutations() throws {
@@ -108,7 +89,7 @@ final class ArticleSwipeActionsTests: XCTestCase {
         row = try XCTUnwrap(library.articles().first)
         XCTAssertTrue(row.isRead)
         XCTAssertEqual(ArticleSwipeAction.read(for: row).title, "Unread")
-        XCTAssertFalse(ArticleLibraryFilter.unread.includes(row))
+        XCTAssertTrue(ArticleLibraryFilter.inbox.includes(row))
 
         try library.toggleRead(id: saved.id)
         row = try XCTUnwrap(library.articles().first)
@@ -118,8 +99,7 @@ final class ArticleSwipeActionsTests: XCTestCase {
         try library.toggleFavorite(id: saved.id)
         row = try XCTUnwrap(library.articles().first)
         XCTAssertTrue(row.isFavorite)
-        XCTAssertEqual(ArticleSwipeAction.favorite(for: row).title, "Unfavorite")
-        XCTAssertTrue(ArticleLibraryFilter.favorites.includes(row))
+        XCTAssertTrue(ArticleLibraryFilter.inbox.includes(row))
 
         try library.toggleFavorite(id: saved.id)
         row = try XCTUnwrap(library.articles().first)
@@ -129,13 +109,13 @@ final class ArticleSwipeActionsTests: XCTestCase {
         row = try XCTUnwrap(library.articles().first)
         XCTAssertTrue(row.isArchived)
         XCTAssertEqual(ArticleSwipeAction.archive(for: row).title, "Inbox")
-        XCTAssertFalse(ArticleLibraryFilter.all.includes(row))
-        XCTAssertTrue(ArticleLibraryFilter.archived.includes(row))
+        XCTAssertFalse(ArticleLibraryFilter.inbox.includes(row))
+        XCTAssertTrue(ArticleLibraryFilter.archive.includes(row))
 
         try library.toggleArchived(id: saved.id)
         row = try XCTUnwrap(library.articles().first)
         XCTAssertFalse(row.isArchived)
         XCTAssertEqual(ArticleSwipeAction.archive(for: row).title, "Archive")
-        XCTAssertTrue(ArticleLibraryFilter.all.includes(row))
+        XCTAssertTrue(ArticleLibraryFilter.inbox.includes(row))
     }
 }

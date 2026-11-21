@@ -162,6 +162,20 @@ export const articleRouter = createTRPCRouter({
       return { success: !!updated };
     }),
 
+  markAsUnread: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const updated = await updateArticle(
+        ctx.db,
+        ctx.session.user.id,
+        input.id,
+        {
+          isRead: false,
+        },
+      );
+      return { success: !!updated };
+    }),
+
   /**
    * Generate or get existing share link for an article
    */

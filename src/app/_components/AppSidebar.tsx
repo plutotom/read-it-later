@@ -11,7 +11,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "~/components/ui/sidebar";
-import { navGroups, type NavItem } from "~/config/nav-config";
+import { getNavGroups, type NavItem } from "~/config/nav-config";
+import { useParaEnabled } from "~/hooks/use-para-enabled";
 import { NavLink } from "./navigation/NavLink";
 import { UserMenu } from "./user-menu";
 import { useSession } from "~/lib/auth-client";
@@ -26,6 +27,8 @@ import { Button } from "~/components/ui/button";
 export function AppSidebar() {
   const { data: session } = useSession();
   const { setOpenMobile, isMobile } = useSidebar();
+  const { paraEnabled } = useParaEnabled();
+  const groups = getNavGroups({ paraEnabled });
 
   const handleNavClick = () => {
     setOpenMobile(false);
@@ -68,7 +71,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="bg-sidebar px-3 py-3">
-        {navGroups.map((group) => (
+        {groups.map((group) => (
           <SidebarGroup key={group.title} className="p-0">
             <SidebarGroupContent>
               <SidebarMenu className="space-y-1.5">

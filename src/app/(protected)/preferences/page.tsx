@@ -19,7 +19,9 @@ import {
   HardDrive,
   Library,
   ChevronRight,
+  Tablet,
 } from "lucide-react";
+import { setParaEnabled } from "~/hooks/use-para-enabled";
 import Link from "next/link";
 import { DEFAULT_VOICE } from "~/lib/tts-voices";
 import { TTSUsageDisplay } from "~/app/_components/tts-usage-display";
@@ -32,8 +34,10 @@ export default function PreferencesPage() {
   const userId = session?.user.id;
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [ttsVoiceName, setTtsVoiceName] = useState(DEFAULT_VOICE);
+  const [paraEnabled, setParaEnabledState] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingVoice, setIsSavingVoice] = useState(false);
+  const [isSavingPara, setIsSavingPara] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [passwordStatus, setPasswordStatus] = useState<{
     userId: string;
@@ -52,6 +56,7 @@ export default function PreferencesPage() {
             theme?: "light" | "dark";
             ttsVoiceName?: string;
             hasPassword?: boolean;
+            paraEnabled?: boolean;
           };
           if (data.theme) {
             setTheme(data.theme);
@@ -59,6 +64,9 @@ export default function PreferencesPage() {
           if (data.ttsVoiceName) {
             setTtsVoiceName(data.ttsVoiceName);
           }
+          const nextParaEnabled = data.paraEnabled !== false;
+          setParaEnabledState(nextParaEnabled);
+          setParaEnabled(nextParaEnabled);
           if (userId && typeof data.hasPassword === "boolean") {
             setPasswordStatus({
               userId,
@@ -95,6 +103,24 @@ export default function PreferencesPage() {
       console.error("Failed to save preferences:", error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleParaEnabledChange = async (enabled: boolean) => {
+    setParaEnabledState(enabled);
+    setParaEnabled(enabled);
+    setIsSavingPara(true);
+
+    try {
+      await fetch("/api/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paraEnabled: enabled }),
+      });
+    } catch (error) {
+      console.error("Failed to save PARA preference:", error);
+    } finally {
+      setIsSavingPara(false);
     }
   };
 
@@ -168,6 +194,42 @@ export default function PreferencesPage() {
                   checked={theme === "dark"}
                   onCheckedChange={handleThemeChange}
                   disabled={isSaving}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card mt-6 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white">PARA</CardTitle>
+            <CardDescription>
+              E-reader sync. Turning this off hides PARA buttons and the nav
+              link. The /para page still works if you visit it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Tablet className="h-5 w-5 text-gray-400" />
+                <div>
+                  <Label htmlFor="para-enabled-toggle" className="text-white">
+                    E-reader sync
+                  </Label>
+                  <p className="text-sm text-gray-400">
+                    Show PARA buttons, badges, and the nav link
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {isSavingPara && (
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                )}
+                <Switch
+                  id="para-enabled-toggle"
+                  checked={paraEnabled}
+                  onCheckedChange={handleParaEnabledChange}
+                  disabled={isSavingPara}
                 />
               </div>
             </div>

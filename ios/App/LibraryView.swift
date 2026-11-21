@@ -18,7 +18,7 @@ struct LibraryView: View {
     @State private var showingPlayer = false
     @Environment(\.scenePhase) private var phase
     @State private var search = ""
-    @State private var filter = "All"
+    @State private var filter = ArticleLibraryFilter.inbox.rawValue
     @State private var adding = false
     @State private var settings = false
     @State private var savedFeedback: SavedArticleFeedback?
@@ -29,7 +29,7 @@ struct LibraryView: View {
 
     private var filtered: [Article] {
         model.articles.filter {
-            (ArticleLibraryFilter(rawValue: filter) ?? .all).includes($0) &&
+            (ArticleLibraryFilter(rawValue: filter) ?? .inbox).includes($0) &&
             (search.isEmpty || "\($0.title) \($0.url) \($0.text) \(model.annotationSyncEnabled ? model.noteSearchText[$0.id] ?? "" : $0.note)".localizedCaseInsensitiveContains(search))
         }
     }
@@ -67,11 +67,9 @@ struct LibraryView: View {
                         VStack(alignment: .leading, spacing: 7) {
                             Text(URL(string: article.url)?.host ?? article.url)
                                 .font(.caption).foregroundStyle(.secondary)
-                            Text(article.title).font(.headline).lineLimit(3)
+                            Text(article.title).font(.headline).fontWeight(article.isRead ? .regular : .semibold).lineLimit(3)
                             HStack {
                                 Label(article.isDownloaded ? "Text available offline" : "Link saved", systemImage: article.isDownloaded ? "checkmark.circle" : "link")
-                                if article.isFavorite { Image(systemName: "star.fill") }
-                                if article.isRead { Text("Read") }
                                 if model.downloading.contains(article.id) { ProgressView() }
                             }.font(.caption).foregroundStyle(.secondary)
                             if article.error != nil { Text("Download needs attention").font(.caption).foregroundStyle(.orange) }
@@ -81,7 +79,6 @@ struct LibraryView: View {
                     // Native Label buttons adopt Mail's rounded icon-and-title presentation on iOS 26.
                     .swipeActions(edge: .leading, allowsFullSwipe: true) {
                         Button { model.mutate { try $0.toggleRead(id: article.id) } } label: { Label(ArticleSwipeAction.read(for: article).title, systemImage: ArticleSwipeAction.read(for: article).systemImage) }.tint(.blue).accessibilityLabel(ArticleSwipeAction.read(for: article).accessibilityLabel)
-                        Button { model.mutate { try $0.toggleFavorite(id: article.id) } } label: { Label(ArticleSwipeAction.favorite(for: article).title, systemImage: ArticleSwipeAction.favorite(for: article).systemImage) }.tint(.orange).accessibilityLabel(ArticleSwipeAction.favorite(for: article).accessibilityLabel)
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button { model.mutate { try $0.toggleArchived(id: article.id) } } label: { Label(ArticleSwipeAction.archive(for: article).title, systemImage: ArticleSwipeAction.archive(for: article).systemImage) }.tint(.gray).accessibilityLabel(ArticleSwipeAction.archive(for: article).accessibilityLabel)
@@ -144,7 +141,7 @@ struct LibraryView: View {
                             if let date = model.lastSync { LabeledContent("Last synced") { Text(date, style: .relative) } }
                             if let message = model.syncError { Text(message).foregroundStyle(.orange) }
                             Button(model.syncing ? "Syncing…" : "Sync now") { Task { await model.synchronize() } }.disabled(model.syncing).accessibilityIdentifier("syncNow")
-                            Text("Articles, read/favorite/archive state, notes, highlights and deletions sync with your web account. Offline edits stay queued for this account. Saved quotes remain available when their original position cannot be verified.").font(.footnote).foregroundStyle(.secondary)
+                            Text("Articles, read and archive state, notes, highlights and deletions sync with your web account. Offline edits stay queued for this account. Saved quotes remain available when their original position cannot be verified.").font(.footnote).foregroundStyle(.secondary)
                         }
                     }
                     Section("Native reader") {

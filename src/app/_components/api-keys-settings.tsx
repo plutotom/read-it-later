@@ -14,10 +14,12 @@ import {
 } from "~/components/ui/card";
 import { Copy, Check, KeyRound, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "~/hooks/use-toast";
+import { useParaEnabled } from "~/hooks/use-para-enabled";
 
 type AccessLevel = "read" | "readwrite";
 
 export function ApiKeysSettings() {
+  const { paraEnabled } = useParaEnabled();
   const [label, setLabel] = useState("");
   const [accessLevel, setAccessLevel] = useState<AccessLevel>("readwrite");
   const [newKey, setNewKey] = useState<string | null>(null);
@@ -78,41 +80,45 @@ export function ApiKeysSettings() {
           API Keys
         </CardTitle>
         <CardDescription>
-          Create keys for your Para e-reader and other integrations. Use{" "}
-          <code className="text-xs">Authorization: Bearer &lt;key&gt;</code> on
-          device requests.
+          {paraEnabled
+            ? "Create keys for your Para e-reader and other integrations."
+            : "Create keys for REST, MCP, and other integrations."}{" "}
+          Use <code className="text-xs">Authorization: Bearer &lt;key&gt;</code>{" "}
+          on requests.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label className="text-white">Manifest URL</Label>
-          <div className="flex gap-2">
-            <Input
-              readOnly
-              value={manifestUrl}
-              className="border-gray-600 bg-gray-900 font-mono text-xs text-gray-200"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="shrink-0 border-gray-600"
-              aria-label="Copy manifest URL"
-              onClick={() =>
-                void copyToClipboard(manifestUrl, "manifest", "Manifest URL")
-              }
-            >
-              {copiedTarget === "manifest" ? (
-                <Check className="h-4 w-4 text-emerald-400" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-            </Button>
+        {paraEnabled && (
+          <div className="space-y-2">
+            <Label className="text-white">Manifest URL</Label>
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={manifestUrl}
+                className="border-gray-600 bg-gray-900 font-mono text-xs text-gray-200"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0 border-gray-600"
+                aria-label="Copy manifest URL"
+                onClick={() =>
+                  void copyToClipboard(manifestUrl, "manifest", "Manifest URL")
+                }
+              >
+                {copiedTarget === "manifest" ? (
+                  <Check className="h-4 w-4 text-emerald-400" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-gray-400">
+              Set this URL on your device, plus an API key below.
+            </p>
           </div>
-          <p className="text-xs text-gray-400">
-            Set this URL on your device, plus an API key below.
-          </p>
-        </div>
+        )}
 
         {newKey && (
           <div className="rounded-lg border border-amber-700/50 bg-amber-950/30 p-4">
@@ -199,7 +205,9 @@ export function ApiKeysSettings() {
           <p className="text-xs text-gray-400">
             {accessLevel === "readwrite"
               ? "Can read and modify your library (articles, folders, highlights, notes)."
-              : "Can only read your library. Use for the Para e-reader or read-only integrations."}
+              : paraEnabled
+                ? "Can only read your library. Use for the Para e-reader or read-only integrations."
+                : "Can only read your library. Use for read-only integrations."}
           </p>
         </div>
 

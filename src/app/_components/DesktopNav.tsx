@@ -6,7 +6,8 @@ import { Separator } from "~/components/ui/separator";
 import { useSession } from "~/lib/auth-client";
 import { UserMenu } from "./user-menu";
 import { NavLink } from "./navigation/NavLink";
-import { mainNavItems } from "~/config/nav-config";
+import { getMainNavItems } from "~/config/nav-config";
+import { useParaEnabled } from "~/hooks/use-para-enabled";
 
 interface DesktopNavProps {
   pageTitle: string;
@@ -18,6 +19,8 @@ interface DesktopNavProps {
  */
 export function DesktopNav({ pageTitle }: DesktopNavProps) {
   const { data: session } = useSession();
+  const { paraEnabled } = useParaEnabled();
+  const navItems = getMainNavItems({ paraEnabled });
 
   return (
     <header className="bg-background/90 border-rule sticky top-0 z-40 border-b pt-[env(safe-area-inset-top,0px)] backdrop-blur-xl">
@@ -55,7 +58,7 @@ export function DesktopNav({ pageTitle }: DesktopNavProps) {
         </div>
 
         <nav className="hidden items-center gap-1 md:flex">
-          {mainNavItems.map((item) => (
+          {navItems.map((item) => (
             <NavLink key={item.title} item={item} variant="desktop" />
           ))}
 

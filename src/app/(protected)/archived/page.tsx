@@ -36,15 +36,15 @@ export default function ArchivedPage() {
 
   if (isLoading)
     return (
-      <Layout pageTitle="Archived Articles">
+      <Layout pageTitle="Archive">
         <div className="text-muted-foreground p-4 text-center">
-          Loading archived articles...
+          Loading archive...
         </div>
       </Layout>
     );
   if (error)
     return (
-      <Layout pageTitle="Archived Articles">
+      <Layout pageTitle="Archive">
         <div className="p-4 text-center text-red-400">
           Error: {error.message}
         </div>
@@ -52,7 +52,7 @@ export default function ArchivedPage() {
     );
 
   return (
-    <Layout pageTitle="Archived Articles">
+    <Layout pageTitle="Archive">
       <div className="bg-background flex min-h-screen flex-col">
         <main className="mx-auto w-full max-w-5xl flex-1 p-4 sm:p-6">
           <ArticleList

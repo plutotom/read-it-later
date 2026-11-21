@@ -80,3 +80,9 @@ it("does not misreport an unknown status as a missing password", async () => {
     container.querySelector('a[href="/native/password"]')?.textContent,
   ).toBe("Manage password");
 });
+
+it("renders a PARA e-reader sync switch", async () => {
+  await mount(true);
+  expect(container.textContent).toContain("E-reader sync");
+  expect(container.querySelector("#para-enabled-toggle")).not.toBeNull();
+});
