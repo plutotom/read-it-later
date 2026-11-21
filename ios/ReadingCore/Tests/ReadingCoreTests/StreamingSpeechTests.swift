@@ -26,11 +26,12 @@ private actor OpenStreamService: SpeechService {
     var received: [Int: Data] = [:]
     var finished: Set<Int> = []
     var playing = false
+    var rate = 1.0
     func begin(index: Int, at time: TimeInterval) throws { received[index] = Data(); if renderIndex == nil { renderIndex = index; position = time } }
     func append(_ data: Data, index: Int) throws { received[index, default: Data()].append(data) }
     func finish(index: Int) throws { finished.insert(index) }
     func load(_ response: SpeechResponse, at time: TimeInterval) throws {}
-    func play(rate: Double) { playing = true }
+    func play(rate: Double) { playing = true; self.rate = rate }
     func pause() { playing = false }
     func unload() { received = [:]; finished = []; renderIndex = nil; position = 0; ended = false }
     func seek(to time: TimeInterval) { position = time }
@@ -45,6 +46,11 @@ final class StreamingSpeechTests: XCTestCase {
         await service.send(.audio(Data(repeating: 0, count: 48000)), text: "A short paragraph.")
         for _ in 0..<100 where !transport.playing { try await Task.sleep(for: .milliseconds(2)) }
         XCTAssertEqual(player.state, .playing)
+        XCTAssertEqual(transport.rate, 1)
+        player.setRate(1.5)
+        XCTAssertEqual(transport.rate, 1.5)
+        let streamsAfterRate = await service.count()
+        XCTAssertEqual(streamsAfterRate, 2, "Faster playback must reuse the 1× PCM stream")
         XCTAssertFalse(transport.finished.contains(0))
         transport.position = 999; transport.waitingForAudio = true; player.tick()
         XCTAssertEqual(player.chunkIndex, 0); XCTAssertEqual(player.state, .buffering)
