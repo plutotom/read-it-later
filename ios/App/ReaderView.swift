@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import ReadingCore
 
 struct ReaderView: View {
@@ -6,6 +7,7 @@ struct ReaderView: View {
     @Environment(ListeningPlayer.self) private var player
     @Environment(SpeechSetup.self) private var speech
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     let id: String
     let expandPlayer: () -> Void
     @AppStorage("readerSize") private var readerSize = 19.0
@@ -27,6 +29,11 @@ struct ReaderView: View {
     @State private var followToken = 0
     @State private var showingOriginalWebsite = false
     @State private var showWebViewHint = false
+    @State private var restorePosition: ReadingPosition?
+    @State private var latestPosition: ReadingPosition?
+    @State private var lastPersisted: ReadingPosition?
+    @State private var lastPersistDate: Date?
+    @State private var progressHint = 0.0
     private var article: Article? { model.articles.first { $0.id == id } }
     private var originalWebsiteURL: URL? { article.flatMap { ArticleWebURL.parse($0.url) } }
     private var isWebView: Bool { showingOriginalWebsite && originalWebsiteURL != nil }
@@ -71,11 +78,19 @@ struct ReaderView: View {
                             Label(error, systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.orange)
                         }
                         if article.isDownloaded {
-                            HighlightTextView(text: article.text, highlights: highlights, fontSize: readerSize,
+                            HighlightTextView(articleID: id, text: article.text, highlights: highlights, fontSize: readerSize,
                                               activeRange: player.document?.articleID == id ? player.currentChunk?.range : nil,
                                               wordRange: player.document?.articleID == id ? player.wordRange : nil,
                                               followToken: followToken,
+                                              restorePosition: restorePosition,
                                               onFollowVisibilityChange: { followVisibility = $0 },
+                                              onReadingPositionChange: { position in
+                                latestPosition = position
+                                if abs(position.progress - progressHint) >= ReadingProgress.progressEpsilon {
+                                    progressHint = position.progress
+                                }
+                                persistReadingPosition(position)
+                            },
                                               play: { offset in
                                 preparationTask = Task { await listen(offset: offset) }
                             }) { range in
@@ -119,6 +134,22 @@ struct ReaderView: View {
                     }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .opacity(isWebView ? 0 : 1)
+                .overlay(alignment: .top) {
+                    if !isWebView {
+                        GeometryReader { geo in
+                            HStack(spacing: 0) {
+                                Rectangle()
+                                    .fill(Color.accentColor)
+                                    .frame(width: max(0, geo.size.width * progressHint), height: 2)
+                                Spacer(minLength: 0)
+                            }
+                        }
+                        .frame(height: 2)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                        .accessibilityIdentifier("readingProgress")
+                    }
+                }
                 .allowsHitTesting(!isWebView)
                 .accessibilityHidden(isWebView)
                 if isWebView, let url = originalWebsiteURL {
@@ -210,13 +241,27 @@ struct ReaderView: View {
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showingSnapshots = false } } }
             }
         }
-        .task(id: id) { loadAnnotations() }
+        .onAppear { loadReadingPosition() }
+        .task(id: id) {
+            loadAnnotations()
+            loadReadingPosition()
+        }
         .onChange(of: id) { _, _ in
+            persistReadingPosition(latestPosition, force: true)
             showingOriginalWebsite = false
             showWebViewHint = false
         }
         .onChange(of: model.contentRevision) { _, _ in loadAnnotations() }
-        .onDisappear { preparationTask?.cancel(); if let preparationID { player.cancelPreparation(preparationID) } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .inactive || phase == .background {
+                persistReadingPosition(latestPosition, force: true)
+            }
+        }
+        .onDisappear {
+            persistReadingPosition(latestPosition, force: true)
+            preparationTask?.cancel()
+            if let preparationID { player.cancelPreparation(preparationID) }
+        }
         .sheet(isPresented: $showingHighlights) {
             NavigationStack {
                 List {
@@ -254,10 +299,19 @@ struct ReaderView: View {
         }
         .sheet(isPresented: $editingNote) {
             NavigationStack {
-                TextEditor(text: $note).padding().accessibilityLabel("Article note")
+                TextEditor(text: $note)
+                    .padding()
+                    .accessibilityLabel("Article note")
+                    .scrollDismissesKeyboard(.interactively)
                     .navigationTitle("Your note")
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) { Button("Cancel") { editingNote = false } }
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Done") {
+                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            }
+                        }
                         ToolbarItem(placement: .confirmationAction) { Button("Save") {
                             if model.mutate({ library in
                                 if model.annotationSyncEnabled {
@@ -322,5 +376,24 @@ struct ReaderView: View {
     private func loadHighlights() {
         do { highlights = try model.highlights(articleId: id) }
         catch { model.error = error.localizedDescription }
+    }
+
+    private func loadReadingPosition() {
+        guard restorePosition?.articleId != id else { return }
+        let saved = model.readingPosition(for: id)
+        restorePosition = saved
+        latestPosition = saved
+        lastPersisted = saved
+        lastPersistDate = nil
+        progressHint = saved?.progress ?? 0
+    }
+
+    private func persistReadingPosition(_ position: ReadingPosition?, force: Bool = false) {
+        guard let position, position.articleId == id else { return }
+        guard ReadingProgress.isMeaningfulChange(position, from: lastPersisted) else { return }
+        guard ReadingProgress.shouldPersist(previous: lastPersistDate, now: Date(), force: force) else { return }
+        model.saveReadingPosition(position)
+        lastPersisted = position
+        lastPersistDate = Date()
     }
 }

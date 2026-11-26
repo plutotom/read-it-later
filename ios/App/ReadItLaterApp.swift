@@ -290,4 +290,12 @@ private struct AccountReader: View {
     func highlights(articleId: String) throws -> [Highlight] {
         try library?.highlights(articleId: articleId) ?? []
     }
+
+    func readingPosition(for id: String) -> ReadingPosition? {
+        try? library?.readingPosition(articleId: id)
+    }
+
+    func saveReadingPosition(_ position: ReadingPosition) {
+        try? library?.saveReadingPosition(position)
+    }
 }
