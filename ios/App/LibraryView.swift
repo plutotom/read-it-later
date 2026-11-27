@@ -185,6 +185,7 @@ struct LibraryView: View {
                 if let article = deleteTarget, model.mutate({ try $0.delete(id: article.id) }), player.document?.articleID == article.id { player.close() }
                 deleteTarget = nil
             }
+            Button("Cancel", role: .cancel) { deleteTarget = nil }
         }
     }
 

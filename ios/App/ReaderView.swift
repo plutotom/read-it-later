@@ -6,6 +6,8 @@ struct ReaderView: View {
     @Environment(ListeningPlayer.self) private var player
     @Environment(SpeechSetup.self) private var speech
     @Environment(\.openURL) private var openURL
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let id: String
     let expandPlayer: () -> Void
     @AppStorage("readerSize") private var readerSize = 19.0
@@ -27,6 +29,9 @@ struct ReaderView: View {
     @State private var followToken = 0
     @State private var showingOriginalWebsite = false
     @State private var showWebViewHint = false
+    @State private var showingMenu = false
+    @State private var showingDelete = false
+    @State private var chromeHeight: CGFloat = 76
     private var article: Article? { model.articles.first { $0.id == id } }
     private var originalWebsiteURL: URL? { article.flatMap { ArticleWebURL.parse($0.url) } }
     private var isWebView: Bool { showingOriginalWebsite && originalWebsiteURL != nil }
@@ -46,24 +51,12 @@ struct ReaderView: View {
                     VStack(alignment: .leading, spacing: 22) {
                         Text(URL(string: article.url)?.host ?? "Article").font(.subheadline).foregroundStyle(.secondary)
                         Text(article.title).font(.largeTitle.bold())
-                        HStack {
-                            Button { beginNote(article: article) } label: {
-                                Label("Add a note", systemImage: "square.and.pencil")
-                            }.buttonStyle(.bordered)
-                            Button { model.mutate { try $0.toggleRead(id: id) } } label: {
-                                Label(article.isRead ? "Read" : "Mark read", systemImage: article.isRead ? "checkmark.circle.fill" : "checkmark.circle")
-                            }.buttonStyle(.bordered)
-                        }
                         if article.isDownloaded || !highlights.isEmpty {
-                            Button { showingHighlights = true } label: {
+                            Button { showingHighlights = true; showingMenu = false } label: {
                                 Label("Highlights (\(highlights.count))", systemImage: "highlighter")
                             }.accessibilityIdentifier("showHighlights")
                         }
                         if article.isDownloaded {
-                            Button {
-                                preparationTask = Task { await listen(offset: nil) }
-                            } label: { Label(preparingAudio ? "Preparing…" : speech.accountMode && !speech.usingAccountPreview ? "Listen" : player.isSilentPreview ? "Try listening preview" : "Listen", systemImage: "headphones") }
-                                .buttonStyle(.bordered).disabled(preparingAudio).accessibilityIdentifier("startListening")
                             Text("\(player.isSilentPreview ? "Silent preview · " : "")Tap a paragraph to play from there. Long-press to select and highlight text.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
@@ -132,44 +125,13 @@ struct ReaderView: View {
                     .background(.background)
                 }
                 }
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu {
-                            if originalWebsiteURL != nil {
-                                if isWebView {
-                                    Button("Switch to Reader view", systemImage: "book") {
-                                        showWebViewHint = false
-                                        showingOriginalWebsite = false
-                                    }
-                                    .accessibilityIdentifier("switchArticleView")
-                                } else {
-                                    Button("Switch to Web view", systemImage: "globe") { showOriginalWebsite() }
-                                        .accessibilityIdentifier("switchArticleView")
-                                }
-                            }
-                            Button(article.isRead ? "Mark unread" : "Mark read", systemImage: "checkmark.circle") { model.mutate { try $0.toggleRead(id: id) } }
-                            Button(article.isArchived ? "Move to Inbox" : "Archive", systemImage: "archivebox") { model.mutate { try $0.toggleArchived(id: id) } }
-                            Button(model.annotationSyncEnabled ? "Add a note" : "Edit note", systemImage: "square.and.pencil") { beginNote(article: article) }
-                            if model.syncEnabled {
-                                Button("Saved text versions", systemImage: "clock.arrow.circlepath") { snapshots = model.textSnapshots(id); showingSnapshots = true }
-                            }
-                            if let url = ArticleOriginalSite.url(from: article.url) {
-                                Button("View original site", systemImage: "safari") { openURL(url) }
-                                    .accessibilityIdentifier("viewOriginalSite")
-                            }
-                            if !isWebView {
-                                Button("Larger text", systemImage: "textformat.size.larger") { readerSize = min(30, readerSize + 2) }
-                                Button("Smaller text", systemImage: "textformat.size.smaller") { readerSize = max(15, readerSize - 2) }
-                            }
-                            if let url = ArticleWebURL.parse(article.url) { ShareLink(item: url) }
-                        } label: { Label("Reading options", systemImage: "ellipsis.circle") }
-                    }
-                }
+                .navigationBarBackButtonHidden(true)
+                .toolbar(.hidden, for: .navigationBar)
             } else { ContentUnavailableView("Article not found", systemImage: "doc") }
         }
         .safeAreaInset(edge: .bottom, spacing: 8) {
-            if !isWebView {
-                VStack(spacing: 8) {
+            VStack(spacing: 8) {
+                if !isWebView {
                     if showSpokenFollowButton {
                         Button { followToken += 1 } label: {
                             Label("Spoken text", systemImage: followVisibility == .visible(direction: .up) ? "arrow.up.to.line" : "arrow.down.to.line")
@@ -188,13 +150,70 @@ struct ReaderView: View {
                     }
                     if player.document != nil { MiniListeningPlayer(player: player, expand: expandPlayer) }
                 }
+                if article != nil {
+                    ReaderActionBar(
+                        context: chromeContext,
+                        shareURL: originalWebsiteURL,
+                        menuOpen: showingMenu,
+                        onBack: { showingMenu = false; dismiss() },
+                        onToggleMenu: {
+                            withAnimation(menuAnimation) { showingMenu.toggle() }
+                        },
+                        onAction: handleChromeAction
+                    )
+                }
+            }
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: ReaderChromeHeightKey.self, value: proxy.size.height)
+                }
+            )
+        }
+        .onPreferenceChange(ReaderChromeHeightKey.self) { chromeHeight = $0 }
+        .overlay {
+            if showingMenu {
+                VStack(spacing: 0) {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            withAnimation(menuAnimation) { showingMenu = false }
+                        }
+                        .accessibilityLabel("Dismiss reading options")
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityIdentifier("dismissReadingOptions")
+                    Color.clear.frame(height: chromeHeight)
+                }
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if showingMenu, article != nil {
+                VStack(spacing: 10) {
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        ReaderOverflowMenu(
+                            context: chromeContext,
+                            shareURL: originalWebsiteURL,
+                            onDismiss: {
+                                withAnimation(menuAnimation) { showingMenu = false }
+                            },
+                            onAction: handleChromeAction
+                        )
+                    }
+                    Color.clear.frame(height: chromeHeight)
+                }
+                .allowsHitTesting(true)
             }
         }
         .animation(.snappy, value: showSpokenFollowButton)
+        .animation(menuAnimation, value: showingMenu)
         .navigationBarTitleDisplayMode(.inline)
         .alert("Could not start listening", isPresented: Binding(get: { audioError != nil }, set: { if !$0 { audioError = nil } })) {
             Button("OK") { audioError = nil }
         } message: { Text(audioError ?? "") }
+        .confirmationDialog(model.syncEnabled ? "Delete this article from your account?" : "Delete article and its note from this iPhone?", isPresented: $showingDelete, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) { deleteArticle() }
+            Button("Cancel", role: .cancel) { showingDelete = false }
+        }
         .alert("Could not update note", isPresented: Binding(get: { noteError != nil && !editingNote }, set: { if !$0 { noteError = nil } })) {
             Button("OK") { noteError = nil }
         } message: { Text(noteError ?? "") }
@@ -214,6 +233,7 @@ struct ReaderView: View {
         .onChange(of: id) { _, _ in
             showingOriginalWebsite = false
             showWebViewHint = false
+            showingMenu = false
         }
         .onChange(of: model.contentRevision) { _, _ in loadAnnotations() }
         .onDisappear { preparationTask?.cancel(); if let preparationID { player.cancelPreparation(preparationID) } }
@@ -280,6 +300,79 @@ struct ReaderView: View {
         }
     }
 
+    private var menuAnimation: Animation? { reduceMotion ? nil : .snappy }
+
+    private var listenTitle: String {
+        if preparingAudio { return "Preparing…" }
+        if speech.accountMode && !speech.usingAccountPreview { return "Listen" }
+        return player.isSilentPreview ? "Try listening preview" : "Listen"
+    }
+
+    private var chromeContext: ReaderActionCatalog.Context {
+        let article = article
+        return ReaderActionCatalog.Context(
+            isWebView: isWebView,
+            canSwitchView: originalWebsiteURL != nil,
+            isRead: article?.isRead ?? false,
+            isArchived: article?.isArchived ?? false,
+            annotationSyncEnabled: model.annotationSyncEnabled,
+            canListen: article?.isDownloaded == true,
+            listenTitle: listenTitle,
+            highlightCount: highlights.count,
+            showHighlights: article?.isDownloaded == true || !highlights.isEmpty,
+            canViewOriginalSite: article.flatMap { ArticleOriginalSite.url(from: $0.url) } != nil,
+            canShare: originalWebsiteURL != nil,
+            showSavedVersions: model.syncEnabled,
+            preparingAudio: preparingAudio
+        )
+    }
+
+    private func handleChromeAction(_ kind: ReaderActionCatalog.Kind) {
+        if kind != .more {
+            withAnimation(menuAnimation) { showingMenu = false }
+        }
+        switch kind {
+        case .listen:
+            preparationTask = Task { await listen(offset: nil) }
+        case .notes:
+            if let article { beginNote(article: article) }
+        case .highlights:
+            showingHighlights = true
+        case .markRead:
+            model.mutate { try $0.toggleRead(id: id) }
+        case .archive:
+            model.mutate { try $0.toggleArchived(id: id) }
+        case .delete:
+            showingDelete = true
+        case .switchView:
+            if isWebView {
+                showWebViewHint = false
+                showingOriginalWebsite = false
+            } else {
+                showOriginalWebsite()
+            }
+        case .viewOriginalSite:
+            if let article, let url = ArticleOriginalSite.url(from: article.url) { openURL(url) }
+        case .largerText:
+            readerSize = min(30, readerSize + 2)
+        case .smallerText:
+            readerSize = max(15, readerSize - 2)
+        case .savedVersions:
+            snapshots = model.textSnapshots(id)
+            showingSnapshots = true
+        case .share, .more:
+            break
+        }
+    }
+
+    private func deleteArticle() {
+        let playing = player.document?.articleID == id
+        if model.mutate({ try $0.delete(id: id) }) {
+            if playing { player.close() }
+            dismiss()
+        }
+    }
+
     @MainActor private func listen(offset: Int?) async {
         guard !preparingAudio, let initial = article else { return }
         let intent = player.beginPreparation(); preparationID = intent
@@ -322,5 +415,12 @@ struct ReaderView: View {
     private func loadHighlights() {
         do { highlights = try model.highlights(articleId: id) }
         catch { model.error = error.localizedDescription }
+    }
+}
+
+private struct ReaderChromeHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 76
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
