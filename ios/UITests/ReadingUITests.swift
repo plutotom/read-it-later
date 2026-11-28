@@ -23,6 +23,7 @@ final class ReadingUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.staticTexts["A shared web article"].waitForExistence(timeout: 20))
         app.staticTexts["A shared web article"].tap()
+        app.buttons["Reading options"].tap()
         app.buttons["Mark read"].tap()
         app.buttons["Paper Drive"].tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "waiting to sync")).firstMatch.waitForExistence(timeout: 10))
@@ -322,7 +323,7 @@ final class ReadingUITests: XCTestCase {
         attachment.name = "Spoken text above mini player"
         attachment.lifetime = .keepAlways
         add(attachment)
-        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["readerBack"].tap()
         XCTAssertTrue(app.buttons["expandPlayer"].waitForExistence(timeout: 5), "The library must keep its mini player after leaving the reader")
         XCTAssertEqual(app.buttons.matching(identifier: "expandPlayer").count, 1)
         XCTAssertFalse(jump.exists)
@@ -358,7 +359,7 @@ final class ReadingUITests: XCTestCase {
         app.buttons["expandPlayer"].tap()
         seekAndPause()
         XCTAssertTrue(jump.waitForExistence(timeout: 5), "Finishing must not erase the cached offscreen direction needed after seeking")
-        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["readerBack"].tap()
         app.cells.containing(.staticText, identifier: "An offline test article").firstMatch.tap()
         XCTAssertTrue(jump.waitForExistence(timeout: 5), "Reopening a paused article must restore the offscreen control")
         assertJumpIsAboveMiniPlayer(app)
@@ -418,7 +419,7 @@ final class ReadingUITests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
         app.buttons["Done"].tap()
-        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["readerBack"].tap()
         XCTAssertTrue(expand.waitForExistence(timeout: 5))
         app.buttons["Close listening player"].tap()
         XCTAssertFalse(expand.exists)
@@ -436,8 +437,13 @@ final class ReadingUITests: XCTestCase {
         menu.lifetime = .keepAlways
         add(menu)
         app.buttons["articleContextDelete"].tap()
-        XCTAssertTrue(app.buttons["Cancel"].waitForExistence(timeout: 5))
-        app.buttons["Cancel"].tap()
+        let cancel = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Cancel")).firstMatch
+        if cancel.waitForExistence(timeout: 5) {
+            cancel.tap()
+        } else {
+            XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Delete article")).firstMatch.waitForExistence(timeout: 3))
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
+        }
         XCTAssertTrue(article.exists)
     }
 
@@ -497,6 +503,7 @@ final class ReadingUITests: XCTestCase {
         editor.typeText("An offline note")
         app.buttons["Save"].tap()
         XCTAssertTrue(app.staticTexts["An offline note"].waitForExistence(timeout: 5))
+        app.buttons["Reading options"].tap()
         app.buttons["Mark read"].tap()
         app.buttons["Reading options"].tap()
         app.buttons["Archive"].tap()
@@ -520,11 +527,21 @@ final class ReadingUITests: XCTestCase {
         let article = app.staticTexts["An offline test article"]
         XCTAssertTrue(article.waitForExistence(timeout: 15))
         article.tap()
+        XCTAssertTrue(app.buttons["startListening"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["readerBack"].exists)
         XCTAssertTrue(app.buttons["Reading options"].waitForExistence(timeout: 5))
         app.buttons["Reading options"].tap()
+        XCTAssertTrue(app.otherElements["readerOverflowMenu"].waitForExistence(timeout: 5) || app.buttons["View original site"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["View original site"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Archive"].exists)
+        XCTAssertTrue(app.buttons["Delete article"].exists)
+        XCTAssertTrue(app.buttons["Notes"].exists)
+        XCTAssertTrue(app.buttons["Larger text"].exists)
+        XCTAssertTrue(app.buttons["Share"].exists)
         XCTAssertFalse(app.buttons["Favorite"].exists)
+        XCTAssertFalse(app.buttons["Summarize"].exists)
+        XCTAssertFalse(app.buttons["Speed Read"].exists)
+        XCTAssertFalse(app.buttons["Tags"].exists)
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Reading options with View original site"
         attachment.lifetime = .keepAlways
