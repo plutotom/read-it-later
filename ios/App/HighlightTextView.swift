@@ -26,8 +26,11 @@ struct HighlightTextView: UIViewRepresentable {
     let activeRange: NSRange?
     let wordRange: NSRange?
     var followToken: Int = 0
+    var readingEnabled = true
+    var positionLoaded = false
     var restorePosition: ReadingPosition? = nil
     var onFollowVisibilityChange: (SpokenTextFollowVisibility) -> Void = { _ in }
+    var onReadingProgressChange: (Double) -> Void = { _ in }
     var onReadingPositionChange: (ReadingPosition) -> Void = { _ in }
     let play: (Int) -> Void
     let save: (NSRange) -> Bool
@@ -37,16 +40,9 @@ struct HighlightTextView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeUIView(context: Context) -> UITextView {
-        let view = ReaderTextView()
+        let view = ReaderTextView(usingTextLayoutManager: false)
         context.coordinator.textView = view
-        view.onAttach = { [weak coordinator = context.coordinator] in
-            DispatchQueue.main.async {
-                guard let coordinator, let textView = coordinator.textView, textView.window != nil else { return }
-                coordinator.observeEnclosingScrollView(from: textView)
-                coordinator.prepareRestoreIfNeeded()
-                coordinator.publishVisibility()
-            }
-        }
+        view.onLayout = { [weak coordinator = context.coordinator] in coordinator?.requestUpdate() }
         view.isEditable = false
         view.isSelectable = true
         view.isScrollEnabled = false
@@ -67,38 +63,16 @@ struct HighlightTextView: UIViewRepresentable {
     }
 
     func updateUIView(_ view: UITextView, context: Context) {
-        context.coordinator.parent = self
-        context.coordinator.textView = view
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.lineSpacing = 7
-        let font = UIFontMetrics(forTextStyle: .body).scaledFont(for: UIFont(name: "Georgia", size: fontSize) ?? .systemFont(ofSize: fontSize))
-        let attributed = NSMutableAttributedString(string: text, attributes: [.font: font, .foregroundColor: UIColor.label, .paragraphStyle: paragraph])
-        for highlight in highlights {
-            guard let range = highlight.range(in: text) else { continue }
-            attributed.addAttribute(.backgroundColor, value: highlight.color.uiColor.withAlphaComponent(colorScheme == .dark ? 0.38 : 0.3), range: range)
-        }
-        for (range, opacity) in [(activeRange, 0.12), (wordRange, 0.32)] {
-            if let range, range.location >= 0, range.length > 0, NSMaxRange(range) <= attributed.length {
-                attributed.addAttribute(.backgroundColor, value: UIColor.systemIndigo.withAlphaComponent(opacity), range: range)
-            }
-        }
-        if !view.attributedText.isEqual(to: attributed) {
-            let selection = view.selectedRange
-            view.attributedText = attributed
-            if selection.location <= attributed.length && selection.length <= attributed.length - selection.location { view.selectedRange = selection }
-        }
-        context.coordinator.observeEnclosingScrollView(from: view)
-        context.coordinator.prepareRestoreIfNeeded()
-        context.coordinator.publishVisibility()
-        if context.coordinator.lastFollowToken != followToken {
-            context.coordinator.lastFollowToken = followToken
-            if followToken > 0 { context.coordinator.scrollSpokenTextIntoView() }
-        }
+        // Read the environment so SwiftUI updates the attributed text when Dynamic Type changes.
+        let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
+        let baseFont = UIFont(name: "Georgia", size: fontSize) ?? .systemFont(ofSize: fontSize)
+        let font = UIFontMetrics(forTextStyle: .body).scaledFont(for: baseFont, compatibleWith: traits)
+        context.coordinator.update(self, font: font, darkMode: colorScheme == .dark)
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
         guard let width = proposal.width, width > 0 else { return nil }
-        return uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        return context.coordinator.textSize(in: uiView, width: width)
     }
 
     @MainActor final class Coordinator: NSObject, UITextViewDelegate, @preconcurrency UIEditMenuInteractionDelegate {
@@ -107,204 +81,332 @@ struct HighlightTextView: UIViewRepresentable {
         weak var selectedView: UITextView?
         weak var textView: UITextView?
         var paragraphSelection: NSRange?
-        var lastFollowToken = 0
+        private struct Layout: Equatable {
+            let boundsSize: CGSize
+            let contentHeight: CGFloat
+            let insets: UIEdgeInsets
+            let textFrame: CGRect
+
+            var range: (min: CGFloat, max: CGFloat) {
+                ReadingProgress.scrollRange(
+                    contentHeight: contentHeight,
+                    boundsHeight: boundsSize.height,
+                    topInset: insets.top,
+                    bottomInset: insets.bottom
+                )
+            }
+
+            func movesText(comparedTo previous: Self) -> Bool {
+                boundsSize.width != previous.boundsSize.width || insets.top != previous.insets.top
+                    || textFrame != previous.textFrame
+            }
+        }
+
+        private struct SpokenJump {
+            let range: NSRange
+            var target: CGFloat?
+        }
+
+        private var baseText: NSAttributedString?
+        private var renderedFont: UIFont?
+        private var renderedDarkMode = false
+        private var contentHash = ""
+        private var fittedText: CGSize?
+        private var fitWidth: CGFloat?
+        private var lastFollowToken: Int
+        private var spokenJump: SpokenJump?
         private var lastVisibility: SpokenTextFollowVisibility?
-        private var scrollObservation: NSKeyValueObservation?
-        private var contentSizeObservation: NSKeyValueObservation?
-        private var boundsObservation: NSKeyValueObservation?
+        private var lastProgress: Double?
+        private var observations: [NSKeyValueObservation] = []
         private weak var observedScroll: UIScrollView?
-        private var restoreArticleID: String?
-        private var restoreFontSize: Double?
-        private var pendingRestore: ReadingPosition?
-        private var lastCaptured: ReadingPosition?
+        private var updateQueued = false
+        private var offsetChanged = false
+        private var userScrolled = false
+        private var settingOffset = false
+        private var lastOffsetY: CGFloat?
+        private var lastLayout: Layout?
+        private var needsReanchor = false
+        private var resumingReader = false
         private var didInitialRestore = false
-        private var lastRestoreBounds = CGSize.zero
-        private var lastRestoreContentHeight: CGFloat = 0
-        private var isRestoring = false
-        init(_ parent: HighlightTextView) { self.parent = parent }
-        deinit {
-            scrollObservation?.invalidate()
-            contentSizeObservation?.invalidate()
-            boundsObservation?.invalidate()
+        private var readingAnchor: ReadingPosition?
+
+        init(_ parent: HighlightTextView) {
+            self.parent = parent
+            lastFollowToken = parent.followToken
         }
 
-        func observeEnclosingScrollView(from view: UIView) {
-            guard let scroll = enclosingScrollView(from: view) else { return }
-            if observedScroll === scroll { return }
-            scrollObservation?.invalidate()
-            contentSizeObservation?.invalidate()
-            boundsObservation?.invalidate()
-            observedScroll = scroll
-            scrollObservation = scroll.observe(\.contentOffset, options: [.new]) { [weak self] _, _ in
-                DispatchQueue.main.async { self?.handleScroll() }
-            }
-            contentSizeObservation = scroll.observe(\.contentSize, options: [.new]) { [weak self] _, _ in
-                DispatchQueue.main.async { self?.restoreIfNeeded() }
-            }
-            boundsObservation = scroll.observe(\.bounds, options: [.new]) { [weak self] _, _ in
-                DispatchQueue.main.async { self?.restoreIfNeeded() }
-            }
-        }
+        func update(_ next: HighlightTextView, font: UIFont, darkMode: Bool) {
+            guard let textView else { return }
+            let textChanged = baseText == nil || !ReadingProgress.matchesText(parent.text, next.text)
+            let fontChanged = renderedFont != font
+            let styleChanged = textChanged || fontChanged || renderedDarkMode != darkMode
+                || parent.highlights != next.highlights
+            let speechChanged = parent.activeRange != next.activeRange || parent.wordRange != next.wordRange
 
-        func prepareRestoreIfNeeded() {
-            let fontChanged = restoreFontSize.map { abs($0 - parent.fontSize) > 0.1 } ?? false
-            if restoreArticleID != parent.articleID {
-                restoreArticleID = parent.articleID
-                restoreFontSize = parent.fontSize
-                pendingRestore = parent.restorePosition
-                lastCaptured = parent.restorePosition
-                didInitialRestore = false
-                lastRestoreBounds = .zero
-                lastRestoreContentHeight = 0
-            } else if fontChanged {
-                restoreFontSize = parent.fontSize
-                lastRestoreBounds = .zero
-                lastRestoreContentHeight = 0
-            } else if pendingRestore == nil, let incoming = parent.restorePosition {
-                pendingRestore = incoming
-                if lastCaptured == nil {
-                    lastCaptured = incoming
-                    didInitialRestore = false
-                    lastRestoreBounds = .zero
-                    lastRestoreContentHeight = 0
+            if textChanged {
+                contentHash = Highlight.contentHash(next.text)
+                spokenJump = nil
+            }
+            if textChanged || fontChanged {
+                needsReanchor = true
+                fittedText = nil
+            }
+            if parent.readingEnabled != next.readingEnabled {
+                resumingReader = next.readingEnabled
+                offsetChanged = false
+                userScrolled = false
+                spokenJump = nil
+            }
+            parent = next
+
+            if styleChanged {
+                let paragraph = NSMutableParagraphStyle()
+                paragraph.lineSpacing = 7
+                let attributed = NSMutableAttributedString(
+                    string: next.text,
+                    attributes: [.font: font, .foregroundColor: UIColor.label, .paragraphStyle: paragraph]
+                )
+                for highlight in next.highlights {
+                    guard let range = highlight.range(in: next.text) else { continue }
+                    attributed.addAttribute(
+                        .backgroundColor,
+                        value: highlight.color.uiColor.withAlphaComponent(darkMode ? 0.38 : 0.3),
+                        range: range
+                    )
+                }
+                baseText = attributed
+                renderedFont = font
+                renderedDarkMode = darkMode
+            }
+            if (styleChanged || speechChanged), let baseText {
+                let attributed = NSMutableAttributedString(attributedString: baseText)
+                for (range, opacity) in [(next.activeRange, 0.12), (next.wordRange, 0.32)] {
+                    if let range, range.location >= 0, range.length > 0, NSMaxRange(range) <= attributed.length {
+                        attributed.addAttribute(.backgroundColor, value: UIColor.systemIndigo.withAlphaComponent(opacity), range: range)
+                    }
+                }
+                let selection = textView.selectedRange
+                textView.attributedText = attributed
+                if selection.location <= attributed.length && selection.length <= attributed.length - selection.location {
+                    textView.selectedRange = selection
                 }
             }
-            restoreIfNeeded()
+
+            if lastFollowToken != next.followToken {
+                lastFollowToken = next.followToken
+                spokenJump = spokenRange().map { SpokenJump(range: $0) }
+            }
+            requestUpdate()
         }
 
-        private func handleScroll() {
-            if isRestoring { return }
-            if !didInitialRestore {
-                restoreIfNeeded()
-                return
-            }
-            capturePosition()
-            publishVisibility()
+        func textSize(in textView: UITextView, width: CGFloat) -> CGSize {
+            if fitWidth == width, let fittedText { return fittedText }
+            let size = textView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+            fitWidth = width
+            fittedText = size
+            return size
         }
 
-        private func restoreIfNeeded() {
-            guard !isRestoring, let textView, let scroll = enclosingScrollView(from: textView) else { return }
-            let bounds = scroll.bounds.size
-            let height = scroll.contentSize.height
-            let geometryChanged = bounds != lastRestoreBounds || abs(height - lastRestoreContentHeight) > 2
-            if didInitialRestore && !geometryChanged { return }
-            guard let saved = lastCaptured ?? pendingRestore else {
-                didInitialRestore = true
-                lastRestoreBounds = bounds
-                lastRestoreContentHeight = height
+        private func observe(_ scroll: UIScrollView) {
+            guard observedScroll !== scroll else { return }
+            observedScroll = scroll
+            lastLayout = nil
+            lastOffsetY = nil
+            offsetChanged = false
+            userScrolled = false
+            needsReanchor = true
+            observations = [
+                scroll.observe(\.contentOffset, options: [.old, .new]) { [weak self] scroll, change in
+                    guard change.oldValue?.y != change.newValue?.y else { return }
+                    MainActor.assumeIsolated {
+                        guard let self, self.observedScroll === scroll, !self.settingOffset else { return }
+                        self.offsetChanged = true
+                        self.userScrolled = self.userScrolled || scroll.isTracking || scroll.isDragging || scroll.isDecelerating
+                        self.requestUpdate()
+                    }
+                },
+                scroll.observe(\.contentSize) { [weak self] _, _ in
+                    MainActor.assumeIsolated { self?.requestUpdate() }
+                },
+                scroll.observe(\.adjustedContentInset) { [weak self] _, _ in
+                    MainActor.assumeIsolated { self?.requestUpdate() }
+                },
+                scroll.observe(\.bounds, options: [.old, .new]) { [weak self] _, change in
+                    guard change.oldValue?.size != change.newValue?.size else { return }
+                    MainActor.assumeIsolated { self?.requestUpdate() }
+                }
+            ]
+        }
+
+        func requestUpdate() {
+            guard !updateQueued else { return }
+            updateQueued = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.updateQueued = false
+                self.updateScroll()
+            }
+        }
+
+        private func updateScroll() {
+            guard let textView, textView.window != nil, let scroll = enclosingScrollView(from: textView) else { return }
+            observe(scroll)
+            guard parent.readingEnabled else {
+                publish(.hidden)
                 return
             }
+            guard baseText != nil, textView.bounds.width > 0, scroll.bounds.height > 0 else { return }
             textView.layoutIfNeeded()
-            scroll.layoutIfNeeded()
-            let range = scrollRange(of: scroll)
-            let count = textView.attributedText?.length ?? parent.text.utf16.count
-            guard ReadingProgress.layoutLooksReady(utf16Count: count, minOffsetY: range.min, maxOffsetY: range.max) else { return }
-            guard let anchor = ReadingProgress.resolve(
-                saved: saved,
-                currentHash: Highlight.contentHash(parent.text),
-                utf16Count: count
-            ) else {
+            let layout = Layout(
+                boundsSize: scroll.bounds.size,
+                contentHeight: scroll.contentSize.height,
+                insets: scroll.adjustedContentInset,
+                textFrame: textView.convert(textView.bounds, to: scroll)
+            )
+            let fittedHeight = textSize(in: textView, width: textView.bounds.width).height
+            guard ReadingProgress.layoutMatches(textFrame: layout.textFrame, fittedHeight: fittedHeight, contentHeight: layout.contentHeight) else { return }
+
+            let moved = offsetChanged && lastOffsetY != scroll.contentOffset.y
+            let movedByUser = moved && userScrolled
+            offsetChanged = false
+            userScrolled = false
+            defer { lastOffsetY = scroll.contentOffset.y }
+            let layoutChanged = layout != lastLayout
+            let initialRestore = parent.positionLoaded && !didInitialRestore
+            if initialRestore {
+                readingAnchor = parent.restorePosition.flatMap { $0.articleId == parent.articleID ? $0 : nil }
                 didInitialRestore = true
-                return
             }
+            let textMoved = lastLayout.map { layout.movesText(comparedTo: $0) } ?? true
+            // Bottom chrome can resize the viewport without moving the text. Reapply
+            // a bottom or fractional anchor when its scroll range changes.
+            let usesScrollRange = readingAnchor.map { $0.progress == 1 || $0.contentHash != contentHash } ?? false
+            let reanchor = needsReanchor || textMoved || (layoutChanged && usesScrollRange)
+            let resumeOffset = resumingReader ? lastOffsetY : nil
+            resumingReader = false
+            needsReanchor = false
+            lastLayout = layout
+
+            // An explicit jump takes precedence over restoring the old reading anchor.
+            if scroll.isTracking || scroll.isDragging {
+                spokenJump = nil
+            }
+            if let jump = spokenJump, let rect = spokenRect(for: jump.range, in: textView) {
+                let finished = follow(rect: rect, in: textView, scroll: scroll, layout: layout, layoutChanged: layoutChanged || reanchor)
+                if finished && didInitialRestore {
+                    capturePosition(in: textView, scroll: scroll, layout: layout)
+                }
+            } else if initialRestore || (reanchor && !movedByUser) {
+                restore(in: textView, scroll: scroll, layout: layout)
+            } else if let resumeOffset, !movedByUser {
+                let range = layout.range
+                setOffset(min(max(resumeOffset, range.min), range.max), in: scroll, animated: false)
+            } else if didInitialRestore && moved && (!layoutChanged || movedByUser) {
+                capturePosition(in: textView, scroll: scroll, layout: layout)
+            }
+
+            publishProgress(scroll: scroll, layout: layout)
+            publishVisibility(in: textView, scroll: scroll, layout: layout)
+        }
+
+        private func restore(in textView: UITextView, scroll: UIScrollView, layout: Layout) {
+            guard let readingAnchor, let anchor = ReadingProgress.resolve(
+                saved: readingAnchor,
+                currentHash: contentHash,
+                utf16Count: textView.attributedText.length
+            ) else { return }
+            let range = layout.range
             let target: CGFloat
             switch anchor {
             case .utf16Offset(let offset):
-                guard let rect = characterRect(offset: offset, in: textView) else { return }
-                let rectInScroll = textView.convert(rect, to: scroll)
-                if offset > 80 && rectInScroll.minY < 24 { return }
+                let manager = textView.layoutManager
+                let glyph = manager.glyphIndexForCharacter(at: offset)
+                guard glyph < manager.numberOfGlyphs else { return }
+                let line = manager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
+                    .offsetBy(dx: textView.textContainerInset.left, dy: textView.textContainerInset.top)
                 target = ReadingProgress.targetOffsetY(
-                    anchorMinYInScrollContent: rectInScroll.minY,
-                    topInset: scroll.adjustedContentInset.top,
+                    anchorMinYInScrollContent: textView.convert(line, to: scroll).minY,
+                    topInset: layout.insets.top,
                     minOffsetY: range.min,
                     maxOffsetY: range.max
                 )
             case .fraction(let fraction):
                 target = ReadingProgress.offsetY(progress: fraction, minOffsetY: range.min, maxOffsetY: range.max)
             }
-            isRestoring = true
-            if abs(scroll.contentOffset.y - target) >= 1 {
-                scroll.setContentOffset(CGPoint(x: scroll.contentOffset.x, y: target), animated: false)
-            }
-            isRestoring = false
-            lastRestoreBounds = scroll.bounds.size
-            lastRestoreContentHeight = scroll.contentSize.height
-            didInitialRestore = true
-            publishVisibility()
+            setOffset(target, in: scroll, animated: false)
         }
 
-        private func capturePosition() {
-            guard let textView, let scroll = enclosingScrollView(from: textView) else { return }
-            let range = scrollRange(of: scroll)
-            let progress = ReadingProgress.progress(offsetY: scroll.contentOffset.y, minOffsetY: range.min, maxOffsetY: range.max)
-            let position = ReadingPosition(
-                articleId: parent.articleID,
-                contentHash: Highlight.contentHash(parent.text),
-                utf16Offset: visibleUTF16Offset(in: textView, scroll: scroll),
-                progress: progress
-            )
-            lastCaptured = position
-            parent.onReadingPositionChange(position)
+        private func setOffset(_ target: CGFloat, in scroll: UIScrollView, animated: Bool) {
+            guard abs(scroll.contentOffset.y - target) >= 0.5 else { return }
+            // UIKit notifies KVO during the assignment. Suppress that event before
+            // queuing scroll work, and handle animated jumps until they reach their target.
+            settingOffset = true
+            defer { settingOffset = false }
+            scroll.setContentOffset(CGPoint(x: scroll.contentOffset.x, y: target), animated: animated)
         }
 
-        private func scrollRange(of scroll: UIScrollView) -> (min: CGFloat, max: CGFloat) {
-            ReadingProgress.scrollRange(
-                contentHeight: scroll.contentSize.height,
-                boundsHeight: scroll.bounds.height,
-                topInset: scroll.adjustedContentInset.top,
-                bottomInset: scroll.adjustedContentInset.bottom
-            )
-        }
-
-        private func visibleUTF16Offset(in textView: UITextView, scroll: UIScrollView) -> Int {
-            let visible = scroll.bounds.inset(by: scroll.adjustedContentInset)
-            let pointInText = scroll.convert(CGPoint(x: visible.midX, y: visible.minY + 8), to: textView)
+        private func capturePosition(in textView: UITextView, scroll: UIScrollView, layout: Layout) {
+            let range = layout.range
+            guard range.max > range.min else { return }
+            // Sample the first visible line. Its width can change during reflow.
+            let point = scroll.convert(CGPoint(
+                x: layout.textFrame.minX + textView.textContainerInset.left,
+                y: scroll.bounds.minY + layout.insets.top + ReadingProgress.restoreContextAbove
+            ), to: textView)
             let containerPoint = CGPoint(
-                x: pointInText.x - textView.textContainerInset.left,
-                y: pointInText.y - textView.textContainerInset.top
+                x: point.x - textView.textContainerInset.left,
+                y: point.y - textView.textContainerInset.top
             )
             let offset = textView.layoutManager.characterIndex(
                 for: containerPoint,
                 in: textView.textContainer,
                 fractionOfDistanceBetweenInsertionPoints: nil
             )
-            return ReadingProgress.clampedUTF16Offset(offset, count: textView.attributedText?.length ?? 0)
+            let position = ReadingPosition(
+                articleId: parent.articleID,
+                contentHash: contentHash,
+                utf16Offset: ReadingProgress.clampedUTF16Offset(offset, count: textView.attributedText.length),
+                progress: ReadingProgress.progress(offsetY: scroll.contentOffset.y, minOffsetY: range.min, maxOffsetY: range.max)
+            )
+            guard ReadingProgress.isMeaningfulChange(position, from: readingAnchor) else { return }
+            readingAnchor = position
+            parent.onReadingPositionChange(position)
         }
 
-        private func characterRect(offset: Int, in textView: UITextView) -> CGRect? {
-            spokenRect(for: NSRange(location: offset, length: 1), in: textView)
+        private func publishProgress(scroll: UIScrollView, layout: Layout) {
+            let range = layout.range
+            let progress = ReadingProgress.progress(offsetY: scroll.contentOffset.y, minOffsetY: range.min, maxOffsetY: range.max)
+            if let lastProgress, !ReadingProgress.progressChanged(progress, from: lastProgress) { return }
+            lastProgress = progress
+            parent.onReadingProgressChange(progress)
         }
 
-        func publishVisibility() {
-            guard let textView else { publish(.hidden); return }
-            textView.layoutIfNeeded()
-            guard let range = spokenRange() else { publish(.hidden); return }
-            guard let scroll = enclosingScrollView(from: textView),
-                  let rect = spokenRect(for: range, in: textView) else {
+        private func publishVisibility(in textView: UITextView, scroll: UIScrollView, layout: Layout) {
+            guard let range = spokenRange(), let rect = spokenRect(for: range, in: textView) else {
                 publish(.hidden)
                 return
             }
             let rectInScroll = textView.convert(rect, to: scroll)
-            let visible = scroll.bounds.inset(by: scroll.adjustedContentInset)
+            let visible = scroll.bounds.inset(by: layout.insets)
             publish(SpokenTextScroll.visibility(spokenRectInVisibleBounds: rectInScroll, visibleBounds: visible))
         }
 
-        func scrollSpokenTextIntoView() {
-            guard let textView, let range = spokenRange(),
-                  let scroll = enclosingScrollView(from: textView) else { return }
-            textView.layoutIfNeeded()
-            scroll.layoutIfNeeded()
-            guard let rect = spokenRect(for: range, in: textView) else { return }
-            let rectInScroll = textView.convert(rect, to: scroll)
-            let minOffset = -scroll.adjustedContentInset.top
-            let maxOffset = max(minOffset, scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
-            let target = SpokenTextScroll.targetOffsetY(
-                spokenMinYInScrollContent: rectInScroll.minY,
-                topInset: scroll.adjustedContentInset.top,
-                minOffsetY: minOffset,
-                maxOffsetY: maxOffset
-            )
-            scroll.setContentOffset(CGPoint(x: scroll.contentOffset.x, y: target), animated: true)
+        private func follow(rect: CGRect, in textView: UITextView, scroll: UIScrollView, layout: Layout, layoutChanged: Bool) -> Bool {
+            if spokenJump?.target == nil || layoutChanged {
+                let range = layout.range
+                let target = SpokenTextScroll.targetOffsetY(
+                    spokenMinYInScrollContent: textView.convert(rect, to: scroll).minY,
+                    topInset: layout.insets.top,
+                    minOffsetY: range.min,
+                    maxOffsetY: range.max
+                )
+                let animate = spokenJump?.target == nil
+                spokenJump?.target = target
+                setOffset(target, in: scroll, animated: animate)
+            }
+            guard let target = spokenJump?.target, abs(scroll.contentOffset.y - target) < 0.5 else { return false }
+            spokenJump = nil
+            return true
         }
 
         private func spokenRange() -> NSRange? {
@@ -335,7 +437,7 @@ struct HighlightTextView: UIViewRepresentable {
         private func publish(_ visibility: SpokenTextFollowVisibility) {
             guard visibility != lastVisibility else { return }
             lastVisibility = visibility
-            DispatchQueue.main.async { [parent] in parent.onFollowVisibilityChange(visibility) }
+            parent.onFollowVisibilityChange(visibility)
         }
 
         @objc func selectParagraph(_ gesture: UITapGestureRecognizer) {
@@ -376,11 +478,21 @@ struct HighlightTextView: UIViewRepresentable {
     }
 }
 
-/// A paused session will not tick again to refresh geometry after the reader is mounted.
 private final class ReaderTextView: UITextView {
-    var onAttach: (() -> Void)?
+    var onLayout: (() -> Void)?
+
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        if window != nil { onAttach?() }
+        onLayout?()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        onLayout?()
+    }
+
+    override func safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+        onLayout?()
     }
 }

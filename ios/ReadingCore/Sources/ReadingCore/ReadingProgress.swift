@@ -1,8 +1,8 @@
 import Foundation
 import GRDB
 
-/// Per-article reading location. Prefer `utf16Offset` when the article text is unchanged;
-/// `progress` is a 0...1 fallback after a text replacement.
+/// Per-article reading location. Use `utf16Offset` in unchanged text and `progress`
+/// at the scroll edges or after a text replacement.
 public struct ReadingPosition: Codable, FetchableRecord, Equatable, Sendable {
     public static let databaseTableName = "reading_position"
     public var articleId: String
@@ -66,20 +66,35 @@ public enum ReadingProgress {
     ) -> Bool {
         if force { return true }
         guard let previous else { return true }
-        return now.timeIntervalSince(previous) >= interval
+        return now >= previous.addingTimeInterval(interval)
     }
 
     public static func isMeaningfulChange(_ next: ReadingPosition, from previous: ReadingPosition?) -> Bool {
         guard let previous else { return true }
         if next.articleId != previous.articleId || next.contentHash != previous.contentHash { return true }
         if next.utf16Offset != previous.utf16Offset { return true }
-        return abs(next.progress - previous.progress) >= progressEpsilon
+        return progressChanged(next.progress, from: previous.progress)
     }
 
-    /// Prefer the UTF-16 character when the saved text still matches; otherwise the scroll fraction.
+    public static func progressChanged(_ progress: Double, from previous: Double) -> Bool {
+        edge(at: progress) != edge(at: previous) || abs(progress - previous) >= progressEpsilon
+    }
+
+    /// Hashes and UTF-16 offsets refer to the exact text, including its Unicode representation.
+    public static func matchesText(_ first: String, _ second: String) -> Bool {
+        let contiguousMatch = first.utf8.withContiguousStorageIfAvailable { left in
+            second.utf8.withContiguousStorageIfAvailable { right in
+                left.count == right.count && (left.baseAddress == right.baseAddress || left.elementsEqual(right))
+            }
+        }.flatMap { $0 }
+        return contiguousMatch ?? first.utf8.elementsEqual(second.utf8)
+    }
+
+    /// Keep the scroll edges and prefer the UTF-16 character within unchanged text.
     public static func resolve(saved: ReadingPosition, currentHash: String, utf16Count: Int) -> ReadingProgressAnchor? {
         let fraction = ReadingPosition.clampedProgress(saved.progress)
         if utf16Count <= 0 { return fraction > 0 ? .fraction(fraction) : nil }
+        if let edge = edge(at: fraction) { return .fraction(edge) }
         if saved.contentHash == currentHash {
             return .utf16Offset(clampedUTF16Offset(saved.utf16Offset, count: utf16Count))
         }
@@ -114,10 +129,17 @@ public enum ReadingProgress {
         )
     }
 
-    /// True when a long article still reports a tiny scrollable range — layout has not settled.
-    public static func layoutLooksReady(utf16Count: Int, minOffsetY: CGFloat, maxOffsetY: CGFloat) -> Bool {
-        if utf16Count < 400 { return true }
-        return (maxOffsetY - minOffsetY) >= 8
+    /// The measured text must fit its assigned frame, and that frame must belong to the
+    /// enclosing scroll view's current content layout. A short article can fit entirely onscreen.
+    public static func layoutMatches(textFrame: CGRect, fittedHeight: CGFloat, contentHeight: CGFloat) -> Bool {
+        textFrame.width > 0 && fittedHeight > 0
+            && abs(textFrame.height - fittedHeight) <= 1
+            && textFrame.maxY <= contentHeight + 1
+    }
+
+    private static func edge(at progress: Double) -> Double? {
+        if progress == 0 || progress == 1 { return progress }
+        return nil
     }
 }
 
@@ -136,7 +158,7 @@ extension Library {
         }
     }
 
-    public func saveReadingPosition(_ position: ReadingPosition) throws {
+    @discardableResult public func saveReadingPosition(_ position: ReadingPosition) throws -> Bool {
         let value = ReadingPosition(
             articleId: position.articleId,
             contentHash: position.contentHash,
@@ -144,8 +166,8 @@ extension Library {
             progress: position.progress,
             updatedAt: position.updatedAt
         )
-        try database.write { db in
-            guard try Article.fetchOne(db, key: value.articleId) != nil else { return }
+        return try database.write { db in
+            guard try Article.exists(db, key: value.articleId) else { return false }
             try db.execute(
                 sql: """
                 INSERT INTO reading_position (articleId, contentHash, utf16Offset, progress, updatedAt)
@@ -158,6 +180,7 @@ extension Library {
                 """,
                 arguments: [value.articleId, value.contentHash, value.utf16Offset, value.progress, value.updatedAt]
             )
+            return true
         }
     }
 

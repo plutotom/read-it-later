@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import ReadingCore
+import OSLog
 
 struct ReaderView: View {
     @Bindable var model: LibraryModel
@@ -31,26 +32,33 @@ struct ReaderView: View {
     @State private var followToken = 0
     @State private var showingOriginalWebsite = false
     @State private var showWebViewHint = false
-    @State private var restorePosition: ReadingPosition?
+    @State private var loadedPositionArticleID: String?
     @State private var latestPosition: ReadingPosition?
     @State private var lastPersisted: ReadingPosition?
-    @State private var lastPersistDate: Date?
+    @State private var lastWriteAttempt: Date?
+    @State private var positionSaveTask: Task<Void, Never>?
     @State private var progressHint = 0.0
+    @State private var readerVisible = false
     @State private var showingMenu = false
     @State private var showingDelete = false
     @State private var chromeHeight: CGFloat = 76
     private var article: Article? { model.articles.first { $0.id == id } }
     private var originalWebsiteURL: URL? { article.flatMap { ArticleWebURL.parse($0.url) } }
     private var isWebView: Bool { showingOriginalWebsite && originalWebsiteURL != nil }
-    private var spokenAnchor: SpokenTextAnchor? { player.spokenTextAnchor(forArticleID: id) }
-    private var showSpokenFollowButton: Bool {
-        SpokenTextScroll.shouldShowButton(
-            sessionAllows: spokenAnchor != nil,
-            visibility: followVisibility
-        )
+    private static let readingPositionLog = Logger(subsystem: "com.isaiahproctor.readitlater", category: "reading-position")
+
+    private func playingTextMatches(_ article: Article) -> Bool {
+        guard let document = player.document, document.articleID == id else { return false }
+        return ReadingProgress.matchesText(document.text, article.text)
     }
 
     var body: some View {
+        let article = article
+        let textMatches = article.map(playingTextMatches) == true
+        let showSpokenFollowButton = SpokenTextScroll.shouldShowButton(
+            sessionAllows: textMatches && player.spokenTextAnchor(forArticleID: id) != nil,
+            visibility: followVisibility
+        )
         Group {
             if let article {
                 ZStack {
@@ -72,17 +80,18 @@ struct ReaderView: View {
                         }
                         if article.isDownloaded {
                             HighlightTextView(articleID: id, text: article.text, highlights: highlights, fontSize: readerSize,
-                                              activeRange: player.document?.articleID == id ? player.currentChunk?.range : nil,
-                                              wordRange: player.document?.articleID == id ? player.wordRange : nil,
+                                              activeRange: textMatches ? player.currentChunk?.range : nil,
+                                              wordRange: textMatches ? player.wordRange : nil,
                                               followToken: followToken,
-                                              restorePosition: restorePosition,
+                                              readingEnabled: readerVisible && !isWebView && scenePhase == .active,
+                                              positionLoaded: loadedPositionArticleID == id,
+                                              restorePosition: latestPosition,
                                               onFollowVisibilityChange: { followVisibility = $0 },
+                                              onReadingProgressChange: { progressHint = $0 },
                                               onReadingPositionChange: { position in
+                                guard readerVisible, !isWebView, loadedPositionArticleID == position.articleId else { return }
                                 latestPosition = position
-                                if abs(position.progress - progressHint) >= ReadingProgress.progressEpsilon {
-                                    progressHint = position.progress
-                                }
-                                persistReadingPosition(position)
+                                persistReadingPosition(for: position.articleId)
                             },
                                               play: { offset in
                                 preparationTask = Task { await listen(offset: offset) }
@@ -126,9 +135,10 @@ struct ReaderView: View {
                         if let url = ArticleWebURL.parse(article.url) { Link("Open original website", destination: url) }
                     }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .id(id)
                 .opacity(isWebView ? 0 : 1)
                 .overlay(alignment: .top) {
-                    if !isWebView {
+                    if article.isDownloaded && !isWebView {
                         GeometryReader { geo in
                             HStack(spacing: 0) {
                                 Rectangle()
@@ -138,6 +148,7 @@ struct ReaderView: View {
                             }
                         }
                         .frame(height: 2)
+                        .transaction { $0.animation = nil }
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
                         .accessibilityIdentifier("readingProgress")
@@ -260,25 +271,42 @@ struct ReaderView: View {
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showingSnapshots = false } } }
             }
         }
-        .onAppear { loadReadingPosition() }
+        .onAppear {
+            readerVisible = true
+            loadReadingPosition()
+            persistReadingPosition(for: id)
+        }
         .task(id: id) {
             loadAnnotations()
-            loadReadingPosition()
         }
-        .onChange(of: id) { _, _ in
-            persistReadingPosition(latestPosition, force: true)
+        .onChange(of: id) { previousID, _ in
+            persistReadingPosition(for: previousID, force: true)
+            loadedPositionArticleID = nil
+            latestPosition = nil
+            lastPersisted = nil
+            lastWriteAttempt = nil
+            progressHint = 0
+            followVisibility = .hidden
             showingOriginalWebsite = false
             showWebViewHint = false
             showingMenu = false
+            loadReadingPosition()
         }
-        .onChange(of: model.contentRevision) { _, _ in loadAnnotations() }
+        .onChange(of: model.contentRevision) { _, _ in
+            loadAnnotations()
+            loadReadingPosition()
+        }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .inactive || phase == .background {
-                persistReadingPosition(latestPosition, force: true)
+            if phase == .active {
+                loadReadingPosition()
+                persistReadingPosition(for: id)
+            } else {
+                persistReadingPosition(for: id, force: true)
             }
         }
         .onDisappear {
-            persistReadingPosition(latestPosition, force: true)
+            readerVisible = false
+            persistReadingPosition(for: id, force: true)
             preparationTask?.cancel()
             if let preparationID { player.cancelPreparation(preparationID) }
         }
@@ -452,6 +480,7 @@ struct ReaderView: View {
     }
 
     @MainActor private func showOriginalWebsite() {
+        persistReadingPosition(for: id, force: true)
         player.pause()
         if !showingOriginalWebsite {
             showWebViewHint = ArticleWebViewHintStore.consumeFirstVisit(articleID: id)
@@ -477,22 +506,45 @@ struct ReaderView: View {
     }
 
     private func loadReadingPosition() {
-        guard restorePosition?.articleId != id else { return }
-        let saved = model.readingPosition(for: id)
-        restorePosition = saved
-        latestPosition = saved
-        lastPersisted = saved
-        lastPersistDate = nil
-        progressHint = saved?.progress ?? 0
+        guard loadedPositionArticleID != id, article != nil else { return }
+        do {
+            let saved = try model.readingPosition(for: id)
+            latestPosition = saved
+            lastPersisted = saved
+            loadedPositionArticleID = id
+        } catch {
+            Self.readingPositionLog.error("Could not load reading position: \(error.localizedDescription, privacy: .private)")
+        }
     }
 
-    private func persistReadingPosition(_ position: ReadingPosition?, force: Bool = false) {
-        guard let position, position.articleId == id else { return }
-        guard ReadingProgress.isMeaningfulChange(position, from: lastPersisted) else { return }
-        guard ReadingProgress.shouldPersist(previous: lastPersistDate, now: Date(), force: force) else { return }
-        model.saveReadingPosition(position)
-        lastPersisted = position
-        lastPersistDate = Date()
+    private func persistReadingPosition(for articleID: String, force: Bool = false) {
+        if force {
+            positionSaveTask?.cancel()
+            positionSaveTask = nil
+        }
+        guard let position = latestPosition, position.articleId == articleID,
+              ReadingProgress.isMeaningfulChange(position, from: lastPersisted) else { return }
+        let now = Date()
+        if !ReadingProgress.shouldPersist(previous: lastWriteAttempt, now: now, force: force),
+           let lastWriteAttempt {
+            guard positionSaveTask == nil else { return }
+            let remaining = lastWriteAttempt.addingTimeInterval(ReadingProgress.persistInterval).timeIntervalSince(now)
+            positionSaveTask = Task { @MainActor in
+                do { try await Task.sleep(for: .seconds(remaining)) }
+                catch { return }
+                guard !Task.isCancelled else { return }
+                positionSaveTask = nil
+                persistReadingPosition(for: articleID)
+            }
+            return
+        }
+        lastWriteAttempt = now
+        do {
+            guard try model.saveReadingPosition(position) else { return }
+            lastPersisted = position
+        } catch {
+            Self.readingPositionLog.error("Could not save reading position: \(error.localizedDescription, privacy: .private)")
+        }
     }
 }
 

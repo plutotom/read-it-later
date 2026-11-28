@@ -31,20 +31,20 @@ final class ReadingProgressTests: XCTestCase {
         let text = "First paragraph.\n\nSecond paragraph that is longer."
         let saved = ReadingPosition(
             articleId: "a",
-            contentHash: Highlight.contentHash(text),
+            contentHash: "original",
             utf16Offset: 24,
             progress: 0.41
         )
         XCTAssertEqual(
-            ReadingProgress.resolve(saved: saved, currentHash: Highlight.contentHash(text), utf16Count: text.utf16.count),
+            ReadingProgress.resolve(saved: saved, currentHash: "original", utf16Count: text.utf16.count),
             .utf16Offset(24)
         )
         XCTAssertEqual(
-            ReadingProgress.resolve(saved: saved, currentHash: Highlight.contentHash(text + " extra"), utf16Count: text.utf16.count + 6),
+            ReadingProgress.resolve(saved: saved, currentHash: "edited", utf16Count: text.utf16.count + 6),
             .fraction(0.41)
         )
         XCTAssertEqual(
-            ReadingProgress.resolve(saved: saved, currentHash: Highlight.contentHash(text), utf16Count: 0),
+            ReadingProgress.resolve(saved: saved, currentHash: "original", utf16Count: 0),
             .fraction(0.41)
         )
         XCTAssertNil(ReadingProgress.resolve(
@@ -52,6 +52,24 @@ final class ReadingProgressTests: XCTestCase {
             currentHash: "y",
             utf16Count: 0
         ))
+    }
+
+    func testTextIdentityUsesExactBytesForUTF16Anchors() {
+        let first = "Caf\u{00E9}"
+        let decomposed = "Cafe\u{0301}"
+        XCTAssertEqual(first, decomposed)
+        XCTAssertTrue(ReadingProgress.matchesText(first, first))
+        XCTAssertFalse(ReadingProgress.matchesText(first, decomposed))
+        XCTAssertFalse(ReadingProgress.matchesText("First line", "Other line"))
+        let longText = String(repeating: first, count: 200)
+        XCTAssertTrue(ReadingProgress.matchesText(longText, String(decoding: Array(longText.utf8), as: UTF8.self)))
+    }
+
+    func testResolveKeepsTopAndBottomIncludingReaderHeaderAndFooter() {
+        let top = ReadingPosition(articleId: "a", contentHash: "hash", utf16Offset: 0, progress: 0)
+        let bottom = ReadingPosition(articleId: "a", contentHash: "hash", utf16Offset: 82, progress: 1)
+        XCTAssertEqual(ReadingProgress.resolve(saved: top, currentHash: "hash", utf16Count: 100), .fraction(0))
+        XCTAssertEqual(ReadingProgress.resolve(saved: bottom, currentHash: "hash", utf16Count: 100), .fraction(1))
     }
 
     func testResolveClampsUTF16OffsetToCurrentText() {
@@ -78,6 +96,13 @@ final class ReadingProgressTests: XCTestCase {
         XCTAssertTrue(ReadingProgress.isMeaningfulChange(first, from: nil))
     }
 
+    func testProgressChangesAtAnEdgeEvenWithinEpsilon() {
+        XCTAssertTrue(ReadingProgress.progressChanged(0, from: 0.001))
+        XCTAssertTrue(ReadingProgress.progressChanged(0.001, from: 0))
+        XCTAssertTrue(ReadingProgress.progressChanged(1, from: 0.999))
+        XCTAssertFalse(ReadingProgress.progressChanged(1, from: 1))
+    }
+
     func testTargetOffsetPlacesAnchorNearTopThenClamps() {
         let mid = ReadingProgress.targetOffsetY(
             anchorMinYInScrollContent: 1500,
@@ -91,15 +116,35 @@ final class ReadingProgressTests: XCTestCase {
             3200
         )
         XCTAssertEqual(
-            ReadingProgress.targetOffsetY(anchorMinYInScrollContent: 40, topInset: 47, minOffsetY: -47, maxOffsetY: 1800),
+            ReadingProgress.targetOffsetY(anchorMinYInScrollContent: 4, topInset: 47, minOffsetY: -47, maxOffsetY: 1800),
             -47
         )
     }
 
-    func testLayoutLooksReadyWaitsOnLongArticlesWithNoScrollRange() {
-        XCTAssertTrue(ReadingProgress.layoutLooksReady(utf16Count: 80, minOffsetY: 0, maxOffsetY: 0))
-        XCTAssertFalse(ReadingProgress.layoutLooksReady(utf16Count: 8_000, minOffsetY: -48, maxOffsetY: -48))
-        XCTAssertTrue(ReadingProgress.layoutLooksReady(utf16Count: 8_000, minOffsetY: -48, maxOffsetY: 2_400))
+    func testReflowKeepsTheSameTextAboveChangingBottomChrome() {
+        let portrait = ReadingProgress.scrollRange(contentHeight: 4000, boundsHeight: 700, topInset: 48, bottomInset: 80)
+        let wider = ReadingProgress.scrollRange(contentHeight: 3000, boundsHeight: 440, topInset: 12, bottomInset: 125)
+        let firstY = ReadingProgress.targetOffsetY(
+            anchorMinYInScrollContent: 1600, topInset: 48, minOffsetY: portrait.min, maxOffsetY: portrait.max
+        )
+        let reflowedY = ReadingProgress.targetOffsetY(
+            anchorMinYInScrollContent: 900, topInset: 12, minOffsetY: wider.min, maxOffsetY: wider.max
+        )
+        XCTAssertEqual(1600 - firstY - 48, ReadingProgress.restoreContextAbove)
+        XCTAssertEqual(900 - reflowedY - 12, ReadingProgress.restoreContextAbove)
+        XCTAssertNotEqual(
+            ReadingProgress.progress(offsetY: firstY, minOffsetY: portrait.min, maxOffsetY: portrait.max),
+            ReadingProgress.progress(offsetY: reflowedY, minOffsetY: wider.min, maxOffsetY: wider.max)
+        )
+    }
+
+    func testLayoutReadinessWaitsForTextReflowAndParentLayout() {
+        let textFrame = CGRect(x: 24, y: 180, width: 310, height: 320)
+        XCTAssertTrue(ReadingProgress.layoutMatches(textFrame: textFrame, fittedHeight: 320, contentHeight: 560))
+        XCTAssertFalse(ReadingProgress.layoutMatches(textFrame: textFrame, fittedHeight: 450, contentHeight: 560))
+        XCTAssertFalse(ReadingProgress.layoutMatches(textFrame: textFrame, fittedHeight: 210, contentHeight: 560))
+        XCTAssertFalse(ReadingProgress.layoutMatches(textFrame: textFrame, fittedHeight: 320, contentHeight: 490))
+        XCTAssertFalse(ReadingProgress.layoutMatches(textFrame: .zero, fittedHeight: 320, contentHeight: 560))
     }
 
     func testScrollRangeMatchesUIKitContentOffsetLimits() {
@@ -126,8 +171,10 @@ final class ReadingProgressTests: XCTestCase {
             utf16Offset: 240,
             progress: 0.37
         )
-        try library.saveReadingPosition(position)
-        try library.saveReadingPosition(ReadingPosition(articleId: "missing", contentHash: "x", utf16Offset: 1, progress: 1))
+        XCTAssertTrue(try library.saveReadingPosition(position))
+        XCTAssertFalse(try library.saveReadingPosition(
+            ReadingPosition(articleId: "missing", contentHash: "x", utf16Offset: 1, progress: 1)
+        ))
         let reopened = try Library(path: path)
         let restored = try XCTUnwrap(reopened.readingPosition(articleId: article.id))
         XCTAssertEqual(restored.utf16Offset, 240)

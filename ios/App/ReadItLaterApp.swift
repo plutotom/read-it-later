@@ -291,11 +291,19 @@ private struct AccountReader: View {
         try library?.highlights(articleId: articleId) ?? []
     }
 
-    func readingPosition(for id: String) -> ReadingPosition? {
-        try? library?.readingPosition(articleId: id)
+    func readingPosition(for id: String) throws -> ReadingPosition? {
+        guard let library else { throw ReadingPositionStorageError.libraryUnavailable }
+        return try library.readingPosition(articleId: id)
     }
 
-    func saveReadingPosition(_ position: ReadingPosition) {
-        try? library?.saveReadingPosition(position)
+    func saveReadingPosition(_ position: ReadingPosition) throws -> Bool {
+        guard let library else { throw ReadingPositionStorageError.libraryUnavailable }
+        return try library.saveReadingPosition(position)
     }
+}
+
+private enum ReadingPositionStorageError: LocalizedError {
+    case libraryUnavailable
+
+    var errorDescription: String? { "The local article library is unavailable." }
 }
