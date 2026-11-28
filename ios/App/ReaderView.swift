@@ -328,9 +328,6 @@ struct ReaderView: View {
     }
 
     private func handleChromeAction(_ kind: ReaderActionCatalog.Kind) {
-        if kind != .more {
-            withAnimation(menuAnimation) { showingMenu = false }
-        }
         switch kind {
         case .listen:
             preparationTask = Task { await listen(offset: nil) }
@@ -363,6 +360,14 @@ struct ReaderView: View {
         case .share, .more:
             break
         }
+        dismissOverflowMenu(after: kind)
+    }
+
+    /// Keep Larger/Smaller text on the card so the size can be stepped while the
+    /// article reflows behind it. Other overflow actions still close the menu.
+    private func dismissOverflowMenu(after kind: ReaderActionCatalog.Kind) {
+        guard kind != .more, kind != .largerText, kind != .smallerText else { return }
+        withAnimation(menuAnimation) { showingMenu = false }
     }
 
     private func deleteArticle() {
