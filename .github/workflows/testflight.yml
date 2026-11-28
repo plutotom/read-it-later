@@ -49,10 +49,10 @@ jobs:
     runs-on: xcode-27
     timeout-minutes: 60
     env:
-      # Last committed CURRENT_PROJECT_VERSION in ios/project.yml was 8.
-      # Run 5 computed build 12 but failed the entitlements dump before
-      # upload, so offset is 6 until the next successful run (run 6 → 12).
-      TESTFLIGHT_BUILD_OFFSET: "6"
+      # project.yml is 0.2.1 (23). Offset + GITHUB_RUN_NUMBER must land on 23+
+      # so TestFlight gets a new version line, not another 0.2.0 (16).
+      # Next dispatch is run 12 → 11 + 12 = 23.
+      TESTFLIGHT_BUILD_OFFSET: "11"
       APP_GROUP: group.com.isaiahproctor.readitlater
       APPLE_TEAM_ID: 3CVY7K9AJ6
 

@@ -110,7 +110,7 @@ cancel an upload already in progress.
    device signing). The job then ad-hoc-signs the app and Share Extension with
    `codesign --generate-entitlement-der` so the binary carries
    `group.com.isaiahproctor.readitlater`, and writes xcent. Marketing version
-   stays `MARKETING_VERSION` in `project.yml` (currently 0.2.0). The build
+   stays `MARKETING_VERSION` in `project.yml` (currently 0.2.1). The build
    number is `TESTFLIGHT_BUILD_OFFSET + github.run_number`, passed only to
    `xcodebuild` — nothing is committed back.
 6. Cloud-signs a **local IPA**, then fails the job unless that IPA’s code
