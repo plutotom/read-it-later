@@ -46,7 +46,7 @@ permissions:
 jobs:
   upload:
     name: Archive and upload
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 60
     env:
       # Last committed CURRENT_PROJECT_VERSION in ios/project.yml was 8.
@@ -79,16 +79,18 @@ jobs:
       - name: Select Xcode accepted by App Store Connect
         run: |
           set -euo pipefail
-          # Uploads have required Xcode 26+ / iOS 26 SDK since 2026-04-28.
-          # macos-26 currently defaults to 26.6; pick that, else newest 26.x.
+          # ITMS-90725: from 2027-04, uploads need Xcode 27 / iOS 27 SDK.
+          # macos-26 only ships Xcode 26.x; the xcode-27 image has 27.2 / 27.1 / 27.0.
           candidate=""
-          if [ -d /Applications/Xcode_26.6.app ]; then
-            candidate=/Applications/Xcode_26.6.app
+          if [ -d /Applications/Xcode_27.2.app ]; then
+            candidate=/Applications/Xcode_27.2.app
+          elif [ -d /Applications/Xcode_27.1.app ]; then
+            candidate=/Applications/Xcode_27.1.app
           else
-            candidate="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n 1 || true)"
+            candidate="$(ls -d /Applications/Xcode_27*.app 2>/dev/null | grep -v beta | sort -V | tail -n 1 || true)"
           fi
           if [ -z "${candidate}" ]; then
-            echo "::error::No Xcode 26.x found. App Store Connect requires Xcode 26 or later."
+            echo "::error::No Xcode 27.x found. App Store Connect requires Xcode 27 / iOS 27 SDK (ITMS-90725)."
             ls -d /Applications/Xcode*.app 2>/dev/null || true
             exit 1
           fi

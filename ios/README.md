@@ -87,7 +87,7 @@ with “App Store Connect access is required.”
 
 ### Automated upload (GitHub Actions)
 
-`.github/workflows/testflight.yml` archives on a `macos-26` runner and uploads with
+`.github/workflows/testflight.yml` archives on an `xcode-27` runner and uploads with
 `ios/ExportOptions-TestFlight.plist` (`destination: upload`, internal-testing-only).
 This is a **fallback** when the laptop cannot build. Run it only when a human asks.
 
@@ -102,8 +102,8 @@ cancel an upload already in progress.
 **What the job does**
 
 1. Fails immediately if the App Store Connect API secrets below are missing.
-2. Selects Xcode 26.6 (or the newest installed 26.x). App Store Connect has required
-   Xcode 26+ / the iOS 26 SDK since 2026-04-28.
+2. Selects Xcode 27.2 (or the newest installed 27.x). App Store Connect warned
+   `ITMS-90725` on the iOS 26.5 SDK; from 2027-04 uploads need Xcode 27 / iOS 27.
 3. Runs `swift test` in `ios/ReadingCore` and stops if tests fail.
 4. Generates `ReadItLater.xcodeproj` from `project.yml` with XcodeGen.
 5. Archives an **unsigned** device build (iOS 26’s `xcodebuild` rejects ad-hoc
