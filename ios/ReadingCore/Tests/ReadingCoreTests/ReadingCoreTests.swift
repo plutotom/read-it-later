@@ -163,5 +163,13 @@ final class ReadingCoreTests: XCTestCase {
         XCTAssertTrue(article.isFavorite)
         _ = try upgraded.addHighlight(articleId: article.id, content: article.text, range: NSRange(location: 0, length: 4))
         XCTAssertEqual(try upgraded.highlights(articleId: article.id).count, 1)
+        XCTAssertNil(try upgraded.readingPosition(articleId: article.id))
+        try upgraded.saveReadingPosition(ReadingPosition(
+            articleId: article.id,
+            contentHash: Highlight.contentHash(article.text),
+            utf16Offset: 4,
+            progress: 0.1
+        ))
+        XCTAssertEqual(try upgraded.readingPosition(articleId: article.id)?.utf16Offset, 4)
     }
 }

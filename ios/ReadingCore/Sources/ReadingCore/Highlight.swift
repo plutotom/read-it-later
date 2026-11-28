@@ -6,7 +6,7 @@ public enum HighlightColor: String, Codable, CaseIterable, Sendable {
     case yellow, green, blue, pink, purple, orange, red, gray
 }
 
-public struct Highlight: Codable, FetchableRecord, PersistableRecord, Identifiable, Sendable {
+public struct Highlight: Codable, FetchableRecord, PersistableRecord, Identifiable, Sendable, Equatable {
     public static let databaseTableName = "highlight"
     public var id: String
     public var articleId: String

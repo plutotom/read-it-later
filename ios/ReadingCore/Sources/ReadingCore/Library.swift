@@ -96,6 +96,7 @@ public enum ArticleURL {
         }
         Self.registerNativeLibraryMigration(&migrator)
         Self.registerNativeAnnotationMigration(&migrator)
+        Self.registerReadingPositionMigration(&migrator)
         try migrator.migrate(database)
         annotationSyncEnabled = try database.read { try Bool.fetchOne($0, sql: "SELECT annotationsEnabled FROM native_sync_state WHERE singleton = 1") ?? false }
         if syncEnabled { try enableSync() }
